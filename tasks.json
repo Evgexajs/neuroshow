@@ -1,0 +1,1321 @@
+{
+  "project": "Neuroshow - AI Show Engine",
+  "version": "1.0.0",
+  "created_at": "2026-03-18",
+  "based_on": "PRD.md v1.3",
+
+  "agent_instructions": {
+    "before_start": [
+      "Прочитай этот файл и выполни: git log --oneline -20",
+      "Выбери ОДНУ задачу со статусом pending и наивысшим приоритетом",
+      "Проверь, что все dependencies этой задачи имеют статус done",
+      "Если зависимости не выполнены - выбери другую задачу"
+    ],
+    "during_work": [
+      "Работай только над выбранной задачей",
+      "Делай коммиты после каждого логического изменения",
+      "Не трогай код, не связанный с текущей задачей",
+      "Следуй структуре проекта из PRD.md раздел 6"
+    ],
+    "before_finish": [
+      "Выполни ВСЕ test_steps из задачи",
+      "Меняй status на done ТОЛЬКО после успешного прохождения всех тестов",
+      "Напиши summary в progress.md с датой и ID задачи",
+      "ЗАПРЕЩЕНО удалять или редактировать задачи - только менять status"
+    ],
+    "status_values": ["pending", "in_progress", "done", "blocked"],
+    "priority_order": ["critical", "high", "medium", "low"]
+  },
+
+  "tasks": [
+    {
+      "id": "TASK-001",
+      "category": "infrastructure",
+      "priority": "critical",
+      "description": "Инициализация проекта: package.json, tsconfig.json, структура директорий",
+      "acceptance_criteria": [
+        "package.json создан с зависимостями: typescript, better-sqlite3, fastify, openai, dotenv, vitest",
+        "tsconfig.json настроен для Node.js 20+ с strict mode",
+        "Структура директорий создана: src/{core,adapters,storage,api,types,formats}, web/debug-ui, data",
+        "npm install выполняется без ошибок",
+        "npm run build компилирует пустой проект"
+      ],
+      "test_steps": [
+        "Выполни: npm install",
+        "Выполни: npm run build",
+        "Проверь наличие всех директорий: ls -la src/",
+        "Ожидаемый результат: команды выполняются без ошибок"
+      ],
+      "dependencies": [],
+      "status": "pending"
+    },
+    {
+      "id": "TASK-002",
+      "category": "infrastructure",
+      "priority": "critical",
+      "description": "Настройка .env конфигурации и dotenv",
+      "acceptance_criteria": [
+        ".env.example создан с полями: OPENAI_API_KEY, OPENAI_DEFAULT_MODEL, TOKEN_BUDGET_PER_SHOW, PORT, DB_PATH, NODE_ENV, ADAPTER_MODE",
+        "src/config.ts экспортирует типизированный объект конфигурации",
+        "Конфигурация загружается из .env через dotenv",
+        ".env добавлен в .gitignore"
+      ],
+      "test_steps": [
+        "Создай .env на основе .env.example",
+        "Импортируй config в тестовый файл",
+        "Проверь, что config.port возвращает значение из .env",
+        "Ожидаемый результат: конфигурация читается корректно"
+      ],
+      "dependencies": ["TASK-001"],
+      "status": "pending"
+    },
+    {
+      "id": "TASK-003",
+      "category": "infrastructure",
+      "priority": "critical",
+      "description": "Настройка vitest для unit и integration тестов",
+      "acceptance_criteria": [
+        "vitest.config.ts создан",
+        "Структура tests/{unit,integration} создана",
+        "npm run test запускает тесты",
+        "npm run test:watch работает в watch-режиме",
+        "Пример теста проходит успешно"
+      ],
+      "test_steps": [
+        "Создай tests/unit/example.test.ts с простым тестом",
+        "Выполни: npm run test",
+        "Ожидаемый результат: тест проходит, vitest показывает зелёный статус"
+      ],
+      "dependencies": ["TASK-001"],
+      "status": "pending"
+    },
+    {
+      "id": "TASK-004",
+      "category": "infrastructure",
+      "priority": "high",
+      "description": "Утилиты: logger и генератор ID",
+      "acceptance_criteria": [
+        "src/utils/logger.ts создан с методами: info, warn, error, debug",
+        "src/utils/id.ts создан с функцией generateId() возвращающей UUID v4",
+        "Logger выводит timestamp и уровень логирования",
+        "В production режиме debug-логи не выводятся"
+      ],
+      "test_steps": [
+        "Импортируй logger и вызови logger.info('test')",
+        "Импортируй generateId и сгенерируй 3 ID",
+        "Проверь, что ID уникальны",
+        "Ожидаемый результат: логи выводятся с форматированием, ID уникальны"
+      ],
+      "dependencies": ["TASK-002"],
+      "status": "pending"
+    },
+    {
+      "id": "TASK-005",
+      "category": "functional",
+      "priority": "critical",
+      "description": "TypeScript типы: enums (EventType, ChannelType, CharacterIntent и др.)",
+      "acceptance_criteria": [
+        "src/types/enums.ts создан со всеми enum из PRD Appendix A",
+        "EventType: speech, host_trigger, phase_start, phase_end, channel_change, decision, revelation, private_injection, system",
+        "ChannelType: PUBLIC, PRIVATE, ZONE",
+        "CharacterIntent: speak, request_private, reveal_wildcard, end_turn, request_to_speak, request_interrupt",
+        "PhaseType: discussion, voting, private_talks, decision, revelation",
+        "ShowStatus: running, paused, completed, aborted",
+        "BudgetMode: normal, budget_saving, graceful_finish",
+        "SpeakFrequency: low, medium, high",
+        "Файл компилируется без ошибок"
+      ],
+      "test_steps": [
+        "Выполни: npm run build",
+        "Импортируй все enum в тестовый файл",
+        "Проверь, что EventType.speech === 'speech'",
+        "Ожидаемый результат: типы доступны и корректны"
+      ],
+      "dependencies": ["TASK-001"],
+      "status": "pending"
+    },
+    {
+      "id": "TASK-006",
+      "category": "functional",
+      "priority": "critical",
+      "description": "TypeScript типы: базовые структуры (ResponseConstraints, AllianceRecord, WildcardRecord, DecisionConfig)",
+      "acceptance_criteria": [
+        "src/types/primitives.ts создан",
+        "ResponseConstraints: maxTokens, format, language",
+        "AllianceRecord: partnerId, agreement, isActive",
+        "WildcardRecord: content, isRevealed",
+        "DecisionConfig: timing, visibility, revealMoment, format, options",
+        "PrivateChannelRules: initiator, maxPrivatesPerPhase, maxPrivatesPerCharacterPerPhase, requestQueueMode, requestFormat",
+        "DayConfig: dayIndex, label, phaseIds"
+      ],
+      "test_steps": [
+        "Создай объект типа DecisionConfig",
+        "Проверь автокомплит полей в IDE",
+        "Выполни: npm run build",
+        "Ожидаемый результат: компиляция успешна"
+      ],
+      "dependencies": ["TASK-005"],
+      "status": "pending"
+    },
+    {
+      "id": "TASK-007",
+      "category": "functional",
+      "priority": "critical",
+      "description": "TypeScript типы: ShowEvent и EventSummary",
+      "acceptance_criteria": [
+        "src/types/events.ts создан",
+        "ShowEvent содержит все поля из PRD: id, showId, timestamp, sequenceNumber, phaseId, type, channel, visibility, senderId, receiverIds, audienceIds, content, metadata, seed",
+        "EventSummary: упрощённая версия для Context Builder",
+        "Типы используют enum из enums.ts"
+      ],
+      "test_steps": [
+        "Создай mock-объект ShowEvent со всеми полями",
+        "Проверь, что channel и type принимают только значения из enum",
+        "Выполни: npm run build",
+        "Ожидаемый результат: компиляция успешна, типы строгие"
+      ],
+      "dependencies": ["TASK-005", "TASK-006"],
+      "status": "pending"
+    },
+    {
+      "id": "TASK-008",
+      "category": "functional",
+      "priority": "critical",
+      "description": "TypeScript типы: PrivateContext и ContextLayers",
+      "acceptance_criteria": [
+        "src/types/context.ts создан",
+        "PrivateContext: secrets, alliances, goals, wildcards",
+        "ContextLayers: factsList (string[]), slidingWindow (EventSummary[])",
+        "Типы используют AllianceRecord и WildcardRecord из primitives.ts"
+      ],
+      "test_steps": [
+        "Создай mock-объект PrivateContext",
+        "Создай mock-объект ContextLayers",
+        "Выполни: npm run build",
+        "Ожидаемый результат: компиляция успешна"
+      ],
+      "dependencies": ["TASK-006", "TASK-007"],
+      "status": "pending"
+    },
+    {
+      "id": "TASK-009",
+      "category": "functional",
+      "priority": "critical",
+      "description": "TypeScript типы: CharacterDefinition",
+      "acceptance_criteria": [
+        "src/types/character.ts создан",
+        "CharacterDefinition: id, name, publicCard, personalityPrompt, motivationPrompt, boundaryRules, startingPrivateContext, speakFrequency, responseConstraints",
+        "Тип использует PrivateContext и ResponseConstraints"
+      ],
+      "test_steps": [
+        "Создай mock CharacterDefinition для тестового персонажа",
+        "Проверь, что все поля обязательны",
+        "Выполни: npm run build",
+        "Ожидаемый результат: компиляция успешна"
+      ],
+      "dependencies": ["TASK-006", "TASK-008"],
+      "status": "pending"
+    },
+    {
+      "id": "TASK-010",
+      "category": "functional",
+      "priority": "critical",
+      "description": "TypeScript типы: Phase и ShowFormatTemplate",
+      "acceptance_criteria": [
+        "src/types/template.ts создан",
+        "Phase: id, name, type, durationMode, durationValue, turnOrder, allowedChannels, triggerTemplate, completionCondition, dayIndex?, slotLabel?",
+        "ShowFormatTemplate: id, name, description, minParticipants, maxParticipants, phases, days?, decisionConfig, channelTypes, privateChannelRules, contextWindowSize, allowCharacterInitiative?, scoringRules?, winCondition?",
+        "Типы используют все предыдущие интерфейсы"
+      ],
+      "test_steps": [
+        "Создай mock ShowFormatTemplate для формата 'Коалиция'",
+        "Проверь, что phases - массив Phase",
+        "Выполни: npm run build",
+        "Ожидаемый результат: компиляция успешна"
+      ],
+      "dependencies": ["TASK-005", "TASK-006"],
+      "status": "pending"
+    },
+    {
+      "id": "TASK-011",
+      "category": "functional",
+      "priority": "critical",
+      "description": "TypeScript типы: PromptPackage, CharacterResponse, интерфейсы ModelAdapter и IStore",
+      "acceptance_criteria": [
+        "src/types/adapter.ts создан",
+        "PromptPackage: systemPrompt, contextLayers, trigger, responseConstraints",
+        "CharacterResponse: text, intent?, target?, decisionValue?",
+        "ModelAdapter interface: providerId, modelId, call(prompt), estimateTokens(prompt)",
+        "src/types/interfaces/store.interface.ts создан с IStore",
+        "src/types/index.ts реэкспортирует все публичные типы"
+      ],
+      "test_steps": [
+        "Импортируй все типы из src/types/index.ts",
+        "Проверь, что ModelAdapter - это интерфейс с методом call()",
+        "Выполни: npm run build",
+        "Ожидаемый результат: все типы доступны через один импорт"
+      ],
+      "dependencies": ["TASK-008", "TASK-009", "TASK-010"],
+      "status": "pending"
+    },
+    {
+      "id": "TASK-012",
+      "category": "functional",
+      "priority": "critical",
+      "description": "TypeScript типы: Show (runtime state) и TokenBudgetState",
+      "acceptance_criteria": [
+        "src/types/runtime.ts создан",
+        "Show: id, formatId, seed, status, currentPhaseId, startedAt, completedAt, configSnapshot",
+        "TokenBudgetState: showId, totalLimit, usedPrompt, usedCompletion, mode, lastUpdated",
+        "ShowCharacter: showId, characterId, modelAdapterId, privateContext"
+      ],
+      "test_steps": [
+        "Создай mock Show объект",
+        "Создай mock TokenBudgetState объект",
+        "Выполни: npm run build",
+        "Ожидаемый результат: компиляция успешна"
+      ],
+      "dependencies": ["TASK-005", "TASK-008"],
+      "status": "pending"
+    },
+    {
+      "id": "TASK-013",
+      "category": "functional",
+      "priority": "critical",
+      "description": "SQLite: создание схемы БД и connection manager",
+      "acceptance_criteria": [
+        "src/storage/sqlite-store.ts создан",
+        "SqliteStore class с конструктором принимающим dbPath",
+        "Метод initSchema() создаёт все 5 таблиц из PRD: shows, show_characters, show_events, llm_calls, token_budgets",
+        "SQL-схема соответствует PRD раздел 5",
+        "Индексы созданы для show_events (show_id, sequence_number)"
+      ],
+      "test_steps": [
+        "Создай инстанс SqliteStore с путём к тестовой БД",
+        "Вызови initSchema()",
+        "Проверь наличие таблиц через SQL: SELECT name FROM sqlite_master WHERE type='table'",
+        "Ожидаемый результат: 5 таблиц созданы"
+      ],
+      "dependencies": ["TASK-007", "TASK-012"],
+      "status": "pending"
+    },
+    {
+      "id": "TASK-014",
+      "category": "functional",
+      "priority": "critical",
+      "description": "SQLite: CRUD операции для таблицы shows",
+      "acceptance_criteria": [
+        "Метод createShow(show: Show): string - возвращает id",
+        "Метод getShow(id: string): Show | null",
+        "Метод updateShow(id: string, updates: Partial<Show>): void",
+        "Метод listShows(): Show[]",
+        "config_snapshot сериализуется в JSON"
+      ],
+      "test_steps": [
+        "Создай шоу через createShow()",
+        "Получи шоу через getShow()",
+        "Обнови статус через updateShow()",
+        "Проверь, что getShow() возвращает обновлённые данные",
+        "Ожидаемый результат: CRUD работает корректно"
+      ],
+      "dependencies": ["TASK-013"],
+      "status": "pending"
+    },
+    {
+      "id": "TASK-015",
+      "category": "functional",
+      "priority": "critical",
+      "description": "SQLite: CRUD операции для таблицы show_characters",
+      "acceptance_criteria": [
+        "Метод createCharacter(char: ShowCharacter): void",
+        "Метод getCharacters(showId: string): ShowCharacter[]",
+        "Метод getCharacter(showId: string, characterId: string): ShowCharacter | null",
+        "private_context сериализуется в JSON"
+      ],
+      "test_steps": [
+        "Создай шоу и добавь 3 персонажа",
+        "Получи список персонажей через getCharacters()",
+        "Проверь, что вернулось 3 персонажа",
+        "Получи одного персонажа через getCharacter()",
+        "Ожидаемый результат: персонажи сохраняются и читаются"
+      ],
+      "dependencies": ["TASK-013", "TASK-014"],
+      "status": "pending"
+    },
+    {
+      "id": "TASK-016",
+      "category": "functional",
+      "priority": "critical",
+      "description": "SQLite: CRUD операции для таблицы show_events (append-only)",
+      "acceptance_criteria": [
+        "Метод appendEvent(event: ShowEvent): void",
+        "Метод getEvents(showId: string, cursor?: number, limit?: number): ShowEvent[]",
+        "Метод getEventsByAudience(showId: string, characterId: string): ShowEvent[] - фильтрация по audienceIds",
+        "Метод rollbackTo(showId: string, sequenceNumber: number): void - удаляет события после указанного номера",
+        "sequenceNumber автоинкрементируется в рамках showId"
+      ],
+      "test_steps": [
+        "Добавь 5 событий через appendEvent()",
+        "Получи события через getEvents() - проверь порядок",
+        "Выполни rollbackTo(showId, 3)",
+        "Проверь, что осталось только 3 события",
+        "Ожидаемый результат: append-only логика работает, rollback удаляет"
+      ],
+      "dependencies": ["TASK-013", "TASK-014"],
+      "status": "pending"
+    },
+    {
+      "id": "TASK-017",
+      "category": "functional",
+      "priority": "high",
+      "description": "SQLite: CRUD операции для llm_calls и token_budgets",
+      "acceptance_criteria": [
+        "Метод logLLMCall(call: LLMCall): void",
+        "Метод getLLMCalls(showId: string): LLMCall[]",
+        "Метод getLLMCallByEventId(eventId: string): LLMCall | null",
+        "Метод createBudget(budget: TokenBudgetState): void",
+        "Метод getBudget(showId: string): TokenBudgetState | null",
+        "Метод updateBudget(showId: string, usedPrompt: number, usedCompletion: number): void"
+      ],
+      "test_steps": [
+        "Создай бюджет для шоу",
+        "Обнови бюджет (добавь токены)",
+        "Проверь, что getBudget() возвращает обновлённые значения",
+        "Залогируй LLM-вызов",
+        "Получи вызов через getLLMCallByEventId()",
+        "Ожидаемый результат: бюджет и логи работают"
+      ],
+      "dependencies": ["TASK-013", "TASK-014"],
+      "status": "pending"
+    },
+    {
+      "id": "TASK-018",
+      "category": "functional",
+      "priority": "critical",
+      "description": "Event Journal: класс EventJournal с методами append и query",
+      "acceptance_criteria": [
+        "src/core/event-journal.ts создан",
+        "EventJournal class принимает IStore в конструкторе",
+        "Метод append(event: Omit<ShowEvent, 'sequenceNumber'>): ShowEvent - добавляет событие и возвращает с sequenceNumber",
+        "Метод getEvents(showId: string, options?: {cursor?, limit?, characterId?}): ShowEvent[]",
+        "Метод getLatestSequence(showId: string): number"
+      ],
+      "test_steps": [
+        "Создай EventJournal с mock-store",
+        "Добавь 3 события через append()",
+        "Получи события через getEvents()",
+        "Проверь, что sequenceNumber назначены корректно (1, 2, 3)",
+        "Ожидаемый результат: журнал работает корректно"
+      ],
+      "dependencies": ["TASK-016"],
+      "status": "pending"
+    },
+    {
+      "id": "TASK-019",
+      "category": "functional",
+      "priority": "high",
+      "description": "Event Journal: фильтрация по audienceIds для Context Builder",
+      "acceptance_criteria": [
+        "Метод getVisibleEvents(showId: string, characterId: string, limit?: number): ShowEvent[]",
+        "Фильтрует события где characterId присутствует в audienceIds",
+        "Возвращает события в хронологическом порядке",
+        "Поддерживает limit для sliding window"
+      ],
+      "test_steps": [
+        "Создай 5 событий: 3 PUBLIC (все видят), 2 PRIVATE (только charA и charB)",
+        "Вызови getVisibleEvents() для charA",
+        "Проверь, что вернулось 4 события (3 PUBLIC + 1 PRIVATE с charA)",
+        "Вызови getVisibleEvents() для charC",
+        "Проверь, что вернулось только 3 PUBLIC события",
+        "Ожидаемый результат: приватность соблюдается"
+      ],
+      "dependencies": ["TASK-018"],
+      "status": "pending"
+    },
+    {
+      "id": "TASK-020",
+      "category": "functional",
+      "priority": "high",
+      "description": "Event Journal: rollback для DEBUG-режима",
+      "acceptance_criteria": [
+        "Метод rollbackToPhase(showId: string, phaseId: string): number - возвращает количество удалённых событий",
+        "Метод rollbackToSequence(showId: string, sequenceNumber: number): number",
+        "События после точки отката удаляются из БД",
+        "Журнал остаётся консистентным после rollback"
+      ],
+      "test_steps": [
+        "Добавь 10 событий в 2 фазы (5 + 5)",
+        "Выполни rollbackToPhase() на первую фазу",
+        "Проверь, что осталось только 5 событий",
+        "Ожидаемый результат: rollback работает корректно"
+      ],
+      "dependencies": ["TASK-018"],
+      "status": "pending"
+    },
+    {
+      "id": "TASK-021",
+      "category": "functional",
+      "priority": "critical",
+      "description": "MockAdapter: реализация интерфейса ModelAdapter с hardcoded ответами",
+      "acceptance_criteria": [
+        "src/adapters/mock-adapter.ts создан",
+        "MockAdapter implements ModelAdapter",
+        "providerId: 'mock', modelId: 'mock-v1'",
+        "call() возвращает детерминированный CharacterResponse на основе trigger",
+        "estimateTokens() возвращает примерную оценку (слова * 1.3)",
+        "Поддержка seed для воспроизводимости ответов"
+      ],
+      "test_steps": [
+        "Создай MockAdapter",
+        "Вызови call() с тестовым PromptPackage",
+        "Проверь, что вернулся валидный CharacterResponse",
+        "Проверь, что повторный вызов с тем же seed возвращает тот же ответ",
+        "Ожидаемый результат: mock работает детерминированно"
+      ],
+      "dependencies": ["TASK-011"],
+      "status": "pending"
+    },
+    {
+      "id": "TASK-022",
+      "category": "integration",
+      "priority": "high",
+      "description": "OpenAI Adapter: базовая интеграция с API",
+      "acceptance_criteria": [
+        "src/adapters/openai-adapter.ts создан",
+        "OpenAIAdapter implements ModelAdapter",
+        "Использует official OpenAI SDK",
+        "call() отправляет запрос и возвращает CharacterResponse",
+        "Парсит JSON из ответа LLM",
+        "Логирует raw request/response в llm_calls через store"
+      ],
+      "test_steps": [
+        "Создай OpenAIAdapter с реальным API key",
+        "Вызови call() с простым prompt",
+        "Проверь, что вернулся CharacterResponse",
+        "Проверь, что вызов залогирован в БД",
+        "Ожидаемый результат: интеграция с OpenAI работает"
+      ],
+      "dependencies": ["TASK-011", "TASK-017"],
+      "status": "pending"
+    },
+    {
+      "id": "TASK-023",
+      "category": "integration",
+      "priority": "high",
+      "description": "OpenAI Adapter: retry logic и fallback при ошибках",
+      "acceptance_criteria": [
+        "Retry с exponential backoff при 429, 500, 502, 503 ошибках",
+        "Максимум 2 retry",
+        "При невалидном JSON - retry до 2 раз",
+        "Fallback: { text: '[молчит]', intent: 'end_turn' } при исчерпании retry",
+        "Fallback логируется с metadata.fallback: true"
+      ],
+      "test_steps": [
+        "Создай тест с mock HTTP-клиентом возвращающим 503",
+        "Проверь, что выполняется 2 retry",
+        "Проверь, что после retry возвращается fallback",
+        "Ожидаемый результат: система устойчива к ошибкам API"
+      ],
+      "dependencies": ["TASK-022"],
+      "status": "pending"
+    },
+    {
+      "id": "TASK-024",
+      "category": "functional",
+      "priority": "high",
+      "description": "OpenAI Adapter: подсчёт токенов через tiktoken",
+      "acceptance_criteria": [
+        "estimateTokens() использует tiktoken для точного подсчёта",
+        "Подсчитывает токены system prompt + context + trigger",
+        "Возвращает объект { prompt: number, estimatedCompletion: number }",
+        "Работает с моделями gpt-4o и gpt-4o-mini"
+      ],
+      "test_steps": [
+        "Вызови estimateTokens() с тестовым PromptPackage",
+        "Проверь, что возвращается число > 0",
+        "Сравни с реальным usage из ответа API (погрешность < 10%)",
+        "Ожидаемый результат: оценка близка к реальности"
+      ],
+      "dependencies": ["TASK-022"],
+      "status": "pending"
+    },
+    {
+      "id": "TASK-025",
+      "category": "functional",
+      "priority": "critical",
+      "description": "Context Builder: метод buildFactsList()",
+      "acceptance_criteria": [
+        "src/core/context-builder.ts создан",
+        "ContextBuilder class принимает EventJournal в конструкторе",
+        "buildFactsList(characterId, showId): string[] - извлекает факты из PrivateContext",
+        "Включает: secrets, goals, активные alliances, нераскрытые wildcards",
+        "Добавляет раскрытые козыри (свои и чужие) из журнала"
+      ],
+      "test_steps": [
+        "Создай ContextBuilder с mock EventJournal",
+        "Вызови buildFactsList() для персонажа с privateContext",
+        "Проверь, что все secrets включены в список",
+        "Проверь, что раскрытый wildcard (revelation event) включён",
+        "Ожидаемый результат: факты собираются корректно"
+      ],
+      "dependencies": ["TASK-018", "TASK-019"],
+      "status": "pending"
+    },
+    {
+      "id": "TASK-026",
+      "category": "functional",
+      "priority": "critical",
+      "description": "Context Builder: метод buildSlidingWindow()",
+      "acceptance_criteria": [
+        "buildSlidingWindow(characterId, showId, limit): EventSummary[]",
+        "Использует getVisibleEvents() из EventJournal",
+        "Возвращает последние N видимых событий",
+        "EventSummary содержит: senderId, channel, content, timestamp"
+      ],
+      "test_steps": [
+        "Создай журнал с 20 событиями (mix PUBLIC и PRIVATE)",
+        "Вызови buildSlidingWindow() с limit=10",
+        "Проверь, что вернулось <= 10 событий",
+        "Проверь, что PRIVATE события других персонажей отфильтрованы",
+        "Ожидаемый результат: sliding window работает с приватностью"
+      ],
+      "dependencies": ["TASK-019"],
+      "status": "pending"
+    },
+    {
+      "id": "TASK-027",
+      "category": "functional",
+      "priority": "critical",
+      "description": "Context Builder: метод buildPromptPackage()",
+      "acceptance_criteria": [
+        "buildPromptPackage(character, show, trigger): PromptPackage",
+        "systemPrompt включает: personalityPrompt, motivationPrompt, boundaryRules, format instruction",
+        "contextLayers содержит factsList и slidingWindow",
+        "trigger - текущий запрос оркестратора",
+        "responseConstraints берутся из CharacterDefinition"
+      ],
+      "test_steps": [
+        "Создай ContextBuilder с реальными данными",
+        "Вызови buildPromptPackage() для персонажа",
+        "Проверь, что systemPrompt содержит personality",
+        "Проверь, что factsList не пустой",
+        "Ожидаемый результат: полный пакет собирается"
+      ],
+      "dependencies": ["TASK-025", "TASK-026"],
+      "status": "pending"
+    },
+    {
+      "id": "TASK-028",
+      "category": "functional",
+      "priority": "high",
+      "description": "Context Builder: trimToTokenBudget()",
+      "acceptance_criteria": [
+        "trimToTokenBudget(package, maxTokens, adapter): PromptPackage",
+        "Использует adapter.estimateTokens() для оценки",
+        "Сокращает slidingWindow если превышен лимит",
+        "factsList НИКОГДА не обрезается",
+        "Возвращает пакет, укладывающийся в бюджет"
+      ],
+      "test_steps": [
+        "Создай PromptPackage превышающий лимит",
+        "Вызови trimToTokenBudget() с жёстким лимитом",
+        "Проверь, что slidingWindow сокращён",
+        "Проверь, что factsList остался полным",
+        "Ожидаемый результат: пакет укладывается в бюджет"
+      ],
+      "dependencies": ["TASK-027", "TASK-021"],
+      "status": "pending"
+    },
+    {
+      "id": "TASK-029",
+      "category": "functional",
+      "priority": "critical",
+      "description": "Host Module: initializeShow()",
+      "acceptance_criteria": [
+        "src/core/host-module.ts создан",
+        "HostModule class принимает IStore и EventJournal",
+        "initializeShow(template, characters, seed?): Show",
+        "Создаёт запись в shows с config_snapshot",
+        "Создаёт записи в show_characters для каждого персонажа",
+        "Создаёт token_budget для шоу",
+        "Генерирует seed если не передан"
+      ],
+      "test_steps": [
+        "Создай HostModule с реальным store",
+        "Вызови initializeShow() с шаблоном и 5 персонажами",
+        "Проверь, что шоу создано в БД",
+        "Проверь, что 5 персонажей созданы",
+        "Проверь, что бюджет создан",
+        "Ожидаемый результат: шоу инициализируется полностью"
+      ],
+      "dependencies": ["TASK-014", "TASK-015", "TASK-017", "TASK-018"],
+      "status": "pending"
+    },
+    {
+      "id": "TASK-030",
+      "category": "functional",
+      "priority": "critical",
+      "description": "Host Module: manageTurnQueue()",
+      "acceptance_criteria": [
+        "manageTurnQueue(showId, phase): string[] - возвращает порядок characterId",
+        "Учитывает phase.turnOrder: sequential | frequency_weighted | host_controlled",
+        "frequency_weighted учитывает speakFrequency персонажей",
+        "Детерминированный порядок при заданном seed"
+      ],
+      "test_steps": [
+        "Создай фазу с turnOrder: 'sequential'",
+        "Вызови manageTurnQueue()",
+        "Проверь порядок персонажей",
+        "Создай фазу с turnOrder: 'frequency_weighted'",
+        "Проверь, что high-frequency персонажи чаще в начале",
+        "Ожидаемый результат: очередь формируется по правилам"
+      ],
+      "dependencies": ["TASK-029"],
+      "status": "pending"
+    },
+    {
+      "id": "TASK-031",
+      "category": "functional",
+      "priority": "high",
+      "description": "Host Module: emitTrigger()",
+      "acceptance_criteria": [
+        "emitTrigger(showId, phaseId, triggerTemplate, targetCharacterIds?): void",
+        "Создаёт событие host_trigger в журнале",
+        "audienceIds = targetCharacterIds или все персонажи",
+        "Поддерживает шаблонизацию триггера (подстановка имён и т.д.)"
+      ],
+      "test_steps": [
+        "Вызови emitTrigger() с triggerTemplate",
+        "Проверь, что событие host_trigger записано в журнал",
+        "Проверь audienceIds события",
+        "Ожидаемый результат: триггер записывается корректно"
+      ],
+      "dependencies": ["TASK-018", "TASK-029"],
+      "status": "pending"
+    },
+    {
+      "id": "TASK-032",
+      "category": "functional",
+      "priority": "high",
+      "description": "Host Module: managePrivateChannels()",
+      "acceptance_criteria": [
+        "openPrivateChannel(showId, participantIds): void - создаёт channel_change событие",
+        "closePrivateChannel(showId): void - возвращает в PUBLIC",
+        "validatePrivateRequest(showId, requesterId, targetId, rules): boolean",
+        "Проверяет лимиты из privateChannelRules: maxPrivatesPerPhase, maxPrivatesPerCharacterPerPhase",
+        "Отслеживает количество открытых приваток в текущей фазе"
+      ],
+      "test_steps": [
+        "Открой 2 приватных канала в фазе с maxPrivatesPerPhase=2",
+        "Попробуй открыть 3-й - должен вернуть false",
+        "Проверь, что channel_change события записаны",
+        "Ожидаемый результат: лимиты соблюдаются"
+      ],
+      "dependencies": ["TASK-018", "TASK-029"],
+      "status": "pending"
+    },
+    {
+      "id": "TASK-033",
+      "category": "functional",
+      "priority": "critical",
+      "description": "Host Module: runDecisionPhase()",
+      "acceptance_criteria": [
+        "runDecisionPhase(showId, decisionConfig): void",
+        "Рассылает decision trigger каждому персонажу",
+        "При timing: 'simultaneous' - не показывает чужие решения до конца",
+        "При timing: 'sequential' - показывает предыдущие решения",
+        "Собирает decisionValue из CharacterResponse каждого",
+        "Создаёт события 'decision' в журнале"
+      ],
+      "test_steps": [
+        "Запусти Decision Phase для 5 персонажей",
+        "Проверь, что каждый получил trigger",
+        "Проверь, что 5 событий 'decision' записаны",
+        "Проверь visibility событий по decisionConfig.visibility",
+        "Ожидаемый результат: решения собираются по правилам"
+      ],
+      "dependencies": ["TASK-030", "TASK-031"],
+      "status": "pending"
+    },
+    {
+      "id": "TASK-034",
+      "category": "functional",
+      "priority": "high",
+      "description": "Host Module: runRevelation()",
+      "acceptance_criteria": [
+        "runRevelation(showId, decisionConfig): void",
+        "Создаёт события 'revelation' для каждого решения",
+        "При revealMoment: 'after_all' - одно событие со всеми решениями",
+        "При revealMoment: 'after_each' - событие после каждого решения",
+        "audienceIds = все персонажи (PUBLIC)"
+      ],
+      "test_steps": [
+        "Запусти Revelation после Decision Phase",
+        "Проверь, что события 'revelation' созданы",
+        "Проверь, что все персонажи видят результаты",
+        "Ожидаемый результат: раскрытие происходит по правилам"
+      ],
+      "dependencies": ["TASK-033"],
+      "status": "pending"
+    },
+    {
+      "id": "TASK-035",
+      "category": "functional",
+      "priority": "critical",
+      "description": "Orchestrator: базовый класс и dependency injection",
+      "acceptance_criteria": [
+        "src/core/orchestrator.ts создан",
+        "Orchestrator class принимает: IStore, ModelAdapter, EventJournal, HostModule, ContextBuilder",
+        "Хранит текущее состояние: showId, currentPhaseIndex, turnIndex, mode (AUTO|DEBUG)",
+        "Метод getState(): OrchestratorState"
+      ],
+      "test_steps": [
+        "Создай Orchestrator со всеми зависимостями",
+        "Проверь, что getState() возвращает начальное состояние",
+        "Ожидаемый результат: DI работает корректно"
+      ],
+      "dependencies": ["TASK-018", "TASK-021", "TASK-027", "TASK-029"],
+      "status": "pending"
+    },
+    {
+      "id": "TASK-036",
+      "category": "functional",
+      "priority": "critical",
+      "description": "Orchestrator: runPhase()",
+      "acceptance_criteria": [
+        "runPhase(showId, phase): Promise<void>",
+        "Создаёт событие phase_start",
+        "Выполняет ходы по turnOrder пока не выполнено completionCondition",
+        "Создаёт событие phase_end",
+        "Передаёт управление обратно после завершения фазы"
+      ],
+      "test_steps": [
+        "Запусти runPhase() для фазы 'discussion' с 3 ходами на персонажа",
+        "Проверь, что phase_start событие записано",
+        "Проверь, что выполнены все ходы",
+        "Проверь, что phase_end событие записано",
+        "Ожидаемый результат: фаза выполняется полностью"
+      ],
+      "dependencies": ["TASK-035"],
+      "status": "pending"
+    },
+    {
+      "id": "TASK-037",
+      "category": "functional",
+      "priority": "critical",
+      "description": "Orchestrator: processCharacterTurn()",
+      "acceptance_criteria": [
+        "processCharacterTurn(showId, characterId, trigger): Promise<CharacterResponse>",
+        "Собирает PromptPackage через ContextBuilder",
+        "Вызывает adapter.call()",
+        "Записывает событие 'speech' в журнал",
+        "Обновляет token budget",
+        "Возвращает CharacterResponse для дальнейшей обработки"
+      ],
+      "test_steps": [
+        "Вызови processCharacterTurn() для персонажа",
+        "Проверь, что событие 'speech' записано с content из response.text",
+        "Проверь, что бюджет обновился",
+        "Ожидаемый результат: ход выполняется с LLM вызовом"
+      ],
+      "dependencies": ["TASK-035", "TASK-027"],
+      "status": "pending"
+    },
+    {
+      "id": "TASK-038",
+      "category": "functional",
+      "priority": "high",
+      "description": "Orchestrator: handleIntent()",
+      "acceptance_criteria": [
+        "handleIntent(showId, response: CharacterResponse, senderId): void",
+        "intent: 'speak' - ничего дополнительного",
+        "intent: 'request_private' - вызывает HostModule.validatePrivateRequest()",
+        "intent: 'reveal_wildcard' - создаёт событие 'revelation' с козырем",
+        "intent: 'end_turn' - логирует пропуск хода"
+      ],
+      "test_steps": [
+        "Обработай response с intent: 'request_private'",
+        "Проверь, что запрос обработан через HostModule",
+        "Обработай response с intent: 'reveal_wildcard'",
+        "Проверь, что событие 'revelation' создано",
+        "Ожидаемый результат: все intent обрабатываются"
+      ],
+      "dependencies": ["TASK-037", "TASK-032"],
+      "status": "pending"
+    },
+    {
+      "id": "TASK-039",
+      "category": "functional",
+      "priority": "critical",
+      "description": "Orchestrator: budgetControl()",
+      "acceptance_criteria": [
+        "checkBudget(showId): BudgetMode - возвращает текущий режим",
+        "При 80% - переключает в budget_saving_mode",
+        "При 100% - переключает в graceful_finish",
+        "Создаёт события 'system' при смене режима",
+        "В budget_saving_mode: сокращает maxTokens на 50%, ограничивает приватки"
+      ],
+      "test_steps": [
+        "Установи бюджет на 80% использования",
+        "Вызови checkBudget()",
+        "Проверь, что вернулся 'budget_saving'",
+        "Проверь, что событие 'system' записано",
+        "Ожидаемый результат: пороги срабатывают"
+      ],
+      "dependencies": ["TASK-017", "TASK-037"],
+      "status": "pending"
+    },
+    {
+      "id": "TASK-040",
+      "category": "functional",
+      "priority": "critical",
+      "description": "Orchestrator: gracefulFinish()",
+      "acceptance_criteria": [
+        "gracefulFinish(showId): Promise<void>",
+        "Завершает текущий ход",
+        "Закрывает открытые приватные каналы",
+        "Пропускает оставшиеся фазы и запускает Decision Phase",
+        "Собирает решения и выполняет Revelation",
+        "Создаёт событие 'system' с graceful_finish: true"
+      ],
+      "test_steps": [
+        "Запусти шоу и вызови gracefulFinish() посередине",
+        "Проверь, что Decision Phase выполнилась",
+        "Проверь, что Revelation выполнилась",
+        "Проверь, что шоу завершено со статусом 'completed'",
+        "Ожидаемый результат: шоу завершается корректно"
+      ],
+      "dependencies": ["TASK-033", "TASK-034", "TASK-039"],
+      "status": "pending"
+    },
+    {
+      "id": "TASK-041",
+      "category": "functional",
+      "priority": "critical",
+      "description": "Orchestrator: runShow() - полный цикл выпуска",
+      "acceptance_criteria": [
+        "runShow(showId): Promise<void>",
+        "Проходит все фазы из шаблона последовательно",
+        "Вызывает runPhase() для каждой фазы",
+        "Вызывает runDecisionPhase() для фазы типа 'decision'",
+        "Вызывает runRevelation() в конце",
+        "Обновляет статус шоу: running → completed",
+        "Проверяет бюджет перед каждым ходом"
+      ],
+      "test_steps": [
+        "Запусти runShow() с шаблоном 'Коалиция' (3 фазы)",
+        "Проверь, что все 3 фазы выполнены",
+        "Проверь журнал: phase_start/phase_end для каждой фазы",
+        "Проверь, что статус шоу = 'completed'",
+        "Ожидаемый результат: полный выпуск проходит end-to-end"
+      ],
+      "dependencies": ["TASK-036", "TASK-037", "TASK-038", "TASK-039", "TASK-040"],
+      "status": "pending"
+    },
+    {
+      "id": "TASK-042",
+      "category": "functional",
+      "priority": "high",
+      "description": "Orchestrator: DEBUG режим (pause/resume/step)",
+      "acceptance_criteria": [
+        "setMode(mode: 'AUTO' | 'DEBUG'): void",
+        "pause(): void - приостанавливает выполнение",
+        "resume(): void - продолжает выполнение",
+        "step(): Promise<void> - выполняет один ход",
+        "В DEBUG режиме runShow() ожидает команды step()"
+      ],
+      "test_steps": [
+        "Установи mode = 'DEBUG'",
+        "Запусти runShow() (должен ждать)",
+        "Вызови step() 3 раза",
+        "Проверь, что выполнено 3 хода",
+        "Вызови resume() - шоу продолжается автоматически",
+        "Ожидаемый результат: DEBUG режим работает"
+      ],
+      "dependencies": ["TASK-041"],
+      "status": "pending"
+    },
+    {
+      "id": "TASK-043",
+      "category": "functional",
+      "priority": "medium",
+      "description": "Orchestrator: rollback в DEBUG режиме",
+      "acceptance_criteria": [
+        "rollbackToPhase(showId, phaseId): Promise<void>",
+        "Использует EventJournal.rollbackToPhase()",
+        "Сбрасывает состояние оркестратора к началу фазы",
+        "Создаёт событие 'system' с metadata.rollback: true",
+        "Документировано: в Rerun режиме rollback = новая ветка"
+      ],
+      "test_steps": [
+        "Выполни 2 фазы в DEBUG режиме",
+        "Вызови rollbackToPhase() на первую фазу",
+        "Проверь, что события 2-й фазы удалены",
+        "Вызови step() - выполняется первый ход 2-й фазы заново",
+        "Ожидаемый результат: rollback работает"
+      ],
+      "dependencies": ["TASK-020", "TASK-042"],
+      "status": "pending"
+    },
+    {
+      "id": "TASK-044",
+      "category": "integration",
+      "priority": "high",
+      "description": "API Server: Fastify setup и базовые routes",
+      "acceptance_criteria": [
+        "src/api/server.ts создан",
+        "Fastify сервер слушает PORT из конфига",
+        "GET /health возвращает { status: 'ok' }",
+        "Composition root: создание всех зависимостей",
+        "Graceful shutdown"
+      ],
+      "test_steps": [
+        "Запусти сервер: npm run dev",
+        "Выполни: curl http://localhost:3000/health",
+        "Проверь, что вернулся { status: 'ok' }",
+        "Ожидаемый результат: сервер работает"
+      ],
+      "dependencies": ["TASK-002", "TASK-035"],
+      "status": "pending"
+    },
+    {
+      "id": "TASK-045",
+      "category": "integration",
+      "priority": "high",
+      "description": "API: POST /shows - создание шоу",
+      "acceptance_criteria": [
+        "POST /shows принимает: { formatId, characters, seed? }",
+        "Вызывает HostModule.initializeShow()",
+        "Возвращает: { showId, status: 'created' }",
+        "Валидация входных данных"
+      ],
+      "test_steps": [
+        "Отправь POST /shows с валидными данными",
+        "Проверь, что вернулся showId",
+        "Проверь, что шоу создано в БД",
+        "Ожидаемый результат: шоу создаётся через API"
+      ],
+      "dependencies": ["TASK-044", "TASK-029"],
+      "status": "pending"
+    },
+    {
+      "id": "TASK-046",
+      "category": "integration",
+      "priority": "high",
+      "description": "API: GET /shows/:id/events - SSE endpoint",
+      "acceptance_criteria": [
+        "GET /shows/:id/events возвращает SSE stream",
+        "Content-Type: text/event-stream",
+        "Отправляет все существующие события при подключении",
+        "Отправляет новые события в реальном времени",
+        "Поддержка Last-Event-ID для reconnection"
+      ],
+      "test_steps": [
+        "Создай шоу с несколькими событиями",
+        "Подключись к /shows/:id/events через curl --no-buffer",
+        "Проверь, что получены все события",
+        "Добавь новое событие - проверь, что оно пришло в stream",
+        "Ожидаемый результат: SSE работает в реальном времени"
+      ],
+      "dependencies": ["TASK-044", "TASK-018"],
+      "status": "pending"
+    },
+    {
+      "id": "TASK-047",
+      "category": "integration",
+      "priority": "high",
+      "description": "API: POST /shows/:id/control - управление шоу",
+      "acceptance_criteria": [
+        "POST /shows/:id/control принимает: { action: 'start' | 'pause' | 'resume' | 'step' | 'rollback' }",
+        "action: 'start' - запускает runShow() в фоне",
+        "action: 'pause' - вызывает orchestrator.pause()",
+        "action: 'resume' - вызывает orchestrator.resume()",
+        "action: 'step' - вызывает orchestrator.step()",
+        "action: 'rollback' + phaseId - вызывает rollbackToPhase()"
+      ],
+      "test_steps": [
+        "Создай шоу и отправь action: 'start'",
+        "Проверь, что шоу запустилось (статус = running)",
+        "Отправь action: 'pause'",
+        "Проверь, что шоу приостановилось",
+        "Ожидаемый результат: все команды работают"
+      ],
+      "dependencies": ["TASK-044", "TASK-042"],
+      "status": "pending"
+    },
+    {
+      "id": "TASK-048",
+      "category": "integration",
+      "priority": "medium",
+      "description": "API: GET /shows/:id/status - статус и бюджет",
+      "acceptance_criteria": [
+        "GET /shows/:id/status возвращает текущее состояние шоу",
+        "Включает: status, currentPhaseId, eventsCount, tokenBudget",
+        "tokenBudget: { total, used, mode, percentUsed }"
+      ],
+      "test_steps": [
+        "Создай и запусти шоу",
+        "Выполни GET /shows/:id/status",
+        "Проверь, что вернулись все поля",
+        "Ожидаемый результат: статус возвращается корректно"
+      ],
+      "dependencies": ["TASK-044", "TASK-039"],
+      "status": "pending"
+    },
+    {
+      "id": "TASK-049",
+      "category": "ui",
+      "priority": "medium",
+      "description": "Debug UI: HTML layout (лента событий + карточки персонажей + панель управления)",
+      "acceptance_criteria": [
+        "web/debug-ui/index.html создан",
+        "Три секции: Event Feed (слева), Character Cards (справа), Control Panel (внизу)",
+        "Responsive layout",
+        "web/debug-ui/styles.css с цветовой схемой для каналов: PUBLIC=white, PRIVATE=yellow, ZONE=blue"
+      ],
+      "test_steps": [
+        "Открой index.html в браузере",
+        "Проверь наличие всех секций",
+        "Измени размер окна - проверь responsive",
+        "Ожидаемый результат: layout отображается корректно"
+      ],
+      "dependencies": ["TASK-044"],
+      "status": "pending"
+    },
+    {
+      "id": "TASK-050",
+      "category": "ui",
+      "priority": "medium",
+      "description": "Debug UI: SSE client и Event Feed",
+      "acceptance_criteria": [
+        "web/debug-ui/app.js создан",
+        "Подключение к /shows/:id/events через EventSource",
+        "Отображение событий в ленте: время, фаза, канал, sender, content",
+        "Цветовая маркировка по каналу",
+        "Auto-scroll к новым событиям",
+        "Reconnection при обрыве"
+      ],
+      "test_steps": [
+        "Открой UI и подключись к шоу",
+        "Запусти шоу через API",
+        "Проверь, что события появляются в ленте в реальном времени",
+        "Проверь цвета: PUBLIC белый, PRIVATE жёлтый",
+        "Ожидаемый результат: лента обновляется live"
+      ],
+      "dependencies": ["TASK-046", "TASK-049"],
+      "status": "pending"
+    },
+    {
+      "id": "TASK-051",
+      "category": "ui",
+      "priority": "medium",
+      "description": "Debug UI: Character Cards",
+      "acceptance_criteria": [
+        "Отображение карточек для каждого персонажа",
+        "На карточке: имя, модель, publicCard, статус (ожидает/говорит/в приватке)",
+        "Статус обновляется по событиям из SSE",
+        "Подсветка активного персонажа"
+      ],
+      "test_steps": [
+        "Открой UI с подключённым шоу",
+        "Проверь, что видны карточки всех 5 персонажей",
+        "Запусти ход персонажа - проверь, что его карточка подсвечена",
+        "Ожидаемый результат: статусы персонажей актуальны"
+      ],
+      "dependencies": ["TASK-050"],
+      "status": "pending"
+    },
+    {
+      "id": "TASK-052",
+      "category": "ui",
+      "priority": "medium",
+      "description": "Debug UI: Control Panel",
+      "acceptance_criteria": [
+        "Кнопки: START, PAUSE, RESUME, STEP, ROLLBACK",
+        "Кнопки вызывают POST /shows/:id/control",
+        "Индикатор текущей фазы и номера хода",
+        "Token counter: used / total (прогресс-бар)",
+        "Кнопки disabled в неактуальных состояниях"
+      ],
+      "test_steps": [
+        "Нажми START - проверь, что шоу запустилось",
+        "Нажми PAUSE - проверь, что шоу приостановилось",
+        "Нажми STEP - проверь, что выполнился один ход",
+        "Проверь, что token counter обновляется",
+        "Ожидаемый результат: управление работает через UI"
+      ],
+      "dependencies": ["TASK-047", "TASK-050"],
+      "status": "pending"
+    },
+    {
+      "id": "TASK-053",
+      "category": "functional",
+      "priority": "high",
+      "description": "Show Format: создание шаблона 'Коалиция' (MVP формат)",
+      "acceptance_criteria": [
+        "src/formats/coalition.json создан по спецификации из PRD раздел 12",
+        "3 фазы: Знакомство (PUBLIC), Переговоры (PUBLIC+PRIVATE), Финальное решение (DECISION)",
+        "privateChannelRules настроены: maxPrivatesPerPhase=4, maxPrivatesPerCharacterPerPhase=2",
+        "decisionConfig: timing=simultaneous, visibility=secret_until_reveal",
+        "Механический твист: wildcard trigger в конце фазы 2"
+      ],
+      "test_steps": [
+        "Загрузи coalition.json и провалидируй против ShowFormatTemplate",
+        "Проверь, что все фазы содержат обязательные поля",
+        "Проверь, что privateChannelRules корректны",
+        "Ожидаемый результат: шаблон валиден"
+      ],
+      "dependencies": ["TASK-010"],
+      "status": "pending"
+    },
+    {
+      "id": "TASK-054",
+      "category": "functional",
+      "priority": "high",
+      "description": "Characters: создание 5 персонажей для 'Коалиция'",
+      "acceptance_criteria": [
+        "src/formats/characters/ директория создана",
+        "5 JSON-файлов персонажей с уникальными personality и motivation",
+        "Один персонаж имеет wildcard в startingPrivateContext",
+        "2 персонажа имеют предварительный alliance",
+        "speakFrequency распределён: 1 high, 3 medium, 1 low"
+      ],
+      "test_steps": [
+        "Загрузи все 5 персонажей",
+        "Провалидируй каждого против CharacterDefinition",
+        "Проверь, что ровно у одного есть wildcard",
+        "Проверь alliance между двумя персонажами",
+        "Ожидаемый результат: все персонажи валидны"
+      ],
+      "dependencies": ["TASK-009"],
+      "status": "pending"
+    },
+    {
+      "id": "TASK-055",
+      "category": "integration",
+      "priority": "critical",
+      "description": "E2E тест: полный выпуск с MockAdapter",
+      "acceptance_criteria": [
+        "tests/integration/full-show-mock.test.ts создан",
+        "Тест запускает полный выпуск 'Коалиция' с 5 персонажами",
+        "Использует MockAdapter",
+        "Проверяет: все фазы пройдены, финальные решения собраны, revelation выполнен",
+        "Тест проходит за < 10 секунд"
+      ],
+      "test_steps": [
+        "Выполни: npm run test tests/integration/full-show-mock.test.ts",
+        "Проверь, что тест прошёл",
+        "Проверь журнал событий: phase_start/phase_end для каждой фазы",
+        "Ожидаемый результат: mock-выпуск проходит end-to-end"
+      ],
+      "dependencies": ["TASK-041", "TASK-053", "TASK-054"],
+      "status": "pending"
+    },
+    {
+      "id": "TASK-056",
+      "category": "integration",
+      "priority": "high",
+      "description": "E2E тест: полный выпуск с OpenAI Adapter",
+      "acceptance_criteria": [
+        "tests/integration/full-show-openai.test.ts создан",
+        "Тест запускает полный выпуск с реальным OpenAI API",
+        "Проверяет: персонажи отвечают в характере, приватность соблюдается",
+        "Тест помечен как skip по умолчанию (требует API key)",
+        "Документация по запуску с реальным API"
+      ],
+      "test_steps": [
+        "Установи OPENAI_API_KEY в .env",
+        "Выполни: npm run test:e2e-openai",
+        "Проверь, что выпуск прошёл",
+        "Проверь логи в llm_calls",
+        "Ожидаемый результат: реальные LLM ответы работают"
+      ],
+      "dependencies": ["TASK-055", "TASK-022", "TASK-023"],
+      "status": "pending"
+    },
+    {
+      "id": "TASK-057",
+      "category": "security",
+      "priority": "high",
+      "description": "Валидация и санитизация входных данных",
+      "acceptance_criteria": [
+        "Zod-схемы для валидации всех API endpoints",
+        "Валидация ShowFormatTemplate при загрузке",
+        "Валидация CharacterDefinition при загрузке",
+        "Санитизация user-provided строк (no injection)",
+        "Ошибки валидации возвращают понятные сообщения"
+      ],
+      "test_steps": [
+        "Отправь POST /shows с невалидными данными",
+        "Проверь, что вернулась ошибка 400 с описанием",
+        "Попробуй загрузить невалидный шаблон",
+        "Проверь, что система не крашнулась",
+        "Ожидаемый результат: невалидные данные отклоняются"
+      ],
+      "dependencies": ["TASK-045", "TASK-053"],
+      "status": "pending"
+    },
+    {
+      "id": "TASK-058",
+      "category": "security",
+      "priority": "high",
+      "description": "Безопасность API ключей и конфиденциальных данных",
+      "acceptance_criteria": [
+        ".env в .gitignore",
+        "API ключи только через переменные окружения",
+        "Логи LLM-вызовов не выводятся в консоль (только в БД)",
+        "raw_request/raw_response в llm_calls не логируют API key",
+        "Нет hardcoded секретов в коде"
+      ],
+      "test_steps": [
+        "Проверь .gitignore содержит .env",
+        "Поищи 'sk-' в коде: grep -r 'sk-' src/",
+        "Запусти сервер и проверь, что в консоль не выводятся LLM запросы",
+        "Ожидаемый результат: секреты защищены"
+      ],
+      "dependencies": ["TASK-002", "TASK-022"],
+      "status": "pending"
+    },
+    {
+      "id": "TASK-059",
+      "category": "functional",
+      "priority": "low",
+      "description": "Replay механизм: воспроизведение выпуска из llm_calls",
+      "acceptance_criteria": [
+        "Метод replayShow(showId): Promise<void>",
+        "Использует сохранённые raw_response из llm_calls вместо новых LLM вызовов",
+        "Результат идентичен оригинальному выпуску",
+        "Флаг replayAvailable в таблице shows"
+      ],
+      "test_steps": [
+        "Запусти выпуск и дождись завершения",
+        "Вызови replayShow() для того же showId",
+        "Сравни журналы событий оригинала и replay",
+        "Ожидаемый результат: события идентичны"
+      ],
+      "dependencies": ["TASK-041", "TASK-017"],
+      "status": "pending"
+    },
+    {
+      "id": "TASK-060",
+      "category": "functional",
+      "priority": "low",
+      "description": "Export журнала в JSON",
+      "acceptance_criteria": [
+        "Метод exportJournal(showId): string (JSON)",
+        "API endpoint: GET /shows/:id/export",
+        "Включает: все события, метаданные шоу, персонажей",
+        "Формат пригоден для импорта в будущем"
+      ],
+      "test_steps": [
+        "Запусти и заверши выпуск",
+        "Вызови GET /shows/:id/export",
+        "Проверь, что вернулся валидный JSON",
+        "Проверь, что JSON содержит все события",
+        "Ожидаемый результат: экспорт работает"
+      ],
+      "dependencies": ["TASK-041", "TASK-046"],
+      "status": "pending"
+    }
+  ]
+}
