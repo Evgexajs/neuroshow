@@ -368,7 +368,7 @@
         "Ожидаемый результат: персонажи сохраняются и читаются"
       ],
       "dependencies": ["TASK-013", "TASK-014"],
-      "status": "pending"
+      "status": "done"
     },
     {
       "id": "TASK-016",

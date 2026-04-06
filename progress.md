@@ -229,3 +229,17 @@
 **Тесты:** npm run typecheck, npm test — все пройдены (21 tests passed).
 **Заметки:** Реализация была выполнена в TASK-013. Тесты подтверждают append-only логику с rollback возможностью. От этой задачи зависят TASK-018 (EventJournal), TASK-019, TASK-020.
 
+## [2026-04-06] TASK-015: SQLite CRUD операции для таблицы show_characters
+**Статус:** done
+**Время:** ~10 минут
+**Изменения:**
+- src/storage/sqlite-store.ts — переименованы методы для соответствия IStore интерфейсу:
+  - addShowCharacter → createCharacter(char: ShowCharacterRecord): void
+  - getShowCharacters → getCharacters(showId: string): ShowCharacterRecord[]
+  - getShowCharacter → getCharacter(showId, characterId): ShowCharacterRecord | null
+  - privateContext сериализуется в JSON (JSON.stringify при записи, JSON.parse при чтении)
+- tests/unit/sqlite-store.test.ts — обновлены тесты для использования правильных имён методов
+
+**Тесты:** npm run typecheck, npm test — все пройдены (21 tests passed).
+**Заметки:** Реализация CRUD уже присутствовала с TASK-013, но методы имели неверные имена. Теперь SqliteStore полностью соответствует IStore интерфейсу для show_characters. От этой задачи зависит TASK-017.
+

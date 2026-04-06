@@ -217,20 +217,20 @@ export class SqliteStore implements IStore {
 
   // ─── Show Characters ───────────────────────────────────────────
 
-  async addShowCharacter(record: ShowCharacterRecord): Promise<void> {
+  async createCharacter(char: ShowCharacterRecord): Promise<void> {
     const stmt = this.db.prepare(`
       INSERT INTO show_characters (show_id, character_id, model_adapter_id, private_context)
       VALUES (?, ?, ?, ?)
     `);
     stmt.run(
-      record.showId,
-      record.characterId,
-      record.modelAdapterId,
-      JSON.stringify(record.privateContext)
+      char.showId,
+      char.characterId,
+      char.modelAdapterId,
+      JSON.stringify(char.privateContext)
     );
   }
 
-  async getShowCharacter(showId: string, characterId: string): Promise<ShowCharacterRecord | null> {
+  async getCharacter(showId: string, characterId: string): Promise<ShowCharacterRecord | null> {
     const stmt = this.db.prepare(
       'SELECT * FROM show_characters WHERE show_id = ? AND character_id = ?'
     );
@@ -239,7 +239,7 @@ export class SqliteStore implements IStore {
     return this.mapCharacterRow(row);
   }
 
-  async getShowCharacters(showId: string): Promise<ShowCharacterRecord[]> {
+  async getCharacters(showId: string): Promise<ShowCharacterRecord[]> {
     const stmt = this.db.prepare('SELECT * FROM show_characters WHERE show_id = ?');
     const rows = stmt.all(showId) as unknown[];
     return rows.map((row) => this.mapCharacterRow(row as Record<string, unknown>));

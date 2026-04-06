@@ -86,14 +86,14 @@ export interface IStore {
 
   // ─── Show Characters ───────────────────────────────────────────
 
-  /** Add character to show */
-  addShowCharacter(record: ShowCharacterRecord): Promise<void>;
+  /** Create character in show */
+  createCharacter(char: ShowCharacterRecord): Promise<void>;
 
   /** Get character in show */
-  getShowCharacter(showId: string, characterId: string): Promise<ShowCharacterRecord | null>;
+  getCharacter(showId: string, characterId: string): Promise<ShowCharacterRecord | null>;
 
   /** Get all characters in show */
-  getShowCharacters(showId: string): Promise<ShowCharacterRecord[]>;
+  getCharacters(showId: string): Promise<ShowCharacterRecord[]>;
 
   /** Update character's private context */
   updateShowCharacterContext(showId: string, characterId: string, privateContext: PrivateContext): Promise<void>;

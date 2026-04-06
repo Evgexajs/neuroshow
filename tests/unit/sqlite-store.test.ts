@@ -241,11 +241,11 @@ describe('SqliteStore', () => {
 
       // Add 3 characters
       for (const char of chars) {
-        await store.addShowCharacter(char);
+        await store.createCharacter(char);
       }
 
       // Get all characters for the show
-      const retrieved = await store.getShowCharacters('show-chars');
+      const retrieved = await store.getCharacters('show-chars');
       expect(retrieved.length).toBe(3);
 
       // Verify character IDs
@@ -256,7 +256,7 @@ describe('SqliteStore', () => {
     });
 
     it('should get a single character by showId and characterId', async () => {
-      await store.addShowCharacter({
+      await store.createCharacter({
         showId: 'show-chars',
         characterId: 'char-single',
         modelAdapterId: 'openai-gpt4',
@@ -268,7 +268,7 @@ describe('SqliteStore', () => {
         },
       });
 
-      const retrieved = await store.getShowCharacter('show-chars', 'char-single');
+      const retrieved = await store.getCharacter('show-chars', 'char-single');
 
       expect(retrieved).not.toBeNull();
       expect(retrieved!.characterId).toBe('char-single');
@@ -277,7 +277,7 @@ describe('SqliteStore', () => {
     });
 
     it('should return null for non-existent character', async () => {
-      const result = await store.getShowCharacter('show-chars', 'non-existent');
+      const result = await store.getCharacter('show-chars', 'non-existent');
       expect(result).toBeNull();
     });
 
@@ -295,14 +295,14 @@ describe('SqliteStore', () => {
         ],
       };
 
-      await store.addShowCharacter({
+      await store.createCharacter({
         showId: 'show-chars',
         characterId: 'char-json',
         modelAdapterId: 'adapter-1',
         privateContext,
       });
 
-      const retrieved = await store.getShowCharacter('show-chars', 'char-json');
+      const retrieved = await store.getCharacter('show-chars', 'char-json');
 
       expect(retrieved).not.toBeNull();
       expect(retrieved!.privateContext.secrets).toEqual(['Secret 1', 'Secret 2']);
@@ -315,7 +315,7 @@ describe('SqliteStore', () => {
     });
 
     it('should update character private context', async () => {
-      await store.addShowCharacter({
+      await store.createCharacter({
         showId: 'show-chars',
         characterId: 'char-update',
         modelAdapterId: 'adapter-1',
@@ -335,7 +335,7 @@ describe('SqliteStore', () => {
         wildcards: [{ content: 'New wildcard', isRevealed: false }],
       });
 
-      const retrieved = await store.getShowCharacter('show-chars', 'char-update');
+      const retrieved = await store.getCharacter('show-chars', 'char-update');
 
       expect(retrieved).not.toBeNull();
       expect(retrieved!.privateContext.secrets).toEqual(['Updated secret', 'New secret']);
