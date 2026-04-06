@@ -338,7 +338,7 @@
         "Ожидаемый результат: CRUD работает корректно"
       ],
       "dependencies": ["TASK-013"],
-      "status": "pending"
+      "status": "done"
     },
     {
       "id": "TASK-015",

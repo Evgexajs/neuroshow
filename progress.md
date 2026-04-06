@@ -189,3 +189,22 @@
 **Тесты:** npm run typecheck, npm test — все пройдены (5 tests passed).
 **Заметки:** Использован WAL-режим для SQLite. Схема соответствует PRD.md раздел 5. От этой задачи зависят TASK-014, TASK-015, TASK-016, TASK-017, TASK-018.
 
+## [2026-04-06] TASK-014: SQLite CRUD операции для таблицы shows
+**Статус:** done
+**Время:** ~10 минут
+**Изменения:**
+- src/storage/sqlite-store.ts — уже содержал реализацию всех CRUD-методов:
+  - createShow(show): void — создание записи шоу
+  - getShow(id): ShowRecord | null — получение по ID
+  - updateShow(id, updates): void — обновление полей (status, currentPhaseId, completedAt и др.)
+  - listShows(status?): ShowRecord[] — список шоу с опциональной фильтрацией по статусу
+- tests/unit/sqlite-store.test.ts — добавлены 5 тестов для CRUD операций shows:
+  - create and get a show
+  - update show status and verify changes
+  - list all shows (with status filter)
+  - return null for non-existent show
+  - serialize configSnapshot as JSON
+
+**Тесты:** npm run typecheck, npm test — все пройдены (10 tests passed).
+**Заметки:** CRUD-методы были реализованы в рамках TASK-013. В этой задаче добавлены тесты, подтверждающие корректность работы. configSnapshot сохраняется как JSON-строка. От этой задачи зависят TASK-015, TASK-016, TASK-017.
+
