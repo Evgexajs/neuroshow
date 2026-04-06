@@ -162,3 +162,16 @@
 **Тесты:** npm run typecheck, npm test — все пройдены.
 **Заметки:** PromptPackage использует ContextLayers и ResponseConstraints. CharacterResponse использует CharacterIntent из enums.ts. IStore определяет контракт для хранилища (SQLite в MVP). От этой задачи зависят TASK-012, TASK-013, TASK-014.
 
+## [2026-04-06] TASK-012: TypeScript типы: Show (runtime state) и TokenBudgetState
+**Статус:** done
+**Время:** ~5 минут
+**Изменения:**
+- src/types/runtime.ts — создан файл с типами:
+  - Show: id, formatId, seed, status (ShowStatus), currentPhaseId, startedAt, completedAt, configSnapshot
+  - TokenBudgetState: showId, totalLimit, usedPrompt, usedCompletion, mode (BudgetMode), lastUpdated
+  - ShowCharacter: showId, characterId, modelAdapterId, privateContext (PrivateContext)
+- src/types/index.ts — добавлен реэкспорт Show, TokenBudgetState, ShowCharacter
+
+**Тесты:** npm run typecheck, npm test — все пройдены.
+**Заметки:** Типы используют ShowStatus и BudgetMode из enums.ts, PrivateContext из context.ts. Show — runtime-состояние шоу. TokenBudgetState отслеживает бюджет токенов. ShowCharacter связывает персонажа с шоу и его приватным контекстом. От этой задачи зависит TASK-013.
+

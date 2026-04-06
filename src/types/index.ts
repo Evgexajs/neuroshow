@@ -43,6 +43,9 @@ export { Phase, ShowFormatTemplate, ScoringRule } from './template.js';
 // Adapter
 export { PromptPackage, CharacterResponse, ModelAdapter } from './adapter.js';
 
+// Runtime
+export { Show, TokenBudgetState, ShowCharacter } from './runtime.js';
+
 // Store Interface
 export {
   IStore,
