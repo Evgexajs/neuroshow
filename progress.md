@@ -243,3 +243,20 @@
 **Тесты:** npm run typecheck, npm test — все пройдены (21 tests passed).
 **Заметки:** Реализация CRUD уже присутствовала с TASK-013, но методы имели неверные имена. Теперь SqliteStore полностью соответствует IStore интерфейсу для show_characters. От этой задачи зависит TASK-017.
 
+## [2026-04-06] TASK-017: SQLite CRUD операции для llm_calls и token_budgets
+**Статус:** done
+**Время:** ~15 минут
+**Изменения:**
+- src/types/interfaces/store.interface.ts — переименованы методы согласно acceptance criteria:
+  - logLlmCall → logLLMCall(call: LlmCallRecord): void
+  - getLlmCalls → getLLMCalls(showId: string): LlmCallRecord[]
+  - добавлен getLLMCallByEventId(eventId: string): LlmCallRecord | null
+  - initTokenBudget → createBudget(budget: TokenBudgetRecord): void
+  - getTokenBudget → getBudget(showId: string): TokenBudgetRecord | null
+  - updateTokenBudget → updateBudget(showId, usedPrompt, usedCompletion): void
+- src/storage/sqlite-store.ts — реализация обновлена под новые сигнатуры методов
+- tests/unit/sqlite-store.test.ts — добавлены 8 тестов для llm_calls и token_budgets
+
+**Тесты:** npm run typecheck, npm test — все пройдены (29 tests passed).
+**Заметки:** Методы были переименованы для соответствия acceptance criteria. Добавлен новый метод getLLMCallByEventId для получения LLM-вызова по eventId. От этой задачи зависит TASK-018.
+

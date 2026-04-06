@@ -414,7 +414,7 @@
         "Ожидаемый результат: бюджет и логи работают"
       ],
       "dependencies": ["TASK-013", "TASK-014"],
-      "status": "pending"
+      "status": "done"
     },
     {
       "id": "TASK-018",

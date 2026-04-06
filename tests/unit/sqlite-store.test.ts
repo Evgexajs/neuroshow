@@ -595,4 +595,189 @@ describe('SqliteStore', () => {
       expect(events[1].content).toBe('Four');
     });
   });
+
+  describe('llm_calls and token_budgets CRUD - TASK-017', () => {
+    beforeEach(async () => {
+      await store.initSchema();
+      // Create a show to associate with
+      await store.createShow({
+        id: 'show-llm',
+        formatId: 'coalition-v1',
+        seed: 'llm-seed',
+        status: 'running' as const,
+        currentPhaseId: 'phase-1',
+        startedAt: Date.now(),
+        completedAt: null,
+        configSnapshot: '{}',
+      });
+    });
+
+    it('should create and get token budget', async () => {
+      const budget = {
+        showId: 'show-llm',
+        totalLimit: 100000,
+        usedPrompt: 0,
+        usedCompletion: 0,
+        mode: 'normal' as const,
+        lastUpdated: Date.now(),
+      };
+
+      await store.createBudget(budget);
+      const retrieved = await store.getBudget('show-llm');
+
+      expect(retrieved).not.toBeNull();
+      expect(retrieved!.showId).toBe('show-llm');
+      expect(retrieved!.totalLimit).toBe(100000);
+      expect(retrieved!.usedPrompt).toBe(0);
+      expect(retrieved!.usedCompletion).toBe(0);
+      expect(retrieved!.mode).toBe('normal');
+    });
+
+    it('should update token budget with used tokens', async () => {
+      await store.createBudget({
+        showId: 'show-llm',
+        totalLimit: 100000,
+        usedPrompt: 0,
+        usedCompletion: 0,
+        mode: 'normal' as const,
+        lastUpdated: Date.now(),
+      });
+
+      // Add some tokens
+      await store.updateBudget('show-llm', 500, 200);
+
+      let budget = await store.getBudget('show-llm');
+      expect(budget!.usedPrompt).toBe(500);
+      expect(budget!.usedCompletion).toBe(200);
+
+      // Add more tokens
+      await store.updateBudget('show-llm', 300, 100);
+
+      budget = await store.getBudget('show-llm');
+      expect(budget!.usedPrompt).toBe(800);
+      expect(budget!.usedCompletion).toBe(300);
+    });
+
+    it('should return null for non-existent budget', async () => {
+      const result = await store.getBudget('non-existent');
+      expect(result).toBeNull();
+    });
+
+    it('should set budget mode', async () => {
+      await store.createBudget({
+        showId: 'show-llm',
+        totalLimit: 100000,
+        usedPrompt: 0,
+        usedCompletion: 0,
+        mode: 'normal' as const,
+        lastUpdated: Date.now(),
+      });
+
+      await store.setBudgetMode('show-llm', 'budget_saving');
+      let budget = await store.getBudget('show-llm');
+      expect(budget!.mode).toBe('budget_saving');
+
+      await store.setBudgetMode('show-llm', 'graceful_finish');
+      budget = await store.getBudget('show-llm');
+      expect(budget!.mode).toBe('graceful_finish');
+    });
+
+    it('should log LLM call and retrieve by showId', async () => {
+      const call = {
+        id: 'llm-call-1',
+        eventId: 'evt-1',
+        showId: 'show-llm',
+        characterId: 'char-1',
+        modelAdapterId: 'openai-gpt4',
+        promptTokens: 500,
+        completionTokens: 200,
+        rawRequest: JSON.stringify({ prompt: 'Hello' }),
+        rawResponse: JSON.stringify({ text: 'Hi there' }),
+        latencyMs: 150,
+        createdAt: Date.now(),
+      };
+
+      await store.logLLMCall(call);
+
+      const calls = await store.getLLMCalls('show-llm');
+      expect(calls.length).toBe(1);
+      expect(calls[0].id).toBe('llm-call-1');
+      expect(calls[0].characterId).toBe('char-1');
+      expect(calls[0].promptTokens).toBe(500);
+      expect(calls[0].completionTokens).toBe(200);
+    });
+
+    it('should get LLM call by eventId', async () => {
+      const call1 = {
+        id: 'llm-call-1',
+        eventId: 'evt-1',
+        showId: 'show-llm',
+        characterId: 'char-1',
+        modelAdapterId: 'openai-gpt4',
+        promptTokens: 500,
+        completionTokens: 200,
+        rawRequest: '{}',
+        rawResponse: '{}',
+        latencyMs: 150,
+        createdAt: Date.now(),
+      };
+
+      const call2 = {
+        id: 'llm-call-2',
+        eventId: 'evt-2',
+        showId: 'show-llm',
+        characterId: 'char-2',
+        modelAdapterId: 'openai-gpt4',
+        promptTokens: 400,
+        completionTokens: 150,
+        rawRequest: '{}',
+        rawResponse: '{}',
+        latencyMs: 120,
+        createdAt: Date.now() + 100,
+      };
+
+      await store.logLLMCall(call1);
+      await store.logLLMCall(call2);
+
+      // Get by eventId
+      const retrieved = await store.getLLMCallByEventId('evt-1');
+      expect(retrieved).not.toBeNull();
+      expect(retrieved!.id).toBe('llm-call-1');
+      expect(retrieved!.characterId).toBe('char-1');
+
+      // Get another by eventId
+      const retrieved2 = await store.getLLMCallByEventId('evt-2');
+      expect(retrieved2).not.toBeNull();
+      expect(retrieved2!.id).toBe('llm-call-2');
+      expect(retrieved2!.characterId).toBe('char-2');
+    });
+
+    it('should return null for non-existent eventId', async () => {
+      const result = await store.getLLMCallByEventId('non-existent');
+      expect(result).toBeNull();
+    });
+
+    it('should handle LLM call with null eventId', async () => {
+      const call = {
+        id: 'llm-call-no-event',
+        eventId: null,
+        showId: 'show-llm',
+        characterId: 'char-1',
+        modelAdapterId: 'mock-adapter',
+        promptTokens: null,
+        completionTokens: null,
+        rawRequest: '{}',
+        rawResponse: '{}',
+        latencyMs: null,
+        createdAt: Date.now(),
+      };
+
+      await store.logLLMCall(call);
+
+      const calls = await store.getLLMCalls('show-llm');
+      expect(calls.length).toBe(1);
+      expect(calls[0].eventId).toBeNull();
+      expect(calls[0].promptTokens).toBeNull();
+    });
+  });
 });

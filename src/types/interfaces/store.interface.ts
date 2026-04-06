@@ -118,21 +118,24 @@ export interface IStore {
   // ─── LLM Calls ─────────────────────────────────────────────────
 
   /** Log an LLM call */
-  logLlmCall(record: LlmCallRecord): Promise<void>;
+  logLLMCall(call: LlmCallRecord): Promise<void>;
 
   /** Get LLM calls for show */
-  getLlmCalls(showId: string): Promise<LlmCallRecord[]>;
+  getLLMCalls(showId: string): Promise<LlmCallRecord[]>;
+
+  /** Get LLM call by event ID */
+  getLLMCallByEventId(eventId: string): Promise<LlmCallRecord | null>;
 
   // ─── Token Budget ──────────────────────────────────────────────
 
-  /** Initialize token budget for show */
-  initTokenBudget(showId: string, totalLimit: number): Promise<void>;
+  /** Create token budget for show */
+  createBudget(budget: TokenBudgetRecord): Promise<void>;
 
   /** Get token budget state */
-  getTokenBudget(showId: string): Promise<TokenBudgetRecord | null>;
+  getBudget(showId: string): Promise<TokenBudgetRecord | null>;
 
   /** Update token budget (add used tokens) */
-  updateTokenBudget(showId: string, promptTokens: number, completionTokens: number): Promise<void>;
+  updateBudget(showId: string, usedPrompt: number, usedCompletion: number): Promise<void>;
 
   /** Set budget mode */
   setBudgetMode(showId: string, mode: BudgetMode): Promise<void>;

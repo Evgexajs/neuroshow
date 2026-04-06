@@ -383,7 +383,7 @@ export class SqliteStore implements IStore {
 
   // ─── LLM Calls ─────────────────────────────────────────────────
 
-  async logLlmCall(record: LlmCallRecord): Promise<void> {
+  async logLLMCall(call: LlmCallRecord): Promise<void> {
     const stmt = this.db.prepare(`
       INSERT INTO llm_calls (
         id, event_id, show_id, character_id, model_adapter_id,
@@ -392,24 +392,31 @@ export class SqliteStore implements IStore {
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     stmt.run(
-      record.id,
-      record.eventId,
-      record.showId,
-      record.characterId,
-      record.modelAdapterId,
-      record.promptTokens,
-      record.completionTokens,
-      record.rawRequest,
-      record.rawResponse,
-      record.latencyMs,
-      record.createdAt
+      call.id,
+      call.eventId,
+      call.showId,
+      call.characterId,
+      call.modelAdapterId,
+      call.promptTokens,
+      call.completionTokens,
+      call.rawRequest,
+      call.rawResponse,
+      call.latencyMs,
+      call.createdAt
     );
   }
 
-  async getLlmCalls(showId: string): Promise<LlmCallRecord[]> {
+  async getLLMCalls(showId: string): Promise<LlmCallRecord[]> {
     const stmt = this.db.prepare('SELECT * FROM llm_calls WHERE show_id = ? ORDER BY created_at');
     const rows = stmt.all(showId) as unknown[];
     return rows.map((row) => this.mapLlmCallRow(row as Record<string, unknown>));
+  }
+
+  async getLLMCallByEventId(eventId: string): Promise<LlmCallRecord | null> {
+    const stmt = this.db.prepare('SELECT * FROM llm_calls WHERE event_id = ?');
+    const row = stmt.get(eventId) as Record<string, unknown> | undefined;
+    if (!row) return null;
+    return this.mapLlmCallRow(row);
   }
 
   private mapLlmCallRow(row: Record<string, unknown>): LlmCallRecord {
@@ -430,32 +437,39 @@ export class SqliteStore implements IStore {
 
   // ─── Token Budget ──────────────────────────────────────────────
 
-  async initTokenBudget(showId: string, totalLimit: number): Promise<void> {
+  async createBudget(budget: TokenBudgetRecord): Promise<void> {
     const stmt = this.db.prepare(`
       INSERT INTO token_budgets (show_id, total_limit, used_prompt, used_completion, mode, last_updated)
-      VALUES (?, ?, 0, 0, 'normal', ?)
+      VALUES (?, ?, ?, ?, ?, ?)
     `);
-    stmt.run(showId, totalLimit, Date.now());
+    stmt.run(
+      budget.showId,
+      budget.totalLimit,
+      budget.usedPrompt,
+      budget.usedCompletion,
+      budget.mode,
+      budget.lastUpdated
+    );
   }
 
-  async getTokenBudget(showId: string): Promise<TokenBudgetRecord | null> {
+  async getBudget(showId: string): Promise<TokenBudgetRecord | null> {
     const stmt = this.db.prepare('SELECT * FROM token_budgets WHERE show_id = ?');
     const row = stmt.get(showId) as Record<string, unknown> | undefined;
     if (!row) return null;
     return this.mapBudgetRow(row);
   }
 
-  async updateTokenBudget(
+  async updateBudget(
     showId: string,
-    promptTokens: number,
-    completionTokens: number
+    usedPrompt: number,
+    usedCompletion: number
   ): Promise<void> {
     const stmt = this.db.prepare(`
       UPDATE token_budgets
       SET used_prompt = used_prompt + ?, used_completion = used_completion + ?, last_updated = ?
       WHERE show_id = ?
     `);
-    stmt.run(promptTokens, completionTokens, Date.now(), showId);
+    stmt.run(usedPrompt, usedCompletion, Date.now(), showId);
   }
 
   async setBudgetMode(showId: string, mode: BudgetMode): Promise<void> {
