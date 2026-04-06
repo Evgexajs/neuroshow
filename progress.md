@@ -112,3 +112,14 @@
 **Тесты:** npm run typecheck, npm test — все пройдены. Логи выводятся с форматированием, ID уникальны.
 **Заметки:** Использован crypto.randomUUID() для генерации UUID v4. Logger использует config.nodeEnv для определения режима production.
 
+## [2026-04-06] TASK-008: TypeScript типы: PrivateContext и ContextLayers
+**Статус:** done
+**Время:** ~5 минут
+**Изменения:**
+- src/types/context.ts — создан файл с типами контекста:
+  - PrivateContext: secrets (string[]), alliances (AllianceRecord[]), goals (string[]), wildcards (WildcardRecord[])
+  - ContextLayers: factsList (string[]), slidingWindow (EventSummary[])
+
+**Тесты:** npm run typecheck, npm test — все пройдены.
+**Заметки:** Типы используют AllianceRecord и WildcardRecord из primitives.ts, EventSummary из events.ts. PrivateContext используется в CharacterDefinition (TASK-009). ContextLayers используется в Context Builder.
+

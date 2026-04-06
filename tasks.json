@@ -214,7 +214,7 @@
         "Ожидаемый результат: компиляция успешна"
       ],
       "dependencies": ["TASK-006", "TASK-007"],
-      "status": "pending"
+      "status": "done"
     },
     {
       "id": "TASK-009",
