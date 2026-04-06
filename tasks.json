@@ -316,7 +316,7 @@
         "Ожидаемый результат: 5 таблиц созданы"
       ],
       "dependencies": ["TASK-007", "TASK-012"],
-      "status": "pending"
+      "status": "done"
     },
     {
       "id": "TASK-014",

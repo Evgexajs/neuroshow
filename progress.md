@@ -175,3 +175,17 @@
 **Тесты:** npm run typecheck, npm test — все пройдены.
 **Заметки:** Типы используют ShowStatus и BudgetMode из enums.ts, PrivateContext из context.ts. Show — runtime-состояние шоу. TokenBudgetState отслеживает бюджет токенов. ShowCharacter связывает персонажа с шоу и его приватным контекстом. От этой задачи зависит TASK-013.
 
+## [2026-04-06] TASK-013: SQLite: создание схемы БД и connection manager
+**Статус:** done
+**Время:** ~15 минут
+**Изменения:**
+- src/storage/sqlite-store.ts — создан SqliteStore класс, реализующий IStore интерфейс:
+  - Конструктор принимает dbPath, создаёт соединение с better-sqlite3
+  - initialize() создаёт все 5 таблиц: shows, show_characters, show_events, llm_calls, token_budgets
+  - Созданы индексы для show_events (idx_show_events_show_id, idx_show_events_sequence)
+  - Реализованы все CRUD-методы согласно IStore интерфейсу
+- tests/unit/sqlite-store.test.ts — добавлен тест проверяющий создание таблиц и индексов
+
+**Тесты:** npm run typecheck, npm test — все пройдены (5 tests passed).
+**Заметки:** Использован WAL-режим для SQLite. Схема соответствует PRD.md раздел 5. От этой задачи зависят TASK-014, TASK-015, TASK-016, TASK-017, TASK-018.
+
