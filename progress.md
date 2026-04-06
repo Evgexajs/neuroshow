@@ -123,3 +123,14 @@
 **Тесты:** npm run typecheck, npm test — все пройдены.
 **Заметки:** Типы используют AllianceRecord и WildcardRecord из primitives.ts, EventSummary из events.ts. PrivateContext используется в CharacterDefinition (TASK-009). ContextLayers используется в Context Builder.
 
+## [2026-04-06] TASK-009: TypeScript типы CharacterDefinition
+**Статус:** done
+**Время:** ~5 минут
+**Изменения:**
+- src/types/character.ts — создан файл с типом CharacterDefinition:
+  - id, name, publicCard, personalityPrompt, motivationPrompt, boundaryRules
+  - startingPrivateContext (PrivateContext), speakFrequency (SpeakFrequency), responseConstraints (ResponseConstraints)
+
+**Тесты:** npm run typecheck, npm test — все пройдены.
+**Заметки:** CharacterDefinition использует PrivateContext из context.ts, ResponseConstraints из primitives.ts, SpeakFrequency из enums.ts. От этой задачи зависит TASK-011.
+
