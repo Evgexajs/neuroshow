@@ -80,3 +80,14 @@
 **Тесты:** npm run build, npm run typecheck — все пройдены. Mock-объекты ShowEvent и EventSummary созданы успешно, enums работают корректно.
 **Заметки:** Типы используют EventType и ChannelType из enums.ts. ShowEvent — основа для Event Journal. EventSummary используется в ContextLayers.slidingWindow. От этой задачи зависят TASK-008, TASK-011, TASK-013.
 
+## [2026-04-06] TASK-002: Настройка .env конфигурации и dotenv
+**Статус:** done
+**Время:** ~10 минут
+**Изменения:**
+- .env.example — добавлены поля: TOKEN_BUDGET_PER_SHOW, PORT, DB_PATH
+- src/config.ts — создан типизированный объект конфигурации с интерфейсом Config
+- .env — обновлён с полными переменными окружения
+
+**Тесты:** npm run typecheck — пройден. Конфигурация загружается корректно из .env (проверено через tsx).
+**Заметки:** .env уже был в .gitignore. Конфигурация использует dotenv для загрузки переменных окружения. От этой задачи зависят TASK-004, TASK-044, TASK-058.
+
