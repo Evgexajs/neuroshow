@@ -106,7 +106,7 @@
         "Ожидаемый результат: тест проходит, vitest показывает зелёный статус"
       ],
       "dependencies": ["TASK-001"],
-      "status": "pending"
+      "status": "done"
     },
     {
       "id": "TASK-004",
