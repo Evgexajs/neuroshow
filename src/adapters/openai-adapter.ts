@@ -11,6 +11,21 @@ import { CharacterIntent } from '../types/enums.js';
 import { IStore, LlmCallRecord } from '../types/interfaces/store.interface.js';
 import { generateId } from '../utils/id.js';
 
+/** Error codes that trigger retry */
+const RETRYABLE_STATUS_CODES = [429, 500, 502, 503];
+
+/** Maximum number of retries */
+const MAX_RETRIES = 2;
+
+/** Base delay for exponential backoff (ms) */
+const BASE_DELAY_MS = 1000;
+
+/** Fallback response when all retries exhausted */
+const FALLBACK_RESPONSE: CharacterResponse = {
+  text: '[молчит]',
+  intent: CharacterIntent.end_turn,
+};
+
 /**
  * Configuration for OpenAIAdapter
  */
@@ -55,6 +70,9 @@ export class OpenAIAdapter implements ModelAdapter {
    *
    * Builds messages from prompt, calls API, parses JSON response,
    * and logs the call to storage.
+   *
+   * Implements retry with exponential backoff for 429, 500, 502, 503 errors.
+   * Returns fallback response if all retries exhausted.
    */
   async call(prompt: PromptPackage): Promise<CharacterResponse> {
     const startTime = Date.now();
@@ -70,25 +88,92 @@ export class OpenAIAdapter implements ModelAdapter {
     let rawResponse: unknown;
     let promptTokens: number | null = null;
     let completionTokens: number | null = null;
-    let responseContent: string;
+    let responseContent: string | null = null;
+    let lastError: Error | null = null;
 
-    const response = await this.client.chat.completions.create({
-      model: this.modelId,
-      messages,
-      response_format: { type: 'json_object' },
-    });
+    // Retry loop for API calls
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        // Exponential backoff delay (skip on first attempt)
+        if (attempt > 0) {
+          const delay = BASE_DELAY_MS * Math.pow(2, attempt - 1);
+          await this.sleep(delay);
+        }
 
-    rawResponse = response;
-    promptTokens = response.usage?.prompt_tokens ?? null;
-    completionTokens = response.usage?.completion_tokens ?? null;
-    responseContent = response.choices[0]?.message?.content ?? '{}';
+        const response = await this.client.chat.completions.create({
+          model: this.modelId,
+          messages,
+          response_format: { type: 'json_object' },
+        });
 
+        rawResponse = response;
+        promptTokens = response.usage?.prompt_tokens ?? null;
+        completionTokens = response.usage?.completion_tokens ?? null;
+        responseContent = response.choices[0]?.message?.content ?? '{}';
+
+        // Try to parse JSON - retry on invalid JSON
+        try {
+          const parsed = this.parseResponse(responseContent);
+          const latencyMs = Date.now() - startTime;
+
+          // Log successful call
+          await this.logCall(rawRequest, rawResponse, promptTokens, completionTokens, latencyMs, false);
+
+          return parsed;
+        } catch (parseError) {
+          lastError = parseError as Error;
+          // Continue to retry on JSON parse error
+          if (attempt === MAX_RETRIES) {
+            break; // Will fall through to fallback
+          }
+          continue;
+        }
+      } catch (error) {
+        lastError = error as Error;
+
+        // Check if error is retryable
+        if (!this.isRetryableError(error)) {
+          break; // Non-retryable error, go to fallback
+        }
+
+        // Continue to next retry attempt
+        if (attempt === MAX_RETRIES) {
+          break; // Will fall through to fallback
+        }
+      }
+    }
+
+    // All retries exhausted - return fallback
     const latencyMs = Date.now() - startTime;
 
-    // Parse JSON response
-    const parsed = this.parseResponse(responseContent);
+    // Log fallback with metadata
+    await this.logCall(
+      rawRequest,
+      { fallback: true, error: lastError?.message ?? 'Unknown error' },
+      promptTokens,
+      completionTokens,
+      latencyMs,
+      true
+    );
 
-    // Log the call
+    return { ...FALLBACK_RESPONSE };
+  }
+
+  /**
+   * Log LLM call to storage
+   */
+  private async logCall(
+    rawRequest: unknown,
+    rawResponse: unknown,
+    promptTokens: number | null,
+    completionTokens: number | null,
+    latencyMs: number,
+    isFallback: boolean
+  ): Promise<void> {
+    const responseWithMetadata = isFallback
+      ? { ...rawResponse as object, metadata: { fallback: true } }
+      : rawResponse;
+
     const logRecord: LlmCallRecord = {
       id: generateId(),
       eventId: null,
@@ -98,14 +183,29 @@ export class OpenAIAdapter implements ModelAdapter {
       promptTokens,
       completionTokens,
       rawRequest: JSON.stringify(rawRequest),
-      rawResponse: JSON.stringify(rawResponse),
+      rawResponse: JSON.stringify(responseWithMetadata),
       latencyMs,
       createdAt: Date.now(),
     };
 
     await this.store.logLLMCall(logRecord);
+  }
 
-    return parsed;
+  /**
+   * Check if error is retryable (429, 500, 502, 503)
+   */
+  private isRetryableError(error: unknown): boolean {
+    if (error instanceof OpenAI.APIError) {
+      return RETRYABLE_STATUS_CODES.includes(error.status);
+    }
+    return false;
+  }
+
+  /**
+   * Sleep for specified milliseconds
+   */
+  private sleep(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 
   /**

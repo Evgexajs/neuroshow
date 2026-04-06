@@ -346,3 +346,18 @@
 **Тесты:** npm run typecheck, npm test — все пройдены (61 tests passed).
 **Заметки:** Adapter принимает store, showId, characterId через config для логирования. Retry logic будет добавлена в TASK-023. Точный подсчёт токенов через tiktoken в TASK-024.
 
+## [2026-04-06] TASK-023: OpenAI Adapter retry logic и fallback
+**Статус:** done
+**Время:** ~15 минут
+**Изменения:**
+- src/adapters/openai-adapter.ts — добавлена retry logic с exponential backoff:
+  - Retry при ошибках 429, 500, 502, 503
+  - Максимум 2 retry
+  - Retry при невалидном JSON-ответе
+  - Fallback: { text: '[молчит]', intent: 'end_turn' } при исчерпании retry
+  - Fallback логируется с metadata.fallback: true
+- tests/unit/openai-adapter-retry.test.ts — добавлены 11 тестов для retry logic
+
+**Тесты:** npm run typecheck, npm test — все пройдены (72 tests passed).
+**Заметки:** Использован exponential backoff с base delay 1000ms. Retryable ошибки определяются через OpenAI.APIError.status.
+
