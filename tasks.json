@@ -29,6 +29,25 @@
 
   "tasks": [
     {
+      "id": "TASK-000",
+      "category": "infrastructure",
+      "priority": "critical",
+      "description": "Базовая настройка окружения: .env, .env.example, ralph.sh",
+      "acceptance_criteria": [
+        ".env.example создан с шаблоном переменных (ADAPTER_MODE, OPENAI_API_KEY, OPENAI_DEFAULT_MODEL, NODE_ENV)",
+        ".env добавлен в .gitignore",
+        "ralph.sh исправлен: Python команды заменены на TypeScript (npm run typecheck, npm test)",
+        "Подключение к OpenAI API проверено"
+      ],
+      "test_steps": [
+        "Проверь наличие .env.example: cat .env.example",
+        "Проверь что .env в gitignore: grep '.env' .gitignore",
+        "Проверь ralph.sh на TypeScript команды: grep 'npm' ralph.sh"
+      ],
+      "dependencies": [],
+      "status": "done"
+    },
+    {
       "id": "TASK-001",
       "category": "infrastructure",
       "priority": "critical",
