@@ -382,3 +382,17 @@
 **Тесты:** npm run typecheck, npm test — все пройдены (82 tests passed).
 **Заметки:** tiktoken использует encoding gpt-4 как fallback для моделей gpt-4o/gpt-4o-mini. Оценка estimatedCompletion берётся из responseConstraints.maxTokens или default 256.
 
+## [2026-04-06] TASK-025: Context Builder: метод buildFactsList()
+**Статус:** done
+**Время:** ~10 минут
+**Изменения:**
+- src/core/context-builder.ts — создан класс ContextBuilder:
+  - Конструктор принимает EventJournal и IStore
+  - buildFactsList(characterId, showId): Promise<string[]> — извлекает факты из PrivateContext
+  - Включает: secrets с префиксом [Secret], goals с [Goal], активные alliances с [Alliance], нераскрытые wildcards с [Wildcard]
+  - Добавляет раскрытые козыри из журнала: свои [My Revealed Wildcard], чужие [Revealed by senderId]
+- tests/unit/context-builder.test.ts — добавлены 8 тестов для buildFactsList()
+
+**Тесты:** npm run typecheck, npm test — все пройдены (90 tests passed).
+**Заметки:** ContextBuilder использует EventJournal.getVisibleEvents() для фильтрации revelation events по audienceIds. От этой задачи зависят TASK-027, TASK-028.
+
