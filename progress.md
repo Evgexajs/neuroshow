@@ -102,3 +102,13 @@
 **Тесты:** npm run typecheck, npm test — все пройдены. vitest показывает 3 passed tests.
 **Заметки:** vitest уже был в devDependencies, скрипты test и test:watch уже настроены в package.json. От этой задачи могут зависеть другие задачи, требующие тестирования.
 
+## [2026-04-06] TASK-004: Утилиты: logger и генератор ID
+**Статус:** done
+**Время:** ~5 минут
+**Изменения:**
+- src/utils/logger.ts — создан логгер с методами: info, warn, error, debug. Выводит timestamp и уровень. В production режиме debug-логи не выводятся.
+- src/utils/id.ts — создан генератор ID с функцией generateId() возвращающей UUID v4 (crypto.randomUUID).
+
+**Тесты:** npm run typecheck, npm test — все пройдены. Логи выводятся с форматированием, ID уникальны.
+**Заметки:** Использован crypto.randomUUID() для генерации UUID v4. Logger использует config.nodeEnv для определения режима production.
+
