@@ -54,3 +54,18 @@
 **Тесты:** npm run build, npm run typecheck — все пройдены. EventType.speech === 'speech' проверено.
 **Заметки:** Использованы string enum для соответствия требованию EventType.speech === 'speech'. Это фундаментальная задача — от неё зависят TASK-006, TASK-007, TASK-010, TASK-012.
 
+## [2026-04-06] TASK-006: TypeScript типы: базовые структуры
+**Статус:** done
+**Время:** ~10 минут
+**Изменения:**
+- src/types/primitives.ts — создан файл со всеми примитивными типами из PRD Appendix A:
+  - ResponseConstraints: maxTokens, format ('free'|'structured'|'choice'), language
+  - AllianceRecord: partnerId, agreement, isActive
+  - WildcardRecord: content, isRevealed
+  - DecisionConfig: timing, visibility, revealMoment, format, options
+  - PrivateChannelRules: initiator, maxPrivatesPerPhase, maxPrivatesPerCharacterPerPhase, requestQueueMode, requestFormat
+  - DayConfig: dayIndex, label, phaseIds
+
+**Тесты:** npm run build, npm run typecheck — все пройдены.
+**Заметки:** Это базовые типы, используемые другими интерфейсами. От них зависят TASK-007, TASK-008, TASK-009, TASK-010, TASK-011.
+
