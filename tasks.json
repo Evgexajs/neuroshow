@@ -1335,6 +1335,27 @@
       ],
       "dependencies": ["TASK-041", "TASK-046"],
       "status": "pending"
+    },
+    {
+      "id": "TASK-061",
+      "category": "testing",
+      "priority": "high",
+      "description": "Contract tests: проверка соответствия IStore acceptance criteria",
+      "acceptance_criteria": [
+        "tests/contract/store-contract.test.ts создан",
+        "Тест проверяет что IStore имеет метод initSchema (не initialize)",
+        "Тест проверяет что createShow возвращает string (id)",
+        "Тест проверяет что все методы из интерфейса существуют в SqliteStore",
+        "Тест проверяет сигнатуры методов через TypeScript compile-time проверки"
+      ],
+      "test_steps": [
+        "npm test -- tests/contract/store-contract.test.ts",
+        "Переименуй initSchema в initialize — тест должен упасть",
+        "Верни обратно — тест должен пройти",
+        "Ожидаемый результат: контрактные тесты ловят нарушения acceptance criteria"
+      ],
+      "dependencies": ["TASK-013", "TASK-014"],
+      "status": "pending"
     }
   ]
 }
