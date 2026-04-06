@@ -69,3 +69,14 @@
 **Тесты:** npm run build, npm run typecheck — все пройдены.
 **Заметки:** Это базовые типы, используемые другими интерфейсами. От них зависят TASK-007, TASK-008, TASK-009, TASK-010, TASK-011.
 
+## [2026-04-06] TASK-007: TypeScript типы: ShowEvent и EventSummary
+**Статус:** done
+**Время:** ~10 минут
+**Изменения:**
+- src/types/events.ts — создан файл с типами событий:
+  - ShowEvent: полная запись события в журнале (id, showId, timestamp, sequenceNumber, phaseId, type, channel, visibility, senderId, receiverIds, audienceIds, content, metadata, seed)
+  - EventSummary: упрощённая версия для Context Builder sliding window (senderId, channel, content, timestamp)
+
+**Тесты:** npm run build, npm run typecheck — все пройдены. Mock-объекты ShowEvent и EventSummary созданы успешно, enums работают корректно.
+**Заметки:** Типы используют EventType и ChannelType из enums.ts. ShowEvent — основа для Event Journal. EventSummary используется в ContextLayers.slidingWindow. От этой задачи зависят TASK-008, TASK-011, TASK-013.
+
