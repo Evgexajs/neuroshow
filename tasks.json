@@ -478,7 +478,7 @@
         "Ожидаемый результат: rollback работает корректно"
       ],
       "dependencies": ["TASK-018"],
-      "status": "pending"
+      "status": "done"
     },
     {
       "id": "TASK-021",

@@ -10,10 +10,12 @@ import { ShowEvent } from '../../src/types/events.js';
 import { EventType, ChannelType } from '../../src/types/enums.js';
 
 // Create a mock store implementing IStore
-function createMockStore(): IStore {
+function createMockStore(): IStore & { _events: ShowEvent[] } {
   const events: ShowEvent[] = [];
 
   return {
+    _events: events, // Expose for test verification
+
     // Events (Journal)
     appendEvent: vi.fn(async (event: ShowEvent) => {
       events.push(event);
@@ -34,7 +36,16 @@ function createMockStore(): IStore {
           .sort((a, b) => a.sequenceNumber - b.sequenceNumber);
       }
     ),
-    deleteEventsAfter: vi.fn(async () => {}),
+    deleteEventsAfter: vi.fn(async (showId: string, afterSequence: number) => {
+      // Actually delete events from the array for realistic testing
+      const toRemove = events.filter(
+        (e) => e.showId === showId && e.sequenceNumber > afterSequence
+      );
+      toRemove.forEach((e) => {
+        const idx = events.indexOf(e);
+        if (idx >= 0) events.splice(idx, 1);
+      });
+    }),
     getLatestSequence: vi.fn(async (showId: string) => {
       const showEvents = events.filter((e) => e.showId === showId);
       if (showEvents.length === 0) return 0;
@@ -342,6 +353,134 @@ describe('EventJournal', () => {
       const events = await journal.getVisibleEvents(showId, 'charC');
 
       expect(events.length).toBe(0);
+    });
+  });
+
+  describe('rollbackToSequence (TASK-020)', () => {
+    it('should delete events after specified sequence number', async () => {
+      const showId = 'show-1';
+
+      // Add 5 events
+      await journal.append(createEventData(showId, { content: 'Event 1' }));
+      await journal.append(createEventData(showId, { content: 'Event 2' }));
+      await journal.append(createEventData(showId, { content: 'Event 3' }));
+      await journal.append(createEventData(showId, { content: 'Event 4' }));
+      await journal.append(createEventData(showId, { content: 'Event 5' }));
+
+      // Rollback to sequence 3 (delete events 4 and 5)
+      const deletedCount = await journal.rollbackToSequence(showId, 3);
+
+      expect(deletedCount).toBe(2);
+      const events = await journal.getEvents(showId);
+      expect(events.length).toBe(3);
+      expect(events[2].sequenceNumber).toBe(3);
+    });
+
+    it('should return 0 if sequence is >= latest', async () => {
+      const showId = 'show-1';
+
+      await journal.append(createEventData(showId, { content: 'Event 1' }));
+      await journal.append(createEventData(showId, { content: 'Event 2' }));
+
+      const deletedCount = await journal.rollbackToSequence(showId, 5);
+
+      expect(deletedCount).toBe(0);
+      const events = await journal.getEvents(showId);
+      expect(events.length).toBe(2);
+    });
+
+    it('should keep journal consistent after rollback', async () => {
+      const showId = 'show-1';
+
+      await journal.append(createEventData(showId, { content: 'Event 1' }));
+      await journal.append(createEventData(showId, { content: 'Event 2' }));
+      await journal.append(createEventData(showId, { content: 'Event 3' }));
+
+      await journal.rollbackToSequence(showId, 1);
+
+      // Should be able to continue appending from sequence 2
+      const newEvent = await journal.append(createEventData(showId, { content: 'New Event 2' }));
+      expect(newEvent.sequenceNumber).toBe(2);
+
+      const events = await journal.getEvents(showId);
+      expect(events.length).toBe(2);
+    });
+  });
+
+  describe('rollbackToPhase (TASK-020)', () => {
+    it('should delete events from specified phase onwards', async () => {
+      const showId = 'show-1';
+
+      // Add 5 events in phase-1
+      for (let i = 1; i <= 5; i++) {
+        await journal.append(createEventData(showId, { content: `Phase1 Event ${i}`, phaseId: 'phase-1' }));
+      }
+
+      // Add 5 events in phase-2
+      for (let i = 1; i <= 5; i++) {
+        await journal.append(createEventData(showId, { content: `Phase2 Event ${i}`, phaseId: 'phase-2' }));
+      }
+
+      // Rollback to phase-2 (should delete all phase-2 events, keep phase-1)
+      const deletedCount = await journal.rollbackToPhase(showId, 'phase-2');
+
+      expect(deletedCount).toBe(5);
+      const events = await journal.getEvents(showId);
+      expect(events.length).toBe(5);
+      expect(events.every((e) => e.phaseId === 'phase-1')).toBe(true);
+    });
+
+    it('should return 0 if phase not found', async () => {
+      const showId = 'show-1';
+
+      await journal.append(createEventData(showId, { content: 'Event 1', phaseId: 'phase-1' }));
+
+      const deletedCount = await journal.rollbackToPhase(showId, 'non-existent-phase');
+
+      expect(deletedCount).toBe(0);
+      const events = await journal.getEvents(showId);
+      expect(events.length).toBe(1);
+    });
+
+    it('should delete all events if rollback to first phase', async () => {
+      const showId = 'show-1';
+
+      // Add events in phase-1
+      await journal.append(createEventData(showId, { content: 'Event 1', phaseId: 'phase-1' }));
+      await journal.append(createEventData(showId, { content: 'Event 2', phaseId: 'phase-1' }));
+      await journal.append(createEventData(showId, { content: 'Event 3', phaseId: 'phase-2' }));
+
+      // Rollback to phase-1 (should delete all events including phase-1)
+      const deletedCount = await journal.rollbackToPhase(showId, 'phase-1');
+
+      expect(deletedCount).toBe(3);
+      const events = await journal.getEvents(showId);
+      expect(events.length).toBe(0);
+    });
+
+    it('should keep journal consistent after phase rollback', async () => {
+      const showId = 'show-1';
+
+      // Add 5 events in phase-1
+      for (let i = 1; i <= 5; i++) {
+        await journal.append(createEventData(showId, { content: `P1 Event ${i}`, phaseId: 'phase-1' }));
+      }
+
+      // Add 5 events in phase-2
+      for (let i = 1; i <= 5; i++) {
+        await journal.append(createEventData(showId, { content: `P2 Event ${i}`, phaseId: 'phase-2' }));
+      }
+
+      // Rollback to phase-2
+      await journal.rollbackToPhase(showId, 'phase-2');
+
+      // Latest sequence should be 5
+      const latestSeq = await journal.getLatestSequence(showId);
+      expect(latestSeq).toBe(5);
+
+      // Should be able to continue appending from sequence 6
+      const newEvent = await journal.append(createEventData(showId, { content: 'New Event', phaseId: 'phase-2' }));
+      expect(newEvent.sequenceNumber).toBe(6);
     });
   });
 });

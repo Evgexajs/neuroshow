@@ -88,4 +88,56 @@ export class EventJournal {
 
     return events;
   }
+
+  /**
+   * Rollback journal to a specific sequence number (DEBUG mode)
+   * Deletes all events AFTER the specified sequence number
+   * @param showId - Show ID to rollback
+   * @param sequenceNumber - Keep events up to and including this sequence
+   * @returns Number of deleted events
+   */
+  async rollbackToSequence(showId: string, sequenceNumber: number): Promise<number> {
+    const latestSeq = await this.store.getLatestSequence(showId);
+
+    if (sequenceNumber >= latestSeq) {
+      return 0; // Nothing to delete
+    }
+
+    const deletedCount = latestSeq - sequenceNumber;
+    await this.store.deleteEventsAfter(showId, sequenceNumber);
+    return deletedCount;
+  }
+
+  /**
+   * Rollback journal to the start of a specific phase (DEBUG mode)
+   * Deletes all events from the specified phase onwards
+   * @param showId - Show ID to rollback
+   * @param phaseId - Phase ID to rollback to (events in this phase will be deleted)
+   * @returns Number of deleted events
+   */
+  async rollbackToPhase(showId: string, phaseId: string): Promise<number> {
+    const events = await this.store.getEvents(showId);
+
+    // Find the first event in the target phase
+    const firstPhaseEvent = events.find((e) => e.phaseId === phaseId);
+
+    if (!firstPhaseEvent) {
+      return 0; // Phase not found, nothing to delete
+    }
+
+    // Delete events from the start of this phase onwards
+    // We want to keep events BEFORE this phase, so delete after sequenceNumber - 1
+    const keepUntil = firstPhaseEvent.sequenceNumber - 1;
+    const latestSeq = await this.store.getLatestSequence(showId);
+
+    if (keepUntil < 0) {
+      // Phase starts at the beginning, delete all events
+      await this.store.deleteEventsAfter(showId, 0);
+      return latestSeq;
+    }
+
+    const deletedCount = latestSeq - keepUntil;
+    await this.store.deleteEventsAfter(showId, keepUntil);
+    return deletedCount;
+  }
 }

@@ -290,3 +290,22 @@
 **Тесты:** npm run typecheck, npm test — все пройдены (43 tests passed).
 **Заметки:** getVisibleEvents использует store.getEventsForCharacter для фильтрации по audienceIds. При указании limit возвращает последние N событий (наиболее свежие) для sliding window в Context Builder. От этой задачи зависит TASK-025.
 
+## [2026-04-06] TASK-020: Event Journal: rollback для DEBUG-режима
+**Статус:** done
+**Время:** ~10 минут
+**Изменения:**
+- src/core/event-journal.ts — добавлены методы:
+  - rollbackToSequence(showId: string, sequenceNumber: number): number — удаляет события после указанного sequenceNumber, возвращает количество удалённых
+  - rollbackToPhase(showId: string, phaseId: string): number — удаляет все события начиная с указанной фазы, возвращает количество удалённых
+- tests/unit/event-journal.test.ts — добавлены 7 тестов для rollback:
+  - delete events after specified sequence number
+  - return 0 if sequence is >= latest
+  - keep journal consistent after rollback
+  - delete events from specified phase onwards
+  - return 0 if phase not found
+  - delete all events if rollback to first phase
+  - keep journal consistent after phase rollback
+
+**Тесты:** npm run typecheck, npm test — все пройдены (50 tests passed).
+**Заметки:** Методы используют store.deleteEventsAfter для удаления событий. rollbackToPhase находит первое событие в указанной фазе и удаляет все события начиная с него. Журнал остаётся консистентным — после rollback можно продолжать append с правильными sequenceNumber.
+
