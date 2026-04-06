@@ -38,3 +38,19 @@
 **Тесты:** npm install, npm run build, npm run typecheck — все пройдены
 **Заметки:** package.json и tsconfig.json уже были созданы ранее. Структура директорий добавлена согласно PRD.md раздел 6.
 
+## [2026-04-06] TASK-005: TypeScript типы: enums
+**Статус:** done
+**Время:** ~10 минут
+**Изменения:**
+- src/types/enums.ts — создан файл со всеми enum из PRD Appendix A:
+  - EventType: speech, host_trigger, phase_start, phase_end, channel_change, decision, revelation, private_injection, system
+  - ChannelType: PUBLIC, PRIVATE, ZONE
+  - CharacterIntent: speak, request_private, reveal_wildcard, end_turn, request_to_speak, request_interrupt
+  - PhaseType: discussion, voting, private_talks, decision, revelation
+  - ShowStatus: running, paused, completed, aborted
+  - BudgetMode: normal, budget_saving, graceful_finish
+  - SpeakFrequency: low, medium, high
+
+**Тесты:** npm run build, npm run typecheck — все пройдены. EventType.speech === 'speech' проверено.
+**Заметки:** Использованы string enum для соответствия требованию EventType.speech === 'speech'. Это фундаментальная задача — от неё зависят TASK-006, TASK-007, TASK-010, TASK-012.
+

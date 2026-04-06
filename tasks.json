@@ -151,7 +151,7 @@
         "Ожидаемый результат: типы доступны и корректны"
       ],
       "dependencies": ["TASK-001"],
-      "status": "pending"
+      "status": "done"
     },
     {
       "id": "TASK-006",
