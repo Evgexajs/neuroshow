@@ -72,8 +72,8 @@ export interface TokenBudgetRecord {
 export interface IStore {
   // ─── Shows ─────────────────────────────────────────────────────
 
-  /** Create a new show */
-  createShow(show: ShowRecord): Promise<void>;
+  /** Create a new show, returns show id */
+  createShow(show: ShowRecord): Promise<string>;
 
   /** Get show by ID */
   getShow(id: string): Promise<ShowRecord | null>;
@@ -139,8 +139,8 @@ export interface IStore {
 
   // ─── Lifecycle ─────────────────────────────────────────────────
 
-  /** Initialize storage (create tables, etc.) */
-  initialize(): Promise<void>;
+  /** Initialize storage schema (create tables, etc.) */
+  initSchema(): Promise<void>;
 
   /** Close storage connection */
   close(): Promise<void>;

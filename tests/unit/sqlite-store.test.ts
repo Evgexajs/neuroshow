@@ -30,7 +30,7 @@ describe('SqliteStore', () => {
 
   describe('initSchema', () => {
     it('should create all 5 tables', async () => {
-      await store.initialize();
+      await store.initSchema();
 
       // Check tables via SQL
       const db = new Database(TEST_DB_PATH);
@@ -48,7 +48,7 @@ describe('SqliteStore', () => {
     });
 
     it('should create indexes for show_events', async () => {
-      await store.initialize();
+      await store.initSchema();
 
       const db = new Database(TEST_DB_PATH);
       const indexes = db
@@ -66,7 +66,7 @@ describe('SqliteStore', () => {
 
   describe('shows CRUD - TASK-014', () => {
     beforeEach(async () => {
-      await store.initialize();
+      await store.initSchema();
     });
 
     it('should create and get a show', async () => {
@@ -81,7 +81,8 @@ describe('SqliteStore', () => {
         configSnapshot: JSON.stringify({ maxPlayers: 5 }),
       };
 
-      await store.createShow(show);
+      const returnedId = await store.createShow(show);
+      expect(returnedId).toBe('show-001'); // createShow must return id
       const retrieved = await store.getShow('show-001');
 
       expect(retrieved).not.toBeNull();
@@ -187,7 +188,7 @@ describe('SqliteStore', () => {
 
   describe('show_characters CRUD - TASK-015', () => {
     beforeEach(async () => {
-      await store.initialize();
+      await store.initSchema();
       // Create a show to associate characters with
       await store.createShow({
         id: 'show-chars',
@@ -346,7 +347,7 @@ describe('SqliteStore', () => {
 
   describe('show_events CRUD - TASK-016', () => {
     beforeEach(async () => {
-      await store.initialize();
+      await store.initSchema();
       // Create a show to associate events with
       await store.createShow({
         id: 'show-events',

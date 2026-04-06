@@ -33,7 +33,7 @@ export class SqliteStore implements IStore {
    * Initialize database schema
    * Creates all 5 tables: shows, show_characters, show_events, llm_calls, token_budgets
    */
-  async initialize(): Promise<void> {
+  async initSchema(): Promise<void> {
     // Create shows table
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS shows (
@@ -122,7 +122,7 @@ export class SqliteStore implements IStore {
 
   // ─── Shows ─────────────────────────────────────────────────────
 
-  async createShow(show: ShowRecord): Promise<void> {
+  async createShow(show: ShowRecord): Promise<string> {
     const stmt = this.db.prepare(`
       INSERT INTO shows (id, format_id, seed, status, current_phase_id, started_at, completed_at, config_snapshot)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -137,6 +137,7 @@ export class SqliteStore implements IStore {
       show.completedAt,
       show.configSnapshot
     );
+    return show.id;
   }
 
   async getShow(id: string): Promise<ShowRecord | null> {
