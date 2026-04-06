@@ -396,3 +396,17 @@
 **Тесты:** npm run typecheck, npm test — все пройдены (90 tests passed).
 **Заметки:** ContextBuilder использует EventJournal.getVisibleEvents() для фильтрации revelation events по audienceIds. От этой задачи зависят TASK-027, TASK-028.
 
+## [2026-04-06] TASK-026: Context Builder: метод buildSlidingWindow()
+**Статус:** done
+**Время:** ~10 минут
+**Изменения:**
+- src/core/context-builder.ts — добавлен метод buildSlidingWindow():
+  - buildSlidingWindow(characterId, showId, limit): Promise<EventSummary[]>
+  - Использует getVisibleEvents() из EventJournal для фильтрации по audienceIds
+  - Конвертирует ShowEvent в EventSummary (senderId, channel, content, timestamp)
+  - Возвращает последние N видимых событий для sliding window
+- tests/unit/context-builder.test.ts — добавлены 6 тестов для buildSlidingWindow()
+
+**Тесты:** npm run typecheck, npm test — все пройдены (96 tests passed).
+**Заметки:** Метод использует EventJournal.getVisibleEvents() который уже фильтрует события по audienceIds и поддерживает limit. От этой задачи зависит TASK-027.
+

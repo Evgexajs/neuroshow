@@ -270,4 +270,140 @@ describe('ContextBuilder', () => {
       expect(facts).not.toContainEqual(expect.stringContaining('Just a speech'));
     });
   });
+
+  describe('buildSlidingWindow', () => {
+    function createTestEvent(
+      sequenceNumber: number,
+      senderId: string,
+      content: string,
+      channel: ChannelType,
+      audienceIds: string[]
+    ): ShowEvent {
+      return {
+        id: `event-${sequenceNumber}`,
+        showId: 'show-1',
+        timestamp: 1000 + sequenceNumber * 100,
+        sequenceNumber,
+        phaseId: 'phase-1',
+        type: EventType.speech,
+        channel,
+        visibility: channel,
+        senderId,
+        receiverIds: [],
+        audienceIds,
+        content,
+        metadata: {},
+        seed: 'test-seed',
+      };
+    }
+
+    it('should return EventSummary[] with correct fields', async () => {
+      const events: ShowEvent[] = [
+        createTestEvent(1, 'char-1', 'Hello everyone', ChannelType.PUBLIC, ['char-1', 'char-2']),
+      ];
+
+      const store = createMockStore({
+        getEventsForCharacter: vi.fn().mockResolvedValue(events),
+      });
+      const journal = new EventJournal(store);
+      const builder = new ContextBuilder(journal, store);
+
+      const window = await builder.buildSlidingWindow('char-1', 'show-1', 10);
+
+      expect(window.length).toBe(1);
+      expect(window[0]).toEqual({
+        senderId: 'char-1',
+        channel: ChannelType.PUBLIC,
+        content: 'Hello everyone',
+        timestamp: 1100,
+      });
+    });
+
+    it('should return <= limit events', async () => {
+      // Create 20 events
+      const allCharacters = ['char-1', 'char-2', 'char-3'];
+      const events: ShowEvent[] = Array.from({ length: 20 }, (_, i) =>
+        createTestEvent(i + 1, 'char-1', `Message ${i + 1}`, ChannelType.PUBLIC, allCharacters)
+      );
+
+      // Mock returns last 10 events (getVisibleEvents handles limit)
+      const store = createMockStore({
+        getEventsForCharacter: vi.fn().mockResolvedValue(events.slice(-10)),
+      });
+      const journal = new EventJournal(store);
+      const builder = new ContextBuilder(journal, store);
+
+      const window = await builder.buildSlidingWindow('char-1', 'show-1', 10);
+
+      expect(window.length).toBeLessThanOrEqual(10);
+    });
+
+    it('should filter PRIVATE events from other characters via getVisibleEvents', async () => {
+      // char-1 should only see:
+      // - PUBLIC events
+      // - PRIVATE events where char-1 is in audienceIds
+      const visibleEvents: ShowEvent[] = [
+        createTestEvent(1, 'char-2', 'Public message', ChannelType.PUBLIC, ['char-1', 'char-2', 'char-3']),
+        createTestEvent(3, 'char-2', 'Private to char-1', ChannelType.PRIVATE, ['char-1', 'char-2']),
+      ];
+
+      // getEventsForCharacter already filters by audienceIds
+      const store = createMockStore({
+        getEventsForCharacter: vi.fn().mockResolvedValue(visibleEvents),
+      });
+      const journal = new EventJournal(store);
+      const builder = new ContextBuilder(journal, store);
+
+      const window = await builder.buildSlidingWindow('char-1', 'show-1', 10);
+
+      expect(window.length).toBe(2);
+      expect(window.map(e => e.content)).toContain('Public message');
+      expect(window.map(e => e.content)).toContain('Private to char-1');
+    });
+
+    it('should return events in chronological order', async () => {
+      const events: ShowEvent[] = [
+        createTestEvent(1, 'char-1', 'First', ChannelType.PUBLIC, ['char-1', 'char-2']),
+        createTestEvent(2, 'char-2', 'Second', ChannelType.PUBLIC, ['char-1', 'char-2']),
+        createTestEvent(3, 'char-1', 'Third', ChannelType.PUBLIC, ['char-1', 'char-2']),
+      ];
+
+      const store = createMockStore({
+        getEventsForCharacter: vi.fn().mockResolvedValue(events),
+      });
+      const journal = new EventJournal(store);
+      const builder = new ContextBuilder(journal, store);
+
+      const window = await builder.buildSlidingWindow('char-1', 'show-1', 10);
+
+      expect(window[0].content).toBe('First');
+      expect(window[1].content).toBe('Second');
+      expect(window[2].content).toBe('Third');
+    });
+
+    it('should return empty array if no visible events', async () => {
+      const store = createMockStore({
+        getEventsForCharacter: vi.fn().mockResolvedValue([]),
+      });
+      const journal = new EventJournal(store);
+      const builder = new ContextBuilder(journal, store);
+
+      const window = await builder.buildSlidingWindow('char-1', 'show-1', 10);
+
+      expect(window).toEqual([]);
+    });
+
+    it('should use getVisibleEvents with correct parameters', async () => {
+      const store = createMockStore({
+        getEventsForCharacter: vi.fn().mockResolvedValue([]),
+      });
+      const journal = new EventJournal(store);
+      vi.spyOn(journal, 'getVisibleEvents');
+      const builder = new ContextBuilder(journal, store);
+
+      await builder.buildSlidingWindow('char-1', 'show-1', 15);
+
+      expect(journal.getVisibleEvents).toHaveBeenCalledWith('show-1', 'char-1', 15);
+    });
+  });
 });

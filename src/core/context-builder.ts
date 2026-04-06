@@ -6,6 +6,7 @@
 import { EventJournal } from './event-journal.js';
 import { IStore } from '../types/interfaces/store.interface.js';
 import { EventType } from '../types/enums.js';
+import { EventSummary } from '../types/events.js';
 
 /**
  * ContextBuilder assembles context layers for character prompts
@@ -77,6 +78,34 @@ export class ContextBuilder {
     }
 
     return facts;
+  }
+
+  /**
+   * Build sliding window of recent visible events
+   *
+   * Returns the last N events visible to this character,
+   * converted to EventSummary format for the context window.
+   *
+   * @param characterId - Character ID to build window for
+   * @param showId - Show ID
+   * @param limit - Maximum number of events to return
+   * @returns Array of EventSummary objects
+   */
+  async buildSlidingWindow(
+    characterId: string,
+    showId: string,
+    limit: number
+  ): Promise<EventSummary[]> {
+    // Get visible events using EventJournal's filtering
+    const events = await this.journal.getVisibleEvents(showId, characterId, limit);
+
+    // Convert ShowEvent to EventSummary
+    return events.map((event) => ({
+      senderId: event.senderId,
+      channel: event.channel,
+      content: event.content,
+      timestamp: event.timestamp,
+    }));
   }
 
   /**
