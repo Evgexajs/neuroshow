@@ -309,3 +309,23 @@
 **Тесты:** npm run typecheck, npm test — все пройдены (50 tests passed).
 **Заметки:** Методы используют store.deleteEventsAfter для удаления событий. rollbackToPhase находит первое событие в указанной фазе и удаляет все события начиная с него. Журнал остаётся консистентным — после rollback можно продолжать append с правильными sequenceNumber.
 
+## [2026-04-06] TASK-021: MockAdapter реализация интерфейса ModelAdapter
+**Статус:** done
+**Время:** ~10 минут
+**Изменения:**
+- src/adapters/mock-adapter.ts — создан MockAdapter класс:
+  - Implements ModelAdapter interface
+  - providerId: 'mock', modelId: 'mock-v1'
+  - call() возвращает детерминированный CharacterResponse на основе hash от trigger и seed
+  - estimateTokens() возвращает примерную оценку (слова * 1.3)
+  - Конструктор принимает опциональный seed для воспроизводимости
+- tests/unit/mock-adapter.test.ts — добавлены 11 тестов для MockAdapter:
+  - providerId и modelId корректны
+  - call() возвращает валидный CharacterResponse
+  - одинаковый seed + trigger дают одинаковый ответ
+  - разные seeds дают разные ответы
+  - estimateTokens() возвращает words * 1.3
+
+**Тесты:** npm run typecheck, npm test — все пройдены (61 tests passed).
+**Заметки:** MockAdapter использует простую hash-функцию для детерминированного выбора ответа из предзаготовленных шаблонов. Полезен для unit-тестов без реальных API-вызовов.
+

@@ -501,7 +501,7 @@
         "Ожидаемый результат: mock работает детерминированно"
       ],
       "dependencies": ["TASK-011"],
-      "status": "pending"
+      "status": "done"
     },
     {
       "id": "TASK-022",
