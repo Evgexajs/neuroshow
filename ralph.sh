@@ -2,6 +2,28 @@
 set -e
 
 TASKS_FILE="tasks.json"
+RESULT_FILE=$(mktemp -t ralph_result.XXXXXX)
+
+# Cleanup при выходе
+cleanup() {
+    rm -f "$RESULT_FILE"
+}
+trap cleanup EXIT
+
+# Спиннер с таймером
+show_spinner() {
+    local pid=$1
+    local spin='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
+    local i=0
+    local start=$SECONDS
+
+    while kill -0 "$pid" 2>/dev/null; do
+        local elapsed=$((SECONDS - start))
+        printf "\r  [%s] Работаю... %02d:%02d " "${spin:i++%10:1}" $((elapsed/60)) $((elapsed%60))
+        sleep 0.1
+    done
+    printf "\r%-50s\n" ""  # очистить строку
+}
 
 # Agent selection:
 # - Set RALPH_AGENT=claude or RALPH_AGENT=codex to force.
@@ -28,7 +50,7 @@ run_agent() {
 
     case "$agent" in
         claude)
-            claude --permission-mode acceptEdits -p "$prompt"
+            claude --permission-mode bypassPermissions -p "$prompt"
             ;;
         codex)
             local output_file
@@ -68,7 +90,7 @@ while has_pending_tasks; do
         exit 1
     }
 
-    echo "Запускаю $agent... (это может занять несколько минут)"
+    echo "Запускаю $agent..."
 
     prompt=$(cat <<'EOF'
 @tasks.json @progress.md
@@ -84,9 +106,13 @@ while has_pending_tasks; do
 EOF
 )
 
-    result=$(run_agent "$agent" "$prompt")
+    # Запускаем агента с выводом на экран и в файл
+    run_agent "$agent" "$prompt" 2>&1 | tee "$RESULT_FILE"
 
-    echo "$result"
+    result=$(cat "$RESULT_FILE")
+
+    echo ""
+    echo "-----------------------------------"
 
     if [[ "$result" == *"<promise>COMPLETE</promise>"* ]]; then
         echo "✓ TASK выполнен!"
