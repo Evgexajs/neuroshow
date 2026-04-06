@@ -134,3 +134,15 @@
 **Тесты:** npm run typecheck, npm test — все пройдены.
 **Заметки:** CharacterDefinition использует PrivateContext из context.ts, ResponseConstraints из primitives.ts, SpeakFrequency из enums.ts. От этой задачи зависит TASK-011.
 
+## [2026-04-06] TASK-010: TypeScript типы: Phase и ShowFormatTemplate
+**Статус:** done
+**Время:** ~5 минут
+**Изменения:**
+- src/types/template.ts — создан файл с типами:
+  - ScoringRule: id, description, condition, points (placeholder для Non-MVP)
+  - Phase: id, name, type (PhaseType), durationMode, durationValue, turnOrder, allowedChannels, triggerTemplate, completionCondition, dayIndex?, slotLabel?
+  - ShowFormatTemplate: id, name, description, minParticipants, maxParticipants, phases, days?, decisionConfig, channelTypes, privateChannelRules, contextWindowSize, allowCharacterInitiative?, scoringRules?, winCondition?
+
+**Тесты:** npm run typecheck, npm test — все пройдены.
+**Заметки:** Типы используют PhaseType и ChannelType из enums.ts, DecisionConfig, PrivateChannelRules и DayConfig из primitives.ts. От этой задачи зависит TASK-011.
+
