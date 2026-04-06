@@ -329,3 +329,20 @@
 **Тесты:** npm run typecheck, npm test — все пройдены (61 tests passed).
 **Заметки:** MockAdapter использует простую hash-функцию для детерминированного выбора ответа из предзаготовленных шаблонов. Полезен для unit-тестов без реальных API-вызовов.
 
+## [2026-04-06] TASK-022: OpenAI Adapter: базовая интеграция с API
+**Статус:** done
+**Время:** ~10 минут
+**Изменения:**
+- src/adapters/openai-adapter.ts — создан OpenAIAdapter класс:
+  - Implements ModelAdapter interface
+  - providerId: 'openai', modelId: configurable (default 'gpt-4o-mini')
+  - Использует official OpenAI SDK (openai ^4.77.0)
+  - call() отправляет запрос в chat.completions.create с response_format: json_object
+  - Парсит JSON из ответа LLM в CharacterResponse
+  - Логирует raw request/response в llm_calls через store.logLLMCall()
+  - buildMessages() строит сообщения из PromptPackage (system + context + trigger)
+  - parseResponse() извлекает text, intent, target, decisionValue
+
+**Тесты:** npm run typecheck, npm test — все пройдены (61 tests passed).
+**Заметки:** Adapter принимает store, showId, characterId через config для логирования. Retry logic будет добавлена в TASK-023. Точный подсчёт токенов через tiktoken в TASK-024.
+

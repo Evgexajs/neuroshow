@@ -524,7 +524,7 @@
         "Ожидаемый результат: интеграция с OpenAI работает"
       ],
       "dependencies": ["TASK-011", "TASK-017"],
-      "status": "pending"
+      "status": "done"
     },
     {
       "id": "TASK-023",
