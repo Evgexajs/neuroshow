@@ -260,3 +260,17 @@
 **Тесты:** npm run typecheck, npm test — все пройдены (29 tests passed).
 **Заметки:** Методы были переименованы для соответствия acceptance criteria. Добавлен новый метод getLLMCallByEventId для получения LLM-вызова по eventId. От этой задачи зависит TASK-018.
 
+## [2026-04-06] TASK-018: Event Journal: класс EventJournal с методами append и query
+**Статус:** done
+**Время:** ~10 минут
+**Изменения:**
+- src/core/event-journal.ts — создан класс EventJournal:
+  - Конструктор принимает IStore
+  - append(event: Omit<ShowEvent, 'sequenceNumber'>): ShowEvent — добавляет событие с автоинкрементом sequenceNumber
+  - getEvents(showId, options?: {cursor?, limit?, characterId?}): ShowEvent[] — получение событий с опциональной фильтрацией
+  - getLatestSequence(showId): number — получение последнего sequenceNumber
+- tests/unit/event-journal.test.ts — добавлены 9 тестов для EventJournal
+
+**Тесты:** npm run typecheck, npm test — все пройдены (38 tests passed).
+**Заметки:** EventJournal является обёрткой над IStore для удобной работы с событиями. Автоматически назначает sequenceNumber при добавлении событий. От этой задачи зависят TASK-019, TASK-020, TASK-025, TASK-029, TASK-031.
+
