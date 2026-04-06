@@ -146,3 +146,19 @@
 **Тесты:** npm run typecheck, npm test — все пройдены.
 **Заметки:** Типы используют PhaseType и ChannelType из enums.ts, DecisionConfig, PrivateChannelRules и DayConfig из primitives.ts. От этой задачи зависит TASK-011.
 
+## [2026-04-06] TASK-011: TypeScript типы: PromptPackage, CharacterResponse, ModelAdapter, IStore
+**Статус:** done
+**Время:** ~10 минут
+**Изменения:**
+- src/types/adapter.ts — создан файл с типами:
+  - PromptPackage: systemPrompt, contextLayers, trigger, responseConstraints
+  - CharacterResponse: text, intent?, target?, decisionValue?
+  - ModelAdapter interface: providerId, modelId, call(prompt), estimateTokens(prompt)
+- src/types/interfaces/store.interface.ts — создан файл с интерфейсом IStore:
+  - CRUD операции для shows, show_characters, show_events, llm_calls, token_budgets
+  - Вспомогательные типы: ShowRecord, ShowCharacterRecord, LlmCallRecord, TokenBudgetRecord
+- src/types/index.ts — создан файл реэкспорта всех публичных типов
+
+**Тесты:** npm run typecheck, npm test — все пройдены.
+**Заметки:** PromptPackage использует ContextLayers и ResponseConstraints. CharacterResponse использует CharacterIntent из enums.ts. IStore определяет контракт для хранилища (SQLite в MVP). От этой задачи зависят TASK-012, TASK-013, TASK-014.
+

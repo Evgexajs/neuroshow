@@ -275,7 +275,7 @@
         "Ожидаемый результат: все типы доступны через один импорт"
       ],
       "dependencies": ["TASK-008", "TASK-009", "TASK-010"],
-      "status": "pending"
+      "status": "done"
     },
     {
       "id": "TASK-012",
