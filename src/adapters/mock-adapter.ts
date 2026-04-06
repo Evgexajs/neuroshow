@@ -5,7 +5,7 @@
  * Supports seed-based reproducibility for consistent test results.
  */
 
-import { ModelAdapter, PromptPackage, CharacterResponse } from '../types/adapter.js';
+import { ModelAdapter, PromptPackage, CharacterResponse, TokenEstimate } from '../types/adapter.js';
 import { CharacterIntent } from '../types/enums.js';
 
 /**
@@ -80,8 +80,9 @@ export class MockAdapter implements ModelAdapter {
    *
    * Uses simple word count * 1.3 approximation
    * (average English word is about 1.3 tokens)
+   * Returns both prompt and estimated completion tokens.
    */
-  estimateTokens(prompt: PromptPackage): number {
+  estimateTokens(prompt: PromptPackage): TokenEstimate {
     const { systemPrompt, contextLayers, trigger } = prompt;
 
     // Combine all text
@@ -96,7 +97,15 @@ export class MockAdapter implements ModelAdapter {
     const wordCount = allText.split(/\s+/).filter(w => w.length > 0).length;
 
     // Approximate: 1 word ≈ 1.3 tokens
-    return Math.ceil(wordCount * 1.3);
+    const promptTokens = Math.ceil(wordCount * 1.3);
+
+    // Estimated completion based on responseConstraints or default
+    const estimatedCompletion = prompt.responseConstraints.maxTokens ?? 256;
+
+    return {
+      prompt: promptTokens,
+      estimatedCompletion,
+    };
   }
 
   /**

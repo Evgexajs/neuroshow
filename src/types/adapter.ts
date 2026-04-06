@@ -55,6 +55,17 @@ export interface CharacterResponse {
 }
 
 /**
+ * Token estimate result from estimateTokens()
+ */
+export interface TokenEstimate {
+  /** Estimated prompt tokens (system + context + trigger) */
+  prompt: number;
+
+  /** Estimated completion tokens (based on responseConstraints.maxTokens or default) */
+  estimatedCompletion: number;
+}
+
+/**
  * Interface for LLM provider adapters
  *
  * Each adapter (OpenAI, Anthropic, Mock, etc.) implements this interface.
@@ -77,7 +88,7 @@ export interface ModelAdapter {
   /**
    * Estimate token count before making the call (for budget control)
    * @param prompt - The prompt package to estimate
-   * @returns Estimated token count
+   * @returns Token estimate with prompt and estimatedCompletion counts
    */
-  estimateTokens(prompt: PromptPackage): number;
+  estimateTokens(prompt: PromptPackage): TokenEstimate;
 }

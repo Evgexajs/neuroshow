@@ -108,17 +108,20 @@ describe('MockAdapter', () => {
   });
 
   describe('estimateTokens()', () => {
-    it('should return a positive number', () => {
+    it('should return TokenEstimate object with prompt and estimatedCompletion', () => {
       const adapter = new MockAdapter();
       const prompt = createTestPrompt('Test trigger');
 
-      const tokens = adapter.estimateTokens(prompt);
+      const estimate = adapter.estimateTokens(prompt);
 
-      expect(tokens).toBeGreaterThan(0);
-      expect(Number.isInteger(tokens)).toBe(true);
+      expect(estimate).toHaveProperty('prompt');
+      expect(estimate).toHaveProperty('estimatedCompletion');
+      expect(estimate.prompt).toBeGreaterThan(0);
+      expect(Number.isInteger(estimate.prompt)).toBe(true);
+      expect(estimate.estimatedCompletion).toBe(200); // from createTestPrompt
     });
 
-    it('should return approximately words * 1.3', () => {
+    it('should return approximately words * 1.3 for prompt tokens', () => {
       const adapter = new MockAdapter();
       const prompt: PromptPackage = {
         systemPrompt: 'One two three', // 3 words
@@ -134,10 +137,11 @@ describe('MockAdapter', () => {
         },
       };
 
-      const tokens = adapter.estimateTokens(prompt);
+      const estimate = adapter.estimateTokens(prompt);
 
       // Total: 10 words * 1.3 = 13 tokens
-      expect(tokens).toBe(13);
+      expect(estimate.prompt).toBe(13);
+      expect(estimate.estimatedCompletion).toBe(100);
     });
 
     it('should handle empty content', () => {
@@ -156,10 +160,32 @@ describe('MockAdapter', () => {
         },
       };
 
-      const tokens = adapter.estimateTokens(prompt);
+      const estimate = adapter.estimateTokens(prompt);
 
       // 1 word * 1.3 = 1.3 -> 2 (ceil)
-      expect(tokens).toBe(2);
+      expect(estimate.prompt).toBe(2);
+      expect(estimate.estimatedCompletion).toBe(100);
+    });
+
+    it('should use default estimatedCompletion when maxTokens not specified', () => {
+      const adapter = new MockAdapter();
+      const prompt: PromptPackage = {
+        systemPrompt: 'Test',
+        contextLayers: {
+          factsList: [],
+          slidingWindow: [],
+        },
+        trigger: 'test',
+        responseConstraints: {
+          format: 'free',
+          language: 'en',
+        },
+      };
+
+      const estimate = adapter.estimateTokens(prompt);
+
+      // Default estimatedCompletion is 256
+      expect(estimate.estimatedCompletion).toBe(256);
     });
   });
 

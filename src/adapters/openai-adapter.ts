@@ -6,7 +6,8 @@
  */
 
 import OpenAI from 'openai';
-import { ModelAdapter, PromptPackage, CharacterResponse } from '../types/adapter.js';
+import { encoding_for_model, type Tiktoken, type TiktokenModel } from 'tiktoken';
+import { ModelAdapter, PromptPackage, CharacterResponse, TokenEstimate } from '../types/adapter.js';
 import { CharacterIntent } from '../types/enums.js';
 import { IStore, LlmCallRecord } from '../types/interfaces/store.interface.js';
 import { generateId } from '../utils/id.js';
@@ -209,23 +210,52 @@ export class OpenAIAdapter implements ModelAdapter {
   }
 
   /**
-   * Estimate token count for prompt
+   * Estimate token count for prompt using tiktoken
    *
-   * Simple estimation: words * 1.3
-   * TASK-024 will add tiktoken-based accurate counting
+   * Uses tiktoken for accurate token counting with GPT-4o models.
+   * Returns prompt tokens and estimated completion tokens.
    */
-  estimateTokens(prompt: PromptPackage): number {
-    const { systemPrompt, contextLayers, trigger } = prompt;
+  estimateTokens(prompt: PromptPackage): TokenEstimate {
+    const messages = this.buildMessages(prompt);
+    const encoding = this.getEncoding();
 
-    const allText = [
-      systemPrompt,
-      contextLayers.factsList.join(' '),
-      contextLayers.slidingWindow.map(e => e.content).join(' '),
-      trigger,
-    ].join(' ');
+    try {
+      // Count tokens for each message
+      // OpenAI chat format overhead: each message has ~4 tokens overhead
+      // Plus 3 tokens for the reply priming
+      let promptTokens = 3; // reply priming
 
-    const wordCount = allText.split(/\s+/).filter(w => w.length > 0).length;
-    return Math.ceil(wordCount * 1.3);
+      for (const message of messages) {
+        promptTokens += 4; // message overhead
+        promptTokens += encoding.encode(message.content as string).length;
+        promptTokens += encoding.encode(message.role).length;
+      }
+
+      // Estimated completion based on responseConstraints or default
+      const estimatedCompletion = prompt.responseConstraints.maxTokens ?? 256;
+
+      return {
+        prompt: promptTokens,
+        estimatedCompletion,
+      };
+    } finally {
+      encoding.free();
+    }
+  }
+
+  /**
+   * Get tiktoken encoding for the model
+   * gpt-4o and gpt-4o-mini use cl100k_base encoding (same as gpt-4)
+   */
+  private getEncoding(): Tiktoken {
+    // gpt-4o models use o200k_base but tiktoken may not have it yet
+    // Fall back to gpt-4 encoding which is close enough
+    try {
+      return encoding_for_model(this.modelId as TiktokenModel);
+    } catch {
+      // Fallback for unknown models (gpt-4o, gpt-4o-mini)
+      return encoding_for_model('gpt-4');
+    }
   }
 
   /**

@@ -361,3 +361,24 @@
 **Тесты:** npm run typecheck, npm test — все пройдены (72 tests passed).
 **Заметки:** Использован exponential backoff с base delay 1000ms. Retryable ошибки определяются через OpenAI.APIError.status.
 
+## [2026-04-06] TASK-024: OpenAI Adapter: подсчёт токенов через tiktoken
+**Статус:** done
+**Время:** ~15 минут
+**Изменения:**
+- package.json — добавлена зависимость tiktoken
+- src/types/adapter.ts — добавлен интерфейс TokenEstimate { prompt: number, estimatedCompletion: number }
+- src/types/adapter.ts — обновлён интерфейс ModelAdapter.estimateTokens() для возврата TokenEstimate
+- src/types/index.ts — добавлен экспорт TokenEstimate
+- src/adapters/openai-adapter.ts — переписан estimateTokens():
+  - Использует tiktoken для точного подсчёта
+  - Подсчитывает токены system prompt + context + trigger
+  - Учитывает overhead сообщений чата (~4 токена на сообщение)
+  - Возвращает { prompt, estimatedCompletion }
+  - Работает с gpt-4o и gpt-4o-mini (fallback на gpt-4 encoding)
+- src/adapters/mock-adapter.ts — обновлён estimateTokens() для соответствия новому интерфейсу
+- tests/unit/mock-adapter.test.ts — обновлены 3 теста + добавлен 1 тест для новой сигнатуры
+- tests/unit/openai-adapter-tiktoken.test.ts — создан файл с 9 тестами для tiktoken
+
+**Тесты:** npm run typecheck, npm test — все пройдены (82 tests passed).
+**Заметки:** tiktoken использует encoding gpt-4 как fallback для моделей gpt-4o/gpt-4o-mini. Оценка estimatedCompletion берётся из responseConstraints.maxTokens или default 256.
+

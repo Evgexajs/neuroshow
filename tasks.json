@@ -565,7 +565,7 @@
         "Ожидаемый результат: оценка близка к реальности"
       ],
       "dependencies": ["TASK-022"],
-      "status": "pending"
+      "status": "done"
     },
     {
       "id": "TASK-025",
