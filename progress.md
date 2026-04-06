@@ -410,3 +410,19 @@
 **Тесты:** npm run typecheck, npm test — все пройдены (96 tests passed).
 **Заметки:** Метод использует EventJournal.getVisibleEvents() который уже фильтрует события по audienceIds и поддерживает limit. От этой задачи зависит TASK-027.
 
+## [2026-04-06] TASK-027: Context Builder: метод buildPromptPackage()
+**Статус:** done
+**Время:** ~10 минут
+**Изменения:**
+- src/core/context-builder.ts — добавлен метод buildPromptPackage():
+  - buildPromptPackage(character, show, trigger): Promise<PromptPackage>
+  - systemPrompt включает: personalityPrompt, motivationPrompt, boundaryRules, format instruction
+  - contextLayers содержит factsList и slidingWindow
+  - responseConstraints берутся из CharacterDefinition
+  - Использует contextWindowSize из show.configSnapshot (default 50)
+- src/core/context-builder.ts — добавлен private метод buildSystemPrompt()
+- tests/unit/context-builder.test.ts — добавлены 10 тестов для buildPromptPackage()
+
+**Тесты:** npm run typecheck, npm test — все пройдены (106 tests passed).
+**Заметки:** Метод собирает полный PromptPackage для вызова ModelAdapter.call(). От этой задачи зависят TASK-028, TASK-035, TASK-037.
+

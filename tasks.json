@@ -630,7 +630,7 @@
         "Ожидаемый результат: полный пакет собирается"
       ],
       "dependencies": ["TASK-025", "TASK-026"],
-      "status": "pending"
+      "status": "done"
     },
     {
       "id": "TASK-028",

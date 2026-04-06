@@ -1,6 +1,8 @@
 /**
  * Tests for ContextBuilder
  * TASK-025: Context Builder: метод buildFactsList()
+ * TASK-026: Context Builder: метод buildSlidingWindow()
+ * TASK-027: Context Builder: метод buildPromptPackage()
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
@@ -8,8 +10,11 @@ import { ContextBuilder } from '../../src/core/context-builder.js';
 import { EventJournal } from '../../src/core/event-journal.js';
 import { IStore, ShowCharacterRecord } from '../../src/types/interfaces/store.interface.js';
 import { ShowEvent } from '../../src/types/events.js';
-import { EventType, ChannelType, SpeakFrequency } from '../../src/types/enums.js';
+import { EventType, ChannelType, SpeakFrequency, ShowStatus } from '../../src/types/enums.js';
 import { PrivateContext } from '../../src/types/context.js';
+import { CharacterDefinition } from '../../src/types/character.js';
+import { Show } from '../../src/types/runtime.js';
+import { ShowFormatTemplate } from '../../src/types/template.js';
 
 // Mock store implementation
 function createMockStore(overrides: Partial<IStore> = {}): IStore {
@@ -404,6 +409,239 @@ describe('ContextBuilder', () => {
       await builder.buildSlidingWindow('char-1', 'show-1', 15);
 
       expect(journal.getVisibleEvents).toHaveBeenCalledWith('show-1', 'char-1', 15);
+    });
+  });
+
+  describe('buildPromptPackage', () => {
+    function createTestCharacterDefinition(): CharacterDefinition {
+      return {
+        id: 'char-1',
+        name: 'Detective Alex',
+        publicCard: 'A seasoned detective with sharp instincts',
+        personalityPrompt: 'You are analytical and observant. You speak precisely and ask probing questions.',
+        motivationPrompt: 'You want to find the truth and bring justice. You are suspicious of everyone.',
+        boundaryRules: [
+          'Never reveal your true identity',
+          'Never trust anyone completely',
+        ],
+        startingPrivateContext: createTestPrivateContext(),
+        speakFrequency: SpeakFrequency.medium,
+        responseConstraints: {
+          maxTokens: 200,
+          format: 'structured',
+          language: 'en',
+        },
+      };
+    }
+
+    function createTestShow(): Show {
+      const configSnapshot: Partial<ShowFormatTemplate> = {
+        contextWindowSize: 25,
+      };
+      return {
+        id: 'show-1',
+        formatId: 'coalition-format',
+        seed: 12345,
+        status: ShowStatus.running,
+        currentPhaseId: 'phase-1',
+        startedAt: new Date(),
+        completedAt: null,
+        configSnapshot: configSnapshot as Record<string, unknown>,
+      };
+    }
+
+    it('should build PromptPackage with all required fields', async () => {
+      const character = createTestCharacterDefinition();
+      const show = createTestShow();
+      const showCharacter = createTestCharacter(character.id, character.startingPrivateContext);
+
+      const store = createMockStore({
+        getCharacter: vi.fn().mockResolvedValue(showCharacter),
+        getEventsForCharacter: vi.fn().mockResolvedValue([]),
+      });
+      const journal = new EventJournal(store);
+      const builder = new ContextBuilder(journal, store);
+
+      const pkg = await builder.buildPromptPackage(character, show, 'What do you think?');
+
+      expect(pkg).toHaveProperty('systemPrompt');
+      expect(pkg).toHaveProperty('contextLayers');
+      expect(pkg).toHaveProperty('trigger');
+      expect(pkg).toHaveProperty('responseConstraints');
+    });
+
+    it('should include personality in systemPrompt', async () => {
+      const character = createTestCharacterDefinition();
+      const show = createTestShow();
+      const showCharacter = createTestCharacter(character.id, character.startingPrivateContext);
+
+      const store = createMockStore({
+        getCharacter: vi.fn().mockResolvedValue(showCharacter),
+        getEventsForCharacter: vi.fn().mockResolvedValue([]),
+      });
+      const journal = new EventJournal(store);
+      const builder = new ContextBuilder(journal, store);
+
+      const pkg = await builder.buildPromptPackage(character, show, 'What do you think?');
+
+      expect(pkg.systemPrompt).toContain('Detective Alex');
+      expect(pkg.systemPrompt).toContain(character.personalityPrompt);
+    });
+
+    it('should include motivation in systemPrompt', async () => {
+      const character = createTestCharacterDefinition();
+      const show = createTestShow();
+      const showCharacter = createTestCharacter(character.id, character.startingPrivateContext);
+
+      const store = createMockStore({
+        getCharacter: vi.fn().mockResolvedValue(showCharacter),
+        getEventsForCharacter: vi.fn().mockResolvedValue([]),
+      });
+      const journal = new EventJournal(store);
+      const builder = new ContextBuilder(journal, store);
+
+      const pkg = await builder.buildPromptPackage(character, show, 'What do you think?');
+
+      expect(pkg.systemPrompt).toContain(character.motivationPrompt);
+    });
+
+    it('should include boundary rules in systemPrompt', async () => {
+      const character = createTestCharacterDefinition();
+      const show = createTestShow();
+      const showCharacter = createTestCharacter(character.id, character.startingPrivateContext);
+
+      const store = createMockStore({
+        getCharacter: vi.fn().mockResolvedValue(showCharacter),
+        getEventsForCharacter: vi.fn().mockResolvedValue([]),
+      });
+      const journal = new EventJournal(store);
+      const builder = new ContextBuilder(journal, store);
+
+      const pkg = await builder.buildPromptPackage(character, show, 'What do you think?');
+
+      expect(pkg.systemPrompt).toContain('Never reveal your true identity');
+      expect(pkg.systemPrompt).toContain('Never trust anyone completely');
+    });
+
+    it('should include format instruction in systemPrompt', async () => {
+      const character = createTestCharacterDefinition();
+      const show = createTestShow();
+      const showCharacter = createTestCharacter(character.id, character.startingPrivateContext);
+
+      const store = createMockStore({
+        getCharacter: vi.fn().mockResolvedValue(showCharacter),
+        getEventsForCharacter: vi.fn().mockResolvedValue([]),
+      });
+      const journal = new EventJournal(store);
+      const builder = new ContextBuilder(journal, store);
+
+      const pkg = await builder.buildPromptPackage(character, show, 'What do you think?');
+
+      expect(pkg.systemPrompt).toContain('Response Format');
+      expect(pkg.systemPrompt).toContain('JSON');
+      expect(pkg.systemPrompt).toContain('"text"');
+      expect(pkg.systemPrompt).toContain('"intent"');
+    });
+
+    it('should have non-empty factsList in contextLayers', async () => {
+      const character = createTestCharacterDefinition();
+      const show = createTestShow();
+      const showCharacter = createTestCharacter(character.id, character.startingPrivateContext);
+
+      const store = createMockStore({
+        getCharacter: vi.fn().mockResolvedValue(showCharacter),
+        getEventsForCharacter: vi.fn().mockResolvedValue([]),
+      });
+      const journal = new EventJournal(store);
+      const builder = new ContextBuilder(journal, store);
+
+      const pkg = await builder.buildPromptPackage(character, show, 'What do you think?');
+
+      expect(pkg.contextLayers.factsList.length).toBeGreaterThan(0);
+      expect(pkg.contextLayers.factsList).toContainEqual(expect.stringContaining('[Secret]'));
+    });
+
+    it('should use trigger as provided', async () => {
+      const character = createTestCharacterDefinition();
+      const show = createTestShow();
+      const showCharacter = createTestCharacter(character.id, character.startingPrivateContext);
+
+      const store = createMockStore({
+        getCharacter: vi.fn().mockResolvedValue(showCharacter),
+        getEventsForCharacter: vi.fn().mockResolvedValue([]),
+      });
+      const journal = new EventJournal(store);
+      const builder = new ContextBuilder(journal, store);
+
+      const trigger = 'The host asks: Who do you suspect?';
+      const pkg = await builder.buildPromptPackage(character, show, trigger);
+
+      expect(pkg.trigger).toBe(trigger);
+    });
+
+    it('should use responseConstraints from CharacterDefinition', async () => {
+      const character = createTestCharacterDefinition();
+      const show = createTestShow();
+      const showCharacter = createTestCharacter(character.id, character.startingPrivateContext);
+
+      const store = createMockStore({
+        getCharacter: vi.fn().mockResolvedValue(showCharacter),
+        getEventsForCharacter: vi.fn().mockResolvedValue([]),
+      });
+      const journal = new EventJournal(store);
+      const builder = new ContextBuilder(journal, store);
+
+      const pkg = await builder.buildPromptPackage(character, show, 'What do you think?');
+
+      expect(pkg.responseConstraints).toEqual(character.responseConstraints);
+      expect(pkg.responseConstraints.maxTokens).toBe(200);
+    });
+
+    it('should use contextWindowSize from show configSnapshot', async () => {
+      const character = createTestCharacterDefinition();
+      const show = createTestShow();
+      const showCharacter = createTestCharacter(character.id, character.startingPrivateContext);
+
+      const store = createMockStore({
+        getCharacter: vi.fn().mockResolvedValue(showCharacter),
+        getEventsForCharacter: vi.fn().mockResolvedValue([]),
+      });
+      const journal = new EventJournal(store);
+      vi.spyOn(journal, 'getVisibleEvents');
+      const builder = new ContextBuilder(journal, store);
+
+      await builder.buildPromptPackage(character, show, 'What do you think?');
+
+      // The contextWindowSize from configSnapshot is 25
+      expect(journal.getVisibleEvents).toHaveBeenCalledWith('show-1', 'char-1', 25);
+    });
+
+    it('should use default contextWindowSize (50) if not in configSnapshot', async () => {
+      const character = createTestCharacterDefinition();
+      const show: Show = {
+        id: 'show-1',
+        formatId: 'coalition-format',
+        seed: 12345,
+        status: ShowStatus.running,
+        currentPhaseId: 'phase-1',
+        startedAt: new Date(),
+        completedAt: null,
+        configSnapshot: {}, // Empty configSnapshot
+      };
+      const showCharacter = createTestCharacter(character.id, character.startingPrivateContext);
+
+      const store = createMockStore({
+        getCharacter: vi.fn().mockResolvedValue(showCharacter),
+        getEventsForCharacter: vi.fn().mockResolvedValue([]),
+      });
+      const journal = new EventJournal(store);
+      vi.spyOn(journal, 'getVisibleEvents');
+      const builder = new ContextBuilder(journal, store);
+
+      await builder.buildPromptPackage(character, show, 'What do you think?');
+
+      // Default contextWindowSize is 50
+      expect(journal.getVisibleEvents).toHaveBeenCalledWith('show-1', 'char-1', 50);
     });
   });
 });

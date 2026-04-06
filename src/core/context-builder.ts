@@ -7,6 +7,10 @@ import { EventJournal } from './event-journal.js';
 import { IStore } from '../types/interfaces/store.interface.js';
 import { EventType } from '../types/enums.js';
 import { EventSummary } from '../types/events.js';
+import { PromptPackage } from '../types/adapter.js';
+import { CharacterDefinition } from '../types/character.js';
+import { Show } from '../types/runtime.js';
+import { ShowFormatTemplate } from '../types/template.js';
 
 /**
  * ContextBuilder assembles context layers for character prompts
@@ -106,6 +110,98 @@ export class ContextBuilder {
       content: event.content,
       timestamp: event.timestamp,
     }));
+  }
+
+  /**
+   * Build complete PromptPackage for a character's turn
+   *
+   * Assembles all components needed for an LLM call:
+   * - systemPrompt: personality + motivation + boundaries + format instruction
+   * - contextLayers: facts list + sliding window of recent events
+   * - trigger: the prompt/question for this turn
+   * - responseConstraints: limits from character definition
+   *
+   * @param character - Character definition with prompts and constraints
+   * @param show - Current show state
+   * @param trigger - The trigger/prompt for this turn
+   * @returns Complete PromptPackage ready for ModelAdapter.call()
+   */
+  async buildPromptPackage(
+    character: CharacterDefinition,
+    show: Show,
+    trigger: string
+  ): Promise<PromptPackage> {
+    // Build system prompt from character definition
+    const systemPrompt = this.buildSystemPrompt(character);
+
+    // Get context window size from show's config snapshot
+    const template = show.configSnapshot as unknown as ShowFormatTemplate;
+    const contextWindowSize = template?.contextWindowSize ?? 50;
+
+    // Build context layers
+    const factsList = await this.buildFactsList(character.id, show.id);
+    const slidingWindow = await this.buildSlidingWindow(
+      character.id,
+      show.id,
+      contextWindowSize
+    );
+
+    return {
+      systemPrompt,
+      contextLayers: {
+        factsList,
+        slidingWindow,
+      },
+      trigger,
+      responseConstraints: character.responseConstraints,
+    };
+  }
+
+  /**
+   * Build system prompt from character definition
+   *
+   * Includes:
+   * - personalityPrompt: how the character behaves
+   * - motivationPrompt: what drives the character
+   * - boundaryRules: what the character won't do
+   * - format instruction: JSON response format
+   */
+  private buildSystemPrompt(character: CharacterDefinition): string {
+    const parts: string[] = [];
+
+    // Character name and public card
+    parts.push(`You are ${character.name}.`);
+    parts.push(`Public information about you: ${character.publicCard}`);
+
+    // Personality
+    parts.push('');
+    parts.push('## Personality');
+    parts.push(character.personalityPrompt);
+
+    // Motivation
+    parts.push('');
+    parts.push('## Motivation');
+    parts.push(character.motivationPrompt);
+
+    // Boundary rules
+    if (character.boundaryRules.length > 0) {
+      parts.push('');
+      parts.push('## Boundaries (you will NEVER do these things)');
+      for (const rule of character.boundaryRules) {
+        parts.push(`- ${rule}`);
+      }
+    }
+
+    // Format instruction for JSON response
+    parts.push('');
+    parts.push('## Response Format');
+    parts.push('You MUST respond with a valid JSON object containing:');
+    parts.push('- "text": Your spoken response (required)');
+    parts.push('- "intent": One of "speak", "request_private", "reveal_wildcard", "end_turn" (optional)');
+    parts.push('- "target": Character ID for private request (optional)');
+    parts.push('- "decisionValue": Your choice for voting/decision (optional)');
+
+    return parts.join('\n');
   }
 
   /**
