@@ -226,4 +226,122 @@ describe('EventJournal', () => {
       expect(result).toBe(3);
     });
   });
+
+  describe('getVisibleEvents (TASK-019)', () => {
+    it('should filter events by characterId in audienceIds', async () => {
+      const showId = 'show-1';
+
+      // 3 PUBLIC events (all characters see)
+      await journal.append(
+        createEventData(showId, {
+          content: 'Public 1',
+          channel: ChannelType.PUBLIC,
+          audienceIds: ['charA', 'charB', 'charC'],
+        })
+      );
+      await journal.append(
+        createEventData(showId, {
+          content: 'Public 2',
+          channel: ChannelType.PUBLIC,
+          audienceIds: ['charA', 'charB', 'charC'],
+        })
+      );
+      await journal.append(
+        createEventData(showId, {
+          content: 'Public 3',
+          channel: ChannelType.PUBLIC,
+          audienceIds: ['charA', 'charB', 'charC'],
+        })
+      );
+
+      // 2 PRIVATE events (only charA and charB)
+      await journal.append(
+        createEventData(showId, {
+          content: 'Private for charA',
+          channel: ChannelType.PRIVATE,
+          audienceIds: ['charA'],
+        })
+      );
+      await journal.append(
+        createEventData(showId, {
+          content: 'Private for charA and charB',
+          channel: ChannelType.PRIVATE,
+          audienceIds: ['charA', 'charB'],
+        })
+      );
+
+      // charA sees 3 PUBLIC + 2 PRIVATE = 5 events
+      const charAEvents = await journal.getVisibleEvents(showId, 'charA');
+      expect(charAEvents.length).toBe(5);
+
+      // charB sees 3 PUBLIC + 1 PRIVATE = 4 events
+      const charBEvents = await journal.getVisibleEvents(showId, 'charB');
+      expect(charBEvents.length).toBe(4);
+
+      // charC sees only 3 PUBLIC events
+      const charCEvents = await journal.getVisibleEvents(showId, 'charC');
+      expect(charCEvents.length).toBe(3);
+    });
+
+    it('should return events in chronological order', async () => {
+      const showId = 'show-1';
+
+      await journal.append(createEventData(showId, { content: 'Event 1', audienceIds: ['charA'] }));
+      await journal.append(createEventData(showId, { content: 'Event 2', audienceIds: ['charA'] }));
+      await journal.append(createEventData(showId, { content: 'Event 3', audienceIds: ['charA'] }));
+
+      const events = await journal.getVisibleEvents(showId, 'charA');
+
+      expect(events[0].sequenceNumber).toBe(1);
+      expect(events[1].sequenceNumber).toBe(2);
+      expect(events[2].sequenceNumber).toBe(3);
+      expect(events[0].content).toBe('Event 1');
+      expect(events[1].content).toBe('Event 2');
+      expect(events[2].content).toBe('Event 3');
+    });
+
+    it('should support limit for sliding window', async () => {
+      const showId = 'show-1';
+
+      // Add 5 events
+      await journal.append(createEventData(showId, { content: 'Event 1', audienceIds: ['charA'] }));
+      await journal.append(createEventData(showId, { content: 'Event 2', audienceIds: ['charA'] }));
+      await journal.append(createEventData(showId, { content: 'Event 3', audienceIds: ['charA'] }));
+      await journal.append(createEventData(showId, { content: 'Event 4', audienceIds: ['charA'] }));
+      await journal.append(createEventData(showId, { content: 'Event 5', audienceIds: ['charA'] }));
+
+      // Get last 3 events (sliding window)
+      const events = await journal.getVisibleEvents(showId, 'charA', 3);
+
+      expect(events.length).toBe(3);
+      // Should return the last 3 events (most recent)
+      expect(events[0].sequenceNumber).toBe(3);
+      expect(events[1].sequenceNumber).toBe(4);
+      expect(events[2].sequenceNumber).toBe(5);
+    });
+
+    it('should return all events if limit is undefined', async () => {
+      const showId = 'show-1';
+
+      await journal.append(createEventData(showId, { content: 'Event 1', audienceIds: ['charA'] }));
+      await journal.append(createEventData(showId, { content: 'Event 2', audienceIds: ['charA'] }));
+      await journal.append(createEventData(showId, { content: 'Event 3', audienceIds: ['charA'] }));
+
+      const events = await journal.getVisibleEvents(showId, 'charA');
+
+      expect(events.length).toBe(3);
+    });
+
+    it('should return empty array if character has no visible events', async () => {
+      const showId = 'show-1';
+
+      await journal.append(
+        createEventData(showId, { content: 'Private', audienceIds: ['charA', 'charB'] })
+      );
+
+      const events = await journal.getVisibleEvents(showId, 'charC');
+
+      expect(events.length).toBe(0);
+    });
+  });
 });

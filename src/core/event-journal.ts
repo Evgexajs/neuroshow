@@ -67,4 +67,25 @@ export class EventJournal {
   async getLatestSequence(showId: string): Promise<number> {
     return this.store.getLatestSequence(showId);
   }
+
+  /**
+   * Get events visible to a specific character
+   * Filters events where characterId is present in audienceIds
+   * Returns events in chronological order (by sequenceNumber)
+   * Supports limit for sliding window in Context Builder
+   *
+   * @param showId - Show ID to get events for
+   * @param characterId - Character ID to filter visibility
+   * @param limit - Optional limit for sliding window
+   */
+  async getVisibleEvents(showId: string, characterId: string, limit?: number): Promise<ShowEvent[]> {
+    const events = await this.store.getEventsForCharacter(showId, characterId);
+
+    if (limit !== undefined && limit > 0) {
+      // Return last N events (most recent) for sliding window
+      return events.slice(-limit);
+    }
+
+    return events;
+  }
 }

@@ -274,3 +274,19 @@
 **Тесты:** npm run typecheck, npm test — все пройдены (38 tests passed).
 **Заметки:** EventJournal является обёрткой над IStore для удобной работы с событиями. Автоматически назначает sequenceNumber при добавлении событий. От этой задачи зависят TASK-019, TASK-020, TASK-025, TASK-029, TASK-031.
 
+## [2026-04-06] TASK-019: Event Journal: фильтрация по audienceIds для Context Builder
+**Статус:** done
+**Время:** ~10 минут
+**Изменения:**
+- src/core/event-journal.ts — добавлен метод:
+  - getVisibleEvents(showId: string, characterId: string, limit?: number): ShowEvent[] — фильтрует события по audienceIds, возвращает в хронологическом порядке, поддерживает limit для sliding window
+- tests/unit/event-journal.test.ts — добавлены 5 тестов для getVisibleEvents:
+  - filter events by characterId in audienceIds (privacy test)
+  - return events in chronological order
+  - support limit for sliding window
+  - return all events if limit is undefined
+  - return empty array if character has no visible events
+
+**Тесты:** npm run typecheck, npm test — все пройдены (43 tests passed).
+**Заметки:** getVisibleEvents использует store.getEventsForCharacter для фильтрации по audienceIds. При указании limit возвращает последние N событий (наиболее свежие) для sliding window в Context Builder. От этой задачи зависит TASK-025.
+
