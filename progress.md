@@ -208,3 +208,24 @@
 **Тесты:** npm run typecheck, npm test — все пройдены (10 tests passed).
 **Заметки:** CRUD-методы были реализованы в рамках TASK-013. В этой задаче добавлены тесты, подтверждающие корректность работы. configSnapshot сохраняется как JSON-строка. От этой задачи зависят TASK-015, TASK-016, TASK-017.
 
+## [2026-04-06] TASK-016: SQLite CRUD операции для таблицы show_events (append-only)
+**Статус:** done
+**Время:** ~10 минут
+**Изменения:**
+- src/storage/sqlite-store.ts — реализация уже присутствовала с TASK-013:
+  - appendEvent(event): number — добавление события с автоинкрементом sequenceNumber
+  - getEvents(showId, fromSequence?): ShowEvent[] — получение событий с опциональным курсором
+  - getEventsForCharacter(showId, characterId, fromSequence?): ShowEvent[] — фильтрация по audienceIds
+  - deleteEventsAfter(showId, afterSequence): void — удаление событий для rollback
+  - getLatestSequence(showId): number — получение последнего sequenceNumber
+- tests/unit/sqlite-store.test.ts — добавлены 6 тестов для CRUD операций show_events:
+  - append events and auto-increment sequenceNumber
+  - get events in order by sequenceNumber
+  - delete events after sequence number (rollback)
+  - filter events by audience (getEventsForCharacter)
+  - get latest sequence number
+  - get events from a specific sequence number
+
+**Тесты:** npm run typecheck, npm test — все пройдены (21 tests passed).
+**Заметки:** Реализация была выполнена в TASK-013. Тесты подтверждают append-only логику с rollback возможностью. От этой задачи зависят TASK-018 (EventJournal), TASK-019, TASK-020.
+

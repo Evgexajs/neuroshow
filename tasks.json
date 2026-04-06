@@ -381,7 +381,7 @@
         "Ожидаемый результат: append-only логика работает, rollback удаляет"
       ],
       "dependencies": ["TASK-013", "TASK-014"],
-      "status": "pending"
+      "status": "done"
     },
     {
       "id": "TASK-017",
