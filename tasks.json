@@ -1821,6 +1821,31 @@
         "TASK-070"
       ],
       "status": "done"
+    },
+    {
+      "id": "TASK-074",
+      "category": "bugfix",
+      "priority": "critical",
+      "description": "Исправить POST /generate/characters - возвращает пустой массив",
+      "acceptance_criteria": [
+        "POST /generate/characters возвращает массив персонажей (не пустой)",
+        "curl -X POST http://localhost:3000/generate/characters -H 'Content-Type: application/json' -d '{\"count\": 3}' возвращает 3 персонажа",
+        "Кнопка 'Generate Characters' в UI работает и заполняет форму",
+        "Добавить логирование для отладки в случае ошибок",
+        "Если ошибка - показывать понятное сообщение в UI"
+      ],
+      "test_steps": [
+        "Запусти сервер: npm run dev",
+        "Выполни: curl -X POST http://localhost:3000/generate/characters -H 'Content-Type: application/json' -d '{\"count\": 3}'",
+        "Проверь что вернулся массив из 3 персонажей с полями id, name, publicCard и т.д.",
+        "Открой UI, нажми 'Generate Characters'",
+        "Проверь что персонажи появились в форме",
+        "Ожидаемый результат: генерация работает через API и UI"
+      ],
+      "dependencies": [
+        "TASK-073"
+      ],
+      "status": "pending"
     }
   ]
 }
