@@ -2088,3 +2088,32 @@ Added a template information panel to the Debug UI that displays template name, 
 3. Указать что нельзя голосовать за себя ✓
 4. Объяснить что это ФИНАЛЬНОЕ голосование, не обсуждение ✓
 5. Пример в промпте: decisionValue: 'Виктор' (голос за Виктора) ✓
+
+---
+
+## 2026-04-07: TASK-093 — Decision validation
+
+**Задача:** Decision validation — проверять что decisionValue валидный
+
+**Изменения:**
+- Добавлен метод `validateDecisionValue()` в `host-module.ts`
+  - Проверяет что decisionValue является именем/ID другого участника
+  - Блокирует голосование за себя (проверка по имени и ID)
+  - При невалидном значении логирует WARNING и пытается извлечь имя и�� текста response
+  - Если извлечение не удалось, возвращает 'invalid' вместо падения
+- Добавлен метод `extractCandidateFromText()` для извлечения имён кандидатов из текста
+- Валидация учитывает decisionConfig.options (для 'choice' формата с options типа 'yes/no')
+- Валидация учитывает decisionConfig.format (для 'free_text' пропускает строгую проверку)
+- Добавлен импорт `logger` для логирования warnings
+
+**Тесты:**
+- npm run typecheck — passes
+- npm run lint — passes (0 errors, warnings pre-existing)
+- npm test tests/unit/host-module.test.ts — 50 tests passed
+
+**Acceptance Criteria:**
+1. Валидация: decisionValue должен быть именем/ID другого участника ✓
+2. Валидация: нельзя голосовать за себя ✓
+3. При невалидном значении: логировать WARNING, попробовать извлечь имя из text ✓
+4. Если не удалось извлечь — записать 'invalid' и продолжить ✓
+5. Не ломать шоу из-за невалидного голоса ✓

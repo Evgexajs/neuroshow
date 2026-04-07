@@ -14,6 +14,7 @@ import { PrivateChannelRules, DecisionConfig } from '../types/primitives.js';
 import { CharacterResponse } from '../types/adapter.js';
 import { generateId } from '../utils/id.js';
 import { config } from '../config.js';
+import { logger } from '../utils/logger.js';
 
 /**
  * Callback type for collecting decisions from characters
@@ -574,8 +575,17 @@ export class HostModule {
         decisionConfig.timing === 'simultaneous' ? [] : collectedDecisions;
       const response = await callCharacter(character.characterId, trigger, previousDecisions);
 
-      // Extract decision value
-      const decisionValue = response.decisionValue ?? response.text;
+      // Extract and validate decision value
+      const rawDecisionValue = response.decisionValue ?? response.text;
+      const decisionValue = this.validateDecisionValue(
+        rawDecisionValue,
+        response.text,
+        character.characterId,
+        currentCharacterName,
+        candidateNames,
+        nameMap,
+        decisionConfig
+      );
 
       // Store decision for sequential mode
       collectedDecisions.push({
@@ -694,6 +704,157 @@ export class HostModule {
       .join('\n');
 
     return `Previous decisions:\n${decisionsText}\n\n${baseTrigger}`;
+  }
+
+  /**
+   * Validate and normalize decision value
+   *
+   * - If decisionConfig.options is provided, checks that value matches an option (for structured choices)
+   * - Otherwise checks that decisionValue is a valid candidate (name or ID of another participant)
+   * - Prevents voting for self
+   * - Attempts to extract valid name from response text if decisionValue is invalid
+   * - Returns 'invalid' if no valid candidate can be identified
+   *
+   * @param rawValue - Raw decision value from LLM response
+   * @param responseText - Full response text (used for extraction fallback)
+   * @param voterId - Character ID of the voter
+   * @param voterName - Name of the voter
+   * @param candidateNames - List of valid candidate names
+   * @param nameMap - Map of characterId -> name
+   * @param decisionConfig - Decision configuration with format and options
+   * @returns Validated decision value or 'invalid'
+   */
+  private validateDecisionValue(
+    rawValue: string,
+    responseText: string,
+    voterId: string,
+    voterName: string,
+    candidateNames: string[],
+    nameMap: Map<string, string>,
+    decisionConfig: DecisionConfig
+  ): string {
+    // Normalize raw value
+    const normalizedValue = rawValue?.trim() ?? '';
+
+    // Check if value is empty
+    if (!normalizedValue || normalizedValue.length === 0) {
+      logger.warn(
+        `[Decision] ${voterName} (${voterId}) provided empty decision value. ` +
+          `Attempting extraction from text.`
+      );
+      return this.extractCandidateFromText(responseText, candidateNames, voterName);
+    }
+
+    // If decisionConfig.options is provided, check if value matches an option (structured choice)
+    if (decisionConfig.options && decisionConfig.options.length > 0) {
+      const matchedOption = decisionConfig.options.find(
+        (opt) => opt.toLowerCase() === normalizedValue.toLowerCase()
+      );
+      if (matchedOption) {
+        return matchedOption; // Return properly cased option
+      }
+      // For structured choices, if no option matches, still allow free text
+      // (unless it's strictly a choice format - but PRD allows flexibility)
+      if (decisionConfig.format === 'free_text') {
+        return normalizedValue;
+      }
+    }
+
+    // For free_text format without options, accept any value (but still check for self-voting)
+    if (decisionConfig.format === 'free_text' && !decisionConfig.options) {
+      // Check if voting for self
+      if (
+        normalizedValue === voterName ||
+        normalizedValue.toLowerCase() === voterName.toLowerCase() ||
+        normalizedValue === voterId
+      ) {
+        logger.warn(
+          `[Decision] ${voterName} (${voterId}) attempted to vote for themselves. ` +
+            `Value: "${normalizedValue}". Attempting extraction from text.`
+        );
+        return this.extractCandidateFromText(responseText, candidateNames, voterName);
+      }
+      return normalizedValue;
+    }
+
+    // Build set of valid candidate identifiers (names and IDs)
+    const validCandidates = new Set<string>();
+
+    for (const name of candidateNames) {
+      validCandidates.add(name);
+      validCandidates.add(name.toLowerCase());
+    }
+
+    // Add character IDs (except voter's)
+    for (const [charId] of nameMap.entries()) {
+      if (charId !== voterId) {
+        validCandidates.add(charId);
+      }
+    }
+
+    // Check if voting for self (by name or ID)
+    if (
+      normalizedValue === voterName ||
+      normalizedValue.toLowerCase() === voterName.toLowerCase() ||
+      normalizedValue === voterId
+    ) {
+      logger.warn(
+        `[Decision] ${voterName} (${voterId}) attempted to vote for themselves. ` +
+          `Value: "${normalizedValue}". Attempting extraction from text.`
+      );
+      return this.extractCandidateFromText(responseText, candidateNames, voterName);
+    }
+
+    // Check if value matches a valid candidate (case-insensitive for names)
+    if (validCandidates.has(normalizedValue) || validCandidates.has(normalizedValue.toLowerCase())) {
+      // Return the properly cased name if matched by lowercase
+      const matchedName = candidateNames.find(
+        (name) => name.toLowerCase() === normalizedValue.toLowerCase()
+      );
+      return matchedName ?? normalizedValue;
+    }
+
+    // Value doesn't match any valid candidate - try extraction
+    logger.warn(
+      `[Decision] ${voterName} (${voterId}) provided invalid decision value: "${normalizedValue}". ` +
+        `Valid candidates: [${candidateNames.join(', ')}]. Attempting extraction from text.`
+    );
+    return this.extractCandidateFromText(responseText, candidateNames, voterName);
+  }
+
+  /**
+   * Attempt to extract a valid candidate name from response text
+   *
+   * @param text - Full response text
+   * @param candidateNames - List of valid candidate names
+   * @param voterName - Name of the voter (to exclude from matches)
+   * @returns Extracted candidate name or 'invalid'
+   */
+  private extractCandidateFromText(
+    text: string,
+    candidateNames: string[],
+    voterName: string
+  ): string {
+    const textLower = text.toLowerCase();
+
+    // Look for candidate names in the text (case-insensitive)
+    for (const candidate of candidateNames) {
+      if (candidate.toLowerCase() === voterName.toLowerCase()) {
+        continue; // Skip voter's own name
+      }
+      if (textLower.includes(candidate.toLowerCase())) {
+        logger.info(
+          `[Decision] Extracted candidate "${candidate}" from response text.`
+        );
+        return candidate;
+      }
+    }
+
+    // No valid candidate found
+    logger.warn(
+      `[Decision] Could not extract valid candidate from text. Marking as 'invalid'.`
+    );
+    return 'invalid';
   }
 
   /**
