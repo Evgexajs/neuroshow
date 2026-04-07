@@ -770,3 +770,30 @@
 
 **Тесты:** npm run typecheck, npm test — все пройдены (209 tests passed).
 **Заметки:** Rollback позволяет вернуться к началу фазы в DEBUG режиме, удаляя все события от этой фазы и далее. Полезно для отладки и тестирования альтернативных сценариев.
+
+---
+
+## 2026-04-07: TASK-044 — API Server: Fastify setup и базовые routes
+
+**Статус:** Выполнено
+
+**Изменения:**
+- src/api/server.ts — создан Fastify API сервер:
+  - createDependencies(): инициализация всех зависимостей (composition root)
+    - SqliteStore с инициализацией схемы
+    - EventJournal
+    - HostModule
+    - ContextBuilder
+    - MockAdapter (по умолчанию, OpenAI создаётся per-show)
+    - Orchestrator со всеми зависимостями
+  - createServer(): создание Fastify instance и настройка routes
+  - GET /health — возвращает { status: 'ok' }
+  - startServer(): запуск сервера на PORT из конфига
+  - Graceful shutdown по SIGTERM/SIGINT:
+    - Закрытие Fastify
+    - Закрытие SqliteStore
+    - Логирование процесса
+  - Экспорт AppDependencies interface для типизации зависимостей
+
+**Тесты:** npm run typecheck, npm test — все пройдены (209 tests passed).
+**Заметки:** Composition root создаёт все зависимости при старте сервера. MockAdapter используется по умолчанию, т.к. OpenAI adapter требует per-show контекст (showId, characterId). От этой задачи зависят TASK-045, TASK-046, TASK-047, TASK-048, TASK-049.
