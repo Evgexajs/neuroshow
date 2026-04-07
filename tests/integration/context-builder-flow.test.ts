@@ -161,11 +161,11 @@ describe('Integration: ContextBuilder + EventJournal + MockAdapter', () => {
         'What do you think about the situation?'
       );
 
-      // Verify system prompt contains personality
+      // Verify system prompt contains personality (Russian headers since language='ru')
       expect(pkg.systemPrompt).toContain('Alice');
       expect(pkg.systemPrompt).toContain('thoughtful participant');
-      expect(pkg.systemPrompt).toContain('Personality');
-      expect(pkg.systemPrompt).toContain('Motivation');
+      expect(pkg.systemPrompt).toContain('Личность');
+      expect(pkg.systemPrompt).toContain('Мотивация');
 
       // Verify factsList contains private context
       expect(pkg.contextLayers.factsList.length).toBeGreaterThan(0);

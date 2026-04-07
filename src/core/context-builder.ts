@@ -11,6 +11,7 @@ import { PromptPackage, ModelAdapter } from '../types/adapter.js';
 import { CharacterDefinition } from '../types/character.js';
 import { Show } from '../types/runtime.js';
 import { ShowFormatTemplate } from '../types/template.js';
+import { ResponseConstraints } from '../types/primitives.js';
 
 /**
  * ContextBuilder assembles context layers for character prompts
@@ -132,7 +133,7 @@ export class ContextBuilder {
     trigger: string
   ): Promise<PromptPackage> {
     // Build system prompt from character definition
-    const systemPrompt = this.buildSystemPrompt(character);
+    const systemPrompt = this.buildSystemPrompt(character, character.responseConstraints);
 
     // Get context window size from show's config snapshot
     const template = show.configSnapshot as unknown as ShowFormatTemplate;
@@ -165,28 +166,48 @@ export class ContextBuilder {
    * - motivationPrompt: what drives the character
    * - boundaryRules: what the character won't do
    * - format instruction: JSON response format
+   * - language instruction: respond in specified language
    */
-  private buildSystemPrompt(character: CharacterDefinition): string {
+  private buildSystemPrompt(
+    character: CharacterDefinition,
+    responseConstraints: ResponseConstraints
+  ): string {
     const parts: string[] = [];
+    const isRussian = responseConstraints.language === 'ru';
+
+    // Language instruction at the very top for Russian
+    if (isRussian) {
+      parts.push('ВАЖНО: Отвечай ТОЛЬКО на русском языке.');
+      parts.push('');
+    }
 
     // Character name and public card
-    parts.push(`You are ${character.name}.`);
-    parts.push(`Public information about you: ${character.publicCard}`);
+    if (isRussian) {
+      parts.push(`Ты — ${character.name}.`);
+      parts.push(`Публичная информация о тебе: ${character.publicCard}`);
+    } else {
+      parts.push(`You are ${character.name}.`);
+      parts.push(`Public information about you: ${character.publicCard}`);
+    }
 
     // Personality
     parts.push('');
-    parts.push('## Personality');
+    parts.push(isRussian ? '## Личность' : '## Personality');
     parts.push(character.personalityPrompt);
 
     // Motivation
     parts.push('');
-    parts.push('## Motivation');
+    parts.push(isRussian ? '## Мотивация' : '## Motivation');
     parts.push(character.motivationPrompt);
 
     // Boundary rules
     if (character.boundaryRules.length > 0) {
       parts.push('');
-      parts.push('## Boundaries (you will NEVER do these things)');
+      parts.push(
+        isRussian
+          ? '## Границы (ты НИКОГДА не будешь делать это)'
+          : '## Boundaries (you will NEVER do these things)'
+      );
       for (const rule of character.boundaryRules) {
         parts.push(`- ${rule}`);
       }
@@ -194,12 +215,24 @@ export class ContextBuilder {
 
     // Format instruction for JSON response
     parts.push('');
-    parts.push('## Response Format');
-    parts.push('You MUST respond with a valid JSON object containing:');
-    parts.push('- "text": Your spoken response (required)');
-    parts.push('- "intent": One of "speak", "request_private", "reveal_wildcard", "end_turn" (optional)');
-    parts.push('- "target": Character ID for private request (optional)');
-    parts.push('- "decisionValue": Your choice for voting/decision (optional)');
+    parts.push(isRussian ? '## Формат ответа' : '## Response Format');
+    if (isRussian) {
+      parts.push('Ты ДОЛЖЕН ответить валидным JSON объектом, содержащим:');
+      parts.push('- "text": Твой устный ответ (обязательно)');
+      parts.push(
+        '- "intent": Одно из "speak", "request_private", "reveal_wildcard", "end_turn" (опционально)'
+      );
+      parts.push('- "target": ID персонажа для приватного запроса (опционально)');
+      parts.push('- "decisionValue": Твой выбор для голосования/решения (опционально)');
+    } else {
+      parts.push('You MUST respond with a valid JSON object containing:');
+      parts.push('- "text": Your spoken response (required)');
+      parts.push(
+        '- "intent": One of "speak", "request_private", "reveal_wildcard", "end_turn" (optional)'
+      );
+      parts.push('- "target": Character ID for private request (optional)');
+      parts.push('- "decisionValue": Your choice for voting/decision (optional)');
+    }
 
     return parts.join('\n');
   }
