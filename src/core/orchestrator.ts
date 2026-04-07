@@ -70,8 +70,11 @@ export class Orchestrator {
   private turnIndex: number = 0;
   private mode: OrchestratorMode = 'AUTO';
 
-  /** DEBUG mode state: is execution currently paused? */
+  /** Is execution currently paused? Works in both AUTO and DEBUG modes */
   private paused: boolean = false;
+
+  /** Is execution stopped? Once stopped, show cannot continue */
+  private stopped: boolean = false;
 
   /** Resolver function to signal that a step should proceed */
   private stepResolver: (() => void) | null = null;
@@ -120,12 +123,13 @@ export class Orchestrator {
   }
 
   /**
-   * Pause execution (only effective in DEBUG mode)
-   * Suspends the show at the next step boundary
+   * Pause execution
+   * Suspends the show at the next turn boundary
+   * Works in both AUTO and DEBUG modes
    */
   pause(): void {
     this.paused = true;
-    logger.debug('Orchestrator paused');
+    logger.info('Orchestrator paused - will stop after current turn');
   }
 
   /**
@@ -140,7 +144,37 @@ export class Orchestrator {
       this.stepResolver = null;
       this.stepPromise = null;
     }
-    logger.debug('Orchestrator resumed');
+    logger.info('Orchestrator resumed');
+  }
+
+  /**
+   * Stop execution completely (for graceful shutdown)
+   * Once stopped, the show cannot be resumed - it must be restarted
+   */
+  stop(): void {
+    this.stopped = true;
+    this.paused = true;
+    // Release any waiting step to allow the loop to exit
+    if (this.stepResolver) {
+      this.stepResolver();
+      this.stepResolver = null;
+      this.stepPromise = null;
+    }
+    logger.info('Orchestrator stopped');
+  }
+
+  /**
+   * Check if orchestrator is stopped
+   */
+  isStopped(): boolean {
+    return this.stopped;
+  }
+
+  /**
+   * Check if orchestrator is paused
+   */
+  isPaused(): boolean {
+    return this.paused;
   }
 
   /**
@@ -253,7 +287,30 @@ export class Orchestrator {
 
     // Run turns until completion
     for (let round = 0; round < turnsPerCharacter; round++) {
+      // Check if stopped before each round
+      if (this.stopped) {
+        logger.info(`[Phase ${phaseNum}] Execution stopped, exiting phase`);
+        return;
+      }
+
       for (const characterId of turnQueue) {
+        // Check if stopped or paused before each turn
+        if (this.stopped) {
+          logger.info(`[Phase ${phaseNum}] Execution stopped, exiting phase`);
+          return;
+        }
+
+        // If paused in AUTO mode, wait until resumed
+        while (this.paused && !this.stopped) {
+          await new Promise((resolve) => setTimeout(resolve, 100));
+        }
+
+        // Check again after pause
+        if (this.stopped) {
+          logger.info(`[Phase ${phaseNum}] Execution stopped after pause, exiting phase`);
+          return;
+        }
+
         // Check completion condition
         if (this.isPhaseComplete(phase, this.turnIndex, totalTurns)) {
           break;
@@ -405,7 +462,19 @@ export class Orchestrator {
 
     // Run turns until completion
     for (let round = 0; round < turnsPerCharacter; round++) {
+      // Check if stopped before each round
+      if (this.stopped) {
+        logger.info(`[Phase ${phaseNum}] Execution stopped, exiting phase (DEBUG)`);
+        return;
+      }
+
       for (const characterId of turnQueue) {
+        // Check if stopped before each turn
+        if (this.stopped) {
+          logger.info(`[Phase ${phaseNum}] Execution stopped, exiting phase (DEBUG)`);
+          return;
+        }
+
         // Check completion condition
         if (this.isPhaseComplete(phase, this.turnIndex, totalTurns)) {
           break;
@@ -413,6 +482,12 @@ export class Orchestrator {
 
         // In DEBUG mode, wait for step() before each turn
         await this.waitForStep();
+
+        // Check if stopped after waiting
+        if (this.stopped) {
+          logger.info(`[Phase ${phaseNum}] Execution stopped after wait, exiting phase (DEBUG)`);
+          return;
+        }
 
         // Get character name for logging
         const charName = charNameMap.get(characterId) ?? characterId;
@@ -1020,10 +1095,42 @@ export class Orchestrator {
 
     // Run all phases sequentially
     for (const [i, phase] of phases.entries()) {
+      // Check if stopped before each phase
+      if (this.stopped) {
+        logger.info(`Show ${showId} stopped before phase ${i + 1}`);
+        await this.store.updateShow(showId, {
+          status: ShowStatus.paused,
+        });
+        return;
+      }
+
+      // If paused in AUTO mode, wait until resumed or stopped
+      while (this.paused && !this.stopped && this.mode === 'AUTO') {
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+
+      // Check again after pause wait
+      if (this.stopped) {
+        logger.info(`Show ${showId} stopped after pause`);
+        await this.store.updateShow(showId, {
+          status: ShowStatus.paused,
+        });
+        return;
+      }
+
       this.currentPhaseIndex = i;
 
       // In DEBUG mode, wait for step() or resume() before each phase
       await this.waitForStep();
+
+      // Check if stopped after waiting
+      if (this.stopped) {
+        logger.info(`Show ${showId} stopped after step wait`);
+        await this.store.updateShow(showId, {
+          status: ShowStatus.paused,
+        });
+        return;
+      }
 
       // Update currentPhaseId in show record
       await this.store.updateShow(showId, {
@@ -1046,6 +1153,10 @@ export class Orchestrator {
           trigger: string,
           _previousDecisions: Array<{ characterId: string; decision: string }>
         ) => {
+          // Check if stopped before each decision turn
+          if (this.stopped) {
+            return { text: '', intent: CharacterIntent.end_turn };
+          }
           // In DEBUG mode, wait for step() before each character turn
           if (this.mode === 'DEBUG') {
             await this.waitForStep();
@@ -1061,6 +1172,24 @@ export class Orchestrator {
           await this.runPhase(showId, phase, i, phases.length);
         }
       }
+
+      // Check if stopped after phase
+      if (this.stopped) {
+        logger.info(`Show ${showId} stopped after phase ${i + 1}`);
+        await this.store.updateShow(showId, {
+          status: ShowStatus.paused,
+        });
+        return;
+      }
+    }
+
+    // Check if stopped before revelation
+    if (this.stopped) {
+      logger.info(`Show ${showId} stopped before revelation`);
+      await this.store.updateShow(showId, {
+        status: ShowStatus.paused,
+      });
+      return;
     }
 
     // Run revelation at the end
@@ -1356,10 +1485,42 @@ export class Orchestrator {
 
     // Run all phases sequentially
     for (const [i, phase] of phases.entries()) {
+      // Check if stopped before each phase
+      if (this.stopped) {
+        logger.info(`Show ${showId} stopped before phase ${i + 1} (executeShowRun)`);
+        await this.store.updateShow(showId, {
+          status: ShowStatus.paused,
+        });
+        return;
+      }
+
+      // If paused in AUTO mode, wait until resumed or stopped
+      while (this.paused && !this.stopped && this.mode === 'AUTO') {
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+
+      // Check again after pause wait
+      if (this.stopped) {
+        logger.info(`Show ${showId} stopped after pause (executeShowRun)`);
+        await this.store.updateShow(showId, {
+          status: ShowStatus.paused,
+        });
+        return;
+      }
+
       this.currentPhaseIndex = i;
 
       // In DEBUG mode, wait for step() or resume() before each phase
       await this.waitForStep();
+
+      // Check if stopped after waiting
+      if (this.stopped) {
+        logger.info(`Show ${showId} stopped after step wait (executeShowRun)`);
+        await this.store.updateShow(showId, {
+          status: ShowStatus.paused,
+        });
+        return;
+      }
 
       // Update currentPhaseId in show record
       await this.store.updateShow(showId, {
@@ -1382,6 +1543,10 @@ export class Orchestrator {
           trigger: string,
           _previousDecisions: Array<{ characterId: string; decision: string }>
         ) => {
+          // Check if stopped before each decision turn
+          if (this.stopped) {
+            return { text: '', intent: CharacterIntent.end_turn };
+          }
           // In DEBUG mode, wait for step() before each character turn
           if (this.mode === 'DEBUG') {
             await this.waitForStep();
@@ -1397,6 +1562,24 @@ export class Orchestrator {
           await this.runPhase(showId, phase, i, phases.length);
         }
       }
+
+      // Check if stopped after phase
+      if (this.stopped) {
+        logger.info(`Show ${showId} stopped after phase ${i + 1} (executeShowRun)`);
+        await this.store.updateShow(showId, {
+          status: ShowStatus.paused,
+        });
+        return;
+      }
+    }
+
+    // Check if stopped before revelation
+    if (this.stopped) {
+      logger.info(`Show ${showId} stopped before revelation (executeShowRun)`);
+      await this.store.updateShow(showId, {
+        status: ShowStatus.paused,
+      });
+      return;
     }
 
     // Run revelation at the end

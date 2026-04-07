@@ -806,6 +806,9 @@ export async function startServer(): Promise<void> {
   const shutdown = async (signal: string) => {
     logger.info(`Received ${signal}, shutting down gracefully...`);
 
+    // Stop the orchestrator first to prevent new LLM calls
+    deps.orchestrator.stop();
+
     try {
       await app.close();
       await deps.store.close();
@@ -817,11 +820,20 @@ export async function startServer(): Promise<void> {
     }
   };
 
+  // Handler for SIGTSTP (Ctrl+Z) - pause execution but don't exit
+  const handleSuspend = () => {
+    logger.info('Received SIGTSTP (Ctrl+Z), pausing orchestrator...');
+    deps.orchestrator.stop();
+    // Re-enable default behavior (suspend process)
+    process.kill(process.pid, 'SIGTSTP');
+  };
+
   // Register shutdown handlers
   process.on('SIGTERM', () => shutdown('SIGTERM'));
   process.on('SIGINT', () => shutdown('SIGINT'));
   process.on('SIGHUP', () => shutdown('SIGHUP'));
-  process.on('SIGTSTP', () => shutdown('SIGTSTP')); // Ctrl+Z
+  // Use 'once' for SIGTSTP to avoid re-triggering, and allow process suspension
+  process.once('SIGTSTP', handleSuspend);
 
   // Start listening
   try {

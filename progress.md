@@ -2228,3 +2228,33 @@ Added a template information panel to the Debug UI that displays template name, 
 - npm run test:e2e — 4 tests passed (все layout тесты)
 - npm run typecheck — passes
 - npm run lint — passes (0 errors, 390 warnings)
+
+---
+
+## [2026-04-07] TASK-098: Ctrl+Z and Pause button don't stop show
+**Статус:** done
+**Время:** ~30 минут
+**Изменения:**
+- src/core/orchestrator.ts:
+  - Added `stopped` flag and `stop()` method for graceful shutdown
+  - Added `isStopped()` and `isPaused()` public getters
+  - Modified `pause()` to work in both AUTO and DEBUG modes (not just DEBUG)
+  - Added pause/stop checks in `runPhase()` before each turn
+  - Added pause/stop checks in `runPhaseWithDebug()` before each turn
+  - Added pause/stop checks in `runShow()` phase loop
+  - Added pause/stop checks in `executeShowRun()` phase loop
+  - When stopped, show status is set to 'paused' to allow future continuation
+- src/api/server.ts:
+  - Added `deps.orchestrator.stop()` call in shutdown handler
+  - Added separate SIGTSTP handler that stops orchestrator before process suspension
+
+**Acceptance Criteria:**
+1. Ctrl+Z (SIGTSTP) корректно приостанавливает выполнение шоу ✓
+2. Кнопка Pause в UI останавливает цикл LLM вызовов ✓
+3. После Pause можно продолжить через Resume или Step ✓
+4. Graceful shutdown не продолжает LLM вызовы после сигнала ✓
+
+**Тесты:**
+- npm run typecheck — passes
+- npm run lint — passes (0 errors)
+- npm test tests/unit — 302 tests passed (with ADAPTER_MODE=mock)
