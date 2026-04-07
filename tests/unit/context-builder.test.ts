@@ -106,6 +106,35 @@ describe('ContextBuilder', () => {
       expect(facts).toEqual([]);
     });
 
+    it('should include backstory as the first fact when present', async () => {
+      const privateContext = createTestPrivateContext();
+      const character = createTestCharacter('char-1', privateContext);
+      const backstory = 'Вы находитесь на острове. На кону миллион долларов.';
+
+      const store = createMockStore({
+        getCharacter: vi.fn().mockResolvedValue(character),
+        getShow: vi.fn().mockResolvedValue({
+          id: 'show-1',
+          configSnapshot: JSON.stringify({ backstory }),
+          status: ShowStatus.running,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        }),
+      });
+      const journal = new EventJournal(store);
+      const builder = new ContextBuilder(journal, store);
+
+      const facts = await builder.buildFactsList('char-1', 'show-1');
+
+      // Backstory should be the first fact
+      expect(facts[0]).toBe(`[Предыстория шоу] ${backstory}`);
+
+      // Secrets should come after backstory
+      expect(facts.indexOf(`[Предыстория шоу] ${backstory}`)).toBeLessThan(
+        facts.findIndex((f) => f.startsWith('[Secret]'))
+      );
+    });
+
     it('should include all secrets from private context', async () => {
       const privateContext = createTestPrivateContext();
       const character = createTestCharacter('char-1', privateContext);

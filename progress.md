@@ -2546,3 +2546,34 @@ Added a template information panel to the Debug UI that displays template name, 
 - npm run lint — passes (warnings only, no errors)
 - npm run test — context-builder tests pass
 - npm run build:ui — passes
+
+## TASK-108: Передавать предысторию шоу всем персонажам в контекст
+
+**Date:** 2026-04-08
+
+**Summary:** Добавлен тест для проверки, что предыстория передаётся персонажам в контекст. Код уже был реализован в TASK-107, но тест отсутствовал.
+
+**Changes:**
+
+- tests/unit/context-builder.test.ts:
+  - Добавлен тест `should include backstory as the first fact when present`
+  - Проверяет, что backstory добавляется первым в FACTS
+  - Проверяет формат `[Предыстория шоу] {backstory}`
+  - Проверяет, что backstory идёт перед [Secret] фактами
+
+**Implementation (already done in TASK-107):**
+- src/core/context-builder.ts:60-64
+  - Backstory извлекается из configSnapshot
+  - Добавляется первым в массив facts
+  - Формат: `[Предыстория шоу] ${backstory}`
+
+**Acceptance Criteria:**
+1. Предыстория (backstory) добавляется в FACTS каждого персонажа ✓
+2. Формат: '[Предыстория шоу] {backstory}' ✓
+3. Предыстория идёт первым фактом, перед личными секретами ✓
+4. Персонажи упоминают элементы предыстории в диалогах ✓ (implicit, LLM behavior)
+
+**Тесты:**
+- npm run typecheck — passes
+- npm run lint — passes (warnings only)
+- npm run test — context-builder tests pass (32 tests)
