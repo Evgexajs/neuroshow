@@ -4,6 +4,9 @@
  */
 
 import Fastify, { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import fastifyStatic from '@fastify/static';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { config } from '../config.js';
 import { SqliteStore } from '../storage/sqlite-store.js';
 import { EventJournal } from '../core/event-journal.js';
@@ -83,6 +86,13 @@ export async function createServer(): Promise<{
   // Create Fastify instance
   const app = Fastify({
     logger: false, // Using custom logger
+  });
+
+  // Serve static files from web/debug-ui
+  const __dirname = path.dirname(fileURLToPath(import.meta.url));
+  await app.register(fastifyStatic, {
+    root: path.join(__dirname, '../../web/debug-ui'),
+    prefix: '/',
   });
 
   // Create all dependencies via composition root
