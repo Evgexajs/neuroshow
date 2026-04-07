@@ -1574,6 +1574,58 @@
         "TASK-020"
       ],
       "status": "pending"
+    },
+    {
+      "id": "TASK-064",
+      "category": "testing",
+      "priority": "critical",
+      "description": "Интеграционные тесты: полный цикл хода персонажа",
+      "acceptance_criteria": [
+        "tests/integration/turn-cycle.test.ts создан",
+        "Тест полного хода: HostModule -> ContextBuilder -> MockAdapter -> EventJournal -> SqliteStore",
+        "Проверка что промпт собирается из предыдущих событий шоу",
+        "Проверка что ответ адаптера парсится и сохраняется как событие",
+        "Проверка что llm_call записывается в БД с raw_request/raw_response",
+        "Тест нескольких ходов подряд: второй ход видит событие первого хода в контексте",
+        "Тест приватного канала: ответ в private channel не виден другим персонажам в следующем ходе"
+      ],
+      "test_steps": [
+        "Выполни: npm test tests/integration/turn-cycle.test.ts",
+        "Проверь что события накапливаются корректно",
+        "Проверь что llm_calls содержит все вызовы",
+        "Ожидаемый результат: полный пайплайн хода работает"
+      ],
+      "dependencies": [
+        "TASK-062",
+        "TASK-063"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "TASK-065",
+      "category": "testing",
+      "priority": "high",
+      "description": "Интеграционные тесты: отслеживание token budget",
+      "acceptance_criteria": [
+        "tests/integration/token-budget-flow.test.ts создан",
+        "Тест создания бюджета при initializeShow",
+        "Тест уменьшения бюджета после каждого LLM вызова",
+        "Тест budget_saving_mode: при достижении 80% возвращается BudgetMode.saving",
+        "Тест graceful_finish: при достижении 100% возвращается BudgetMode.exhausted",
+        "Интеграция с HostModule.checkBudget() и реальным SqliteStore",
+        "Проверка что promptTokens и completionTokens корректно суммируются"
+      ],
+      "test_steps": [
+        "Выполни: npm test tests/integration/token-budget-flow.test.ts",
+        "Создай шоу с маленьким бюджетом (1000 токенов)",
+        "Сделай несколько вызовов и проверь режимы бюджета",
+        "Ожидаемый результат: бюджет корректно отслеживается через весь flow"
+      ],
+      "dependencies": [
+        "TASK-062",
+        "TASK-017"
+      ],
+      "status": "pending"
     }
   ]
 }
