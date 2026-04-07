@@ -4,7 +4,7 @@ import { EventJournal } from '../../src/core/event-journal.js';
 import { SqliteStore } from '../../src/storage/sqlite-store.js';
 import { ShowFormatTemplate, Phase } from '../../src/types/template.js';
 import { CharacterDefinition } from '../../src/types/character.js';
-import { PhaseType, ChannelType, SpeakFrequency, ShowStatus, BudgetMode } from '../../src/types/enums.js';
+import { PhaseType, ChannelType, SpeakFrequency, ShowStatus, BudgetMode, EventType } from '../../src/types/enums.js';
 import { PrivateContext } from '../../src/types/context.js';
 import * as fs from 'fs';
 
@@ -448,6 +448,126 @@ describe('HostModule', () => {
 
       // Last should be low frequency
       expect(queue[4]).toBe('low-1');
+    });
+  });
+
+  describe('emitTrigger', () => {
+    it('creates host_trigger event in journal', async () => {
+      const template = createTestTemplate();
+      const characters = [
+        createTestCharacter('char-1', 'Alice'),
+        createTestCharacter('char-2', 'Bob'),
+      ];
+
+      const show = await hostModule.initializeShow(template, characters);
+      await hostModule.emitTrigger(show.id, 'phase-1', 'Start the discussion');
+
+      const events = await eventJournal.getEvents(show.id);
+      expect(events).toHaveLength(1);
+      expect(events[0]!.type).toBe(EventType.host_trigger);
+      expect(events[0]!.content).toBe('Start the discussion');
+    });
+
+    it('sets audienceIds to all characters when targetCharacterIds is not provided', async () => {
+      const template = createTestTemplate();
+      const characters = [
+        createTestCharacter('char-1', 'Alice'),
+        createTestCharacter('char-2', 'Bob'),
+        createTestCharacter('char-3', 'Charlie'),
+      ];
+
+      const show = await hostModule.initializeShow(template, characters);
+      await hostModule.emitTrigger(show.id, 'phase-1', 'Hello everyone');
+
+      const events = await eventJournal.getEvents(show.id);
+      expect(events[0]!.audienceIds).toHaveLength(3);
+      expect(events[0]!.audienceIds).toContain('char-1');
+      expect(events[0]!.audienceIds).toContain('char-2');
+      expect(events[0]!.audienceIds).toContain('char-3');
+    });
+
+    it('sets audienceIds to targetCharacterIds when provided', async () => {
+      const template = createTestTemplate();
+      const characters = [
+        createTestCharacter('char-1', 'Alice'),
+        createTestCharacter('char-2', 'Bob'),
+        createTestCharacter('char-3', 'Charlie'),
+      ];
+
+      const show = await hostModule.initializeShow(template, characters);
+      await hostModule.emitTrigger(show.id, 'phase-1', 'Private message', ['char-1', 'char-2']);
+
+      const events = await eventJournal.getEvents(show.id);
+      expect(events[0]!.audienceIds).toHaveLength(2);
+      expect(events[0]!.audienceIds).toContain('char-1');
+      expect(events[0]!.audienceIds).toContain('char-2');
+      expect(events[0]!.audienceIds).not.toContain('char-3');
+    });
+
+    it('supports template substitution with {{names}}', async () => {
+      const template = createTestTemplate();
+      const characters = [
+        createTestCharacter('char-1', 'Alice'),
+        createTestCharacter('char-2', 'Bob'),
+      ];
+
+      const show = await hostModule.initializeShow(template, characters);
+      await hostModule.emitTrigger(show.id, 'phase-1', 'Hello {{names}}!');
+
+      const events = await eventJournal.getEvents(show.id);
+      expect(events[0]!.content).toBe('Hello char-1, char-2!');
+    });
+
+    it('supports template substitution with {{count}}', async () => {
+      const template = createTestTemplate();
+      const characters = [
+        createTestCharacter('char-1', 'Alice'),
+        createTestCharacter('char-2', 'Bob'),
+        createTestCharacter('char-3', 'Charlie'),
+      ];
+
+      const show = await hostModule.initializeShow(template, characters);
+      await hostModule.emitTrigger(show.id, 'phase-1', 'There are {{count}} participants');
+
+      const events = await eventJournal.getEvents(show.id);
+      expect(events[0]!.content).toBe('There are 3 participants');
+    });
+
+    it('supports template substitution with {{target}}', async () => {
+      const template = createTestTemplate();
+      const characters = [
+        createTestCharacter('char-1', 'Alice'),
+        createTestCharacter('char-2', 'Bob'),
+      ];
+
+      const show = await hostModule.initializeShow(template, characters);
+      await hostModule.emitTrigger(show.id, 'phase-1', 'Sending to {{target}}', ['char-2']);
+
+      const events = await eventJournal.getEvents(show.id);
+      expect(events[0]!.content).toBe('Sending to char-2');
+    });
+
+    it('stores originalTemplate in metadata', async () => {
+      const template = createTestTemplate();
+      const characters = [createTestCharacter('char-1', 'Alice')];
+
+      const show = await hostModule.initializeShow(template, characters);
+      const originalTemplate = 'Hello {{names}}!';
+      await hostModule.emitTrigger(show.id, 'phase-1', originalTemplate);
+
+      const events = await eventJournal.getEvents(show.id);
+      expect(events[0]!.metadata.originalTemplate).toBe(originalTemplate);
+    });
+
+    it('sets correct phaseId in event', async () => {
+      const template = createTestTemplate();
+      const characters = [createTestCharacter('char-1', 'Alice')];
+
+      const show = await hostModule.initializeShow(template, characters);
+      await hostModule.emitTrigger(show.id, 'phase-discussion-1', 'Start');
+
+      const events = await eventJournal.getEvents(show.id);
+      expect(events[0]!.phaseId).toBe('phase-discussion-1');
     });
   });
 });

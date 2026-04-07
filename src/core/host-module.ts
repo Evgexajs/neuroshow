@@ -8,7 +8,8 @@ import { EventJournal } from './event-journal.js';
 import { ShowFormatTemplate, Phase } from '../types/template.js';
 import { CharacterDefinition } from '../types/character.js';
 import { Show } from '../types/runtime.js';
-import { ShowStatus, BudgetMode } from '../types/enums.js';
+import { ShowEvent } from '../types/events.js';
+import { ShowStatus, BudgetMode, EventType, ChannelType } from '../types/enums.js';
 import { generateId } from '../utils/id.js';
 import { config } from '../config.js';
 
@@ -197,5 +198,105 @@ export class HostModule {
 
     // Concatenate: high frequency first, then medium, then low
     return [...shuffledHigh, ...shuffledMedium, ...shuffledLow];
+  }
+
+  /**
+   * Emit a trigger event to the journal
+   * Used by Host to send prompts/triggers to characters
+   *
+   * @param showId - Show ID
+   * @param phaseId - Current phase ID
+   * @param triggerTemplate - Template string with optional placeholders
+   * @param targetCharacterIds - Optional list of target character IDs (default: all characters)
+   */
+  async emitTrigger(
+    showId: string,
+    phaseId: string,
+    triggerTemplate: string,
+    targetCharacterIds?: string[]
+  ): Promise<void> {
+    // Get show for seed
+    const showRecord = await this.store.getShow(showId);
+    const seed = showRecord?.seed ?? '0';
+
+    // Determine audience
+    let audienceIds: string[];
+    if (targetCharacterIds && targetCharacterIds.length > 0) {
+      audienceIds = targetCharacterIds;
+    } else {
+      // All characters in the show
+      const characters = await this.store.getCharacters(showId);
+      audienceIds = characters.map((c) => c.characterId);
+    }
+
+    // Process template substitution
+    const content = await this.processTemplate(showId, triggerTemplate, audienceIds);
+
+    // Create host_trigger event
+    const event: Omit<ShowEvent, 'sequenceNumber'> = {
+      id: generateId(),
+      showId,
+      timestamp: Date.now(),
+      phaseId,
+      type: EventType.host_trigger,
+      channel: ChannelType.PUBLIC,
+      visibility: ChannelType.PUBLIC,
+      senderId: '', // Host events have no sender character
+      receiverIds: audienceIds,
+      audienceIds,
+      content,
+      metadata: {
+        originalTemplate: triggerTemplate,
+      },
+      seed,
+    };
+
+    await this.eventJournal.append(event);
+  }
+
+  /**
+   * Process template string with variable substitutions
+   * Supports: {{names}}, {{characterName}}, {{count}}, etc.
+   *
+   * @param showId - Show ID
+   * @param template - Template string
+   * @param audienceIds - IDs of characters in the audience
+   * @returns Processed string
+   */
+  private async processTemplate(
+    showId: string,
+    template: string,
+    audienceIds: string[]
+  ): Promise<string> {
+    const characters = await this.store.getCharacters(showId);
+
+    // Build name map for substitution
+    const charMap = new Map<string, string>();
+    for (const char of characters) {
+      // Use characterId as name placeholder (actual names would come from CharacterDefinition)
+      charMap.set(char.characterId, char.characterId);
+    }
+
+    // Get audience names
+    const audienceNames = audienceIds
+      .map((id) => charMap.get(id) ?? id)
+      .join(', ');
+
+    // Perform substitutions
+    let result = template;
+
+    // {{names}} - all audience names
+    result = result.replace(/\{\{names\}\}/g, audienceNames);
+
+    // {{count}} - number of participants
+    result = result.replace(/\{\{count\}\}/g, audienceIds.length.toString());
+
+    // {{target}} - first target (for private messages)
+    if (audienceIds.length > 0) {
+      const targetName = charMap.get(audienceIds[0]!) ?? audienceIds[0]!;
+      result = result.replace(/\{\{target\}\}/g, targetName);
+    }
+
+    return result;
   }
 }

@@ -480,3 +480,19 @@
 **Тесты:** npm run typecheck, npm test — все пройдены (128 tests passed).
 **Заметки:** Для frequency_weighted используется seeded Fisher-Yates shuffle. speakFrequency теперь сохраняется в show_characters для доступа без CharacterDefinition.
 
+## [2026-04-07] TASK-031: Host Module: emitTrigger()
+**Статус:** done
+**Время:** ~10 минут
+**Изменения:**
+- src/core/host-module.ts — добавлен метод emitTrigger():
+  - emitTrigger(showId, phaseId, triggerTemplate, targetCharacterIds?): Promise<void>
+  - Создаёт событие host_trigger в журнале через eventJournal.append()
+  - audienceIds = targetCharacterIds или все персонажи шоу
+  - Поддерживает шаблонизацию: {{names}}, {{count}}, {{target}}
+  - Сохраняет originalTemplate в metadata
+- src/core/host-module.ts — добавлен приватный метод processTemplate()
+- tests/unit/host-module.test.ts — добавлены 8 тестов для emitTrigger()
+
+**Тесты:** npm run typecheck, npm test — все пройдены (136 tests passed).
+**Заметки:** Метод используется Host Module для отправки триггеров персонажам. Шаблонизация позволяет динамически подставлять имена и количество участников. От этой задачи зависит TASK-033.
+
