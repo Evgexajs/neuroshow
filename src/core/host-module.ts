@@ -497,8 +497,24 @@ export class HostModule {
       return;
     }
 
-    // Build decision trigger template
-    const triggerBase = this.buildDecisionTrigger(decisionConfig);
+    // Get character definitions from configSnapshot to access names
+    const configSnapshot = JSON.parse(showRecord.configSnapshot) as Record<string, unknown>;
+    const characterDefinitions = configSnapshot.characterDefinitions as
+      | Array<{ id: string; name: string; responseConstraints?: { language?: string } }>
+      | undefined;
+
+    // Build name map: characterId -> name
+    const nameMap = new Map<string, string>();
+    let isRussian = false;
+    if (characterDefinitions) {
+      for (const def of characterDefinitions) {
+        nameMap.set(def.id, def.name);
+        // Check language from first character's responseConstraints
+        if (def.responseConstraints?.language === 'ru') {
+          isRussian = true;
+        }
+      }
+    }
 
     // Track collected decisions for sequential mode
     const collectedDecisions: Array<{ characterId: string; decision: string }> = [];
@@ -511,10 +527,24 @@ export class HostModule {
 
     // Process each character
     for (const character of characters) {
+      // Get current character's name and build candidate list (other participants)
+      const currentCharacterName = nameMap.get(character.characterId) ?? character.characterId;
+      const candidateNames = characters
+        .filter((c) => c.characterId !== character.characterId)
+        .map((c) => nameMap.get(c.characterId) ?? c.characterId);
+
+      // Build decision trigger with candidate names
+      const triggerBase = this.buildDecisionTrigger(
+        decisionConfig,
+        currentCharacterName,
+        candidateNames,
+        isRussian
+      );
+
       // Build trigger with previous decisions if sequential
       let trigger = triggerBase;
       if (decisionConfig.timing === 'sequential' && collectedDecisions.length > 0) {
-        trigger = this.buildSequentialTrigger(triggerBase, collectedDecisions);
+        trigger = this.buildSequentialTrigger(triggerBase, collectedDecisions, nameMap);
       }
 
       // Emit host_trigger for this character (for tracking/debugging)
@@ -589,25 +619,63 @@ export class HostModule {
 
   /**
    * Build the base decision trigger based on config
+   *
+   * @param decisionConfig - Decision configuration
+   * @param currentCharacterName - Name of the character being asked
+   * @param candidateNames - Names of other participants (candidates to vote for)
+   * @param isRussian - Whether to use Russian language
    */
-  private buildDecisionTrigger(decisionConfig: DecisionConfig): string {
-    const parts: string[] = ['It is time to make your decision.'];
+  private buildDecisionTrigger(
+    decisionConfig: DecisionConfig,
+    currentCharacterName: string,
+    candidateNames: string[],
+    isRussian: boolean
+  ): string {
+    const parts: string[] = [];
 
-    if (decisionConfig.format === 'choice' && decisionConfig.options) {
-      parts.push(`Choose one of the following options: ${decisionConfig.options.join(', ')}`);
-    } else if (decisionConfig.format === 'ranking' && decisionConfig.options) {
-      parts.push(
-        `Rank the following options from most to least preferred: ${decisionConfig.options.join(', ')}`
-      );
+    if (isRussian) {
+      // Russian version
+      parts.push('Время ФИНАЛЬНОГО голосования.');
+      parts.push('');
+      parts.push(`Ты — ${currentCharacterName}. Это НЕ обсуждение, а голосование.`);
+      parts.push('');
+      parts.push(`Кандидаты (за кого можно голосовать): ${candidateNames.join(', ')}`);
+      parts.push('');
+      parts.push('ПРАВИЛА ГОЛОСОВАНИЯ:');
+      parts.push('- Ты ДОЛЖЕН выбрать ОДНОГО из кандидатов выше');
+      parts.push('- Ты НЕ МОЖЕШЬ голосовать за себя');
+      parts.push('- В поле "decisionValue" укажи ИМЯ выбранного участника');
+      parts.push('');
+      if (candidateNames.length > 0) {
+        parts.push(`Пример: "decisionValue": "${candidateNames[0]}" (голос за ${candidateNames[0]})`);
+        parts.push('');
+      }
+      if (decisionConfig.timing === 'simultaneous') {
+        parts.push('Твой голос останется тайным до объявления результатов.');
+      }
     } else {
-      parts.push('Please provide your decision.');
+      // English version
+      parts.push('Time for the FINAL vote.');
+      parts.push('');
+      parts.push(`You are ${currentCharacterName}. This is NOT a discussion, it is a vote.`);
+      parts.push('');
+      parts.push(`Candidates (who you can vote for): ${candidateNames.join(', ')}`);
+      parts.push('');
+      parts.push('VOTING RULES:');
+      parts.push('- You MUST choose ONE of the candidates above');
+      parts.push('- You CANNOT vote for yourself');
+      parts.push('- In the "decisionValue" field, enter the NAME of your chosen participant');
+      parts.push('');
+      if (candidateNames.length > 0) {
+        parts.push(`Example: "decisionValue": "${candidateNames[0]}" (vote for ${candidateNames[0]})`);
+        parts.push('');
+      }
+      if (decisionConfig.timing === 'simultaneous') {
+        parts.push('Your vote will remain secret until results are announced.');
+      }
     }
 
-    if (decisionConfig.timing === 'simultaneous') {
-      parts.push('Your decision will be kept secret until all participants have decided.');
-    }
-
-    return parts.join(' ');
+    return parts.join('\n');
   }
 
   /**
@@ -615,10 +683,14 @@ export class HostModule {
    */
   private buildSequentialTrigger(
     baseTrigger: string,
-    previousDecisions: Array<{ characterId: string; decision: string }>
+    previousDecisions: Array<{ characterId: string; decision: string }>,
+    nameMap: Map<string, string>
   ): string {
     const decisionsText = previousDecisions
-      .map((d) => `- ${d.characterId}: ${d.decision}`)
+      .map((d) => {
+        const name = nameMap.get(d.characterId) ?? d.characterId;
+        return `- ${name}: ${d.decision}`;
+      })
       .join('\n');
 
     return `Previous decisions:\n${decisionsText}\n\n${baseTrigger}`;

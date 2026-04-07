@@ -2062,3 +2062,29 @@ Added a template information panel to the Debug UI that displays template name, 
 4. Добавить жёсткий лимит: if (used > budget) throw new BudgetExceededError() ✓
 5. UI показывает текущий расход токенов и процент от бюджета ✓ (уже было реализовано)
 6. Логировать WARNING при 80%, ERROR при 100% ✓
+
+## [2026-04-07] TASK-092: Decision phase prompt — персонажи не понимают как голосовать
+**Статус:** done
+**Время:** ~15 минут
+**Изменения:**
+- src/core/host-module.ts:
+  - buildDecisionTrigger() полностью переработан: теперь принимает currentCharacterName, candidateNames, isRussian
+  - Добавлен список кандидатов с ИМЕНАМИ (не ID)
+  - Объясняется формат: decisionValue должен содержать имя выбранного участника
+  - Указано что нельзя голосовать за себя
+  - Объяснено что это ФИНАЛЬНОЕ голосование, не обсуждение
+  - Добавлен пример: "decisionValue": "Виктор" (голос за Виктора)
+  - runDecisionPhase() получает characterDefinitions из configSnapshot для доступа к именам
+  - buildSequentialTrigger() теперь использует имена вместо ID
+
+**Тесты:**
+- npm run typecheck — passes
+- npm run lint — passes (warnings only, pre-existing)
+- npx vitest run tests/unit/host-module.test.ts — 50 tests passed
+
+**Acceptance Criteria:**
+1. В decision prompt включить список кандидатов с ИМЕНАМИ (не ID) ✓
+2. Объяснить формат: decisionValue должен содержать имя выбранного участника ✓
+3. Указать что нельзя голосовать за себя ✓
+4. Объяснить что это ФИНАЛЬНОЕ голосование, не обсуждение ✓
+5. Пример в промпте: decisionValue: 'Виктор' (голос за Виктора) ✓
