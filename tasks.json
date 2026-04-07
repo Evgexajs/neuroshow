@@ -2648,6 +2648,33 @@
       ],
       "dependencies": [],
       "status": "done"
+    },
+    {
+      "id": "TASK-110",
+      "category": "bug",
+      "priority": "critical",
+      "description": "Данные теряются при kill -9 — нет graceful shutdown для SQLite WAL",
+      "problem": "При принудительном завершении процесса (kill -9, npm run kill) данные в WAL файле теряются. Транзакции не успевают закоммититься в основную БД.",
+      "acceptance_criteria": [
+        "Сервер обрабатывает SIGINT и SIGTERM signals",
+        "При shutdown вызывается walCheckpoint() перед закрытием БД",
+        "npm run kill сначала шлёт SIGTERM, ждёт 2с, потом kill -9",
+        "Периодический checkpoint каждые N секунд (configurable)"
+      ],
+      "implementation": [
+        "1. В server.ts добавить обработчики process.on('SIGINT') и process.on('SIGTERM')",
+        "2. В обработчике: await store.walCheckpoint(); process.exit(0)",
+        "3. Изменить scripts/kill-port.sh: kill -15 сначала, sleep 2, потом kill -9",
+        "4. Опционально: setInterval для периодического checkpoint"
+      ],
+      "test_steps": [
+        "Запусти сервер, создай шоу",
+        "Выполни kill -15 (SIGTERM) на процесс",
+        "Проверь что данные сохранились в БД",
+        "Ожидаемый результат: данные не теряются при graceful shutdown"
+      ],
+      "dependencies": [],
+      "status": "pending"
     }
   ]
 }
