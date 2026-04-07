@@ -7,6 +7,7 @@ import Fastify, { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 import fastifyStatic from '@fastify/static';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import fs from 'fs/promises';
 import { config } from '../config.js';
 import { SqliteStore } from '../storage/sqlite-store.js';
 import { EventJournal } from '../core/event-journal.js';
@@ -101,6 +102,58 @@ export async function createServer(): Promise<{
   // Health check endpoint
   app.get('/health', async () => {
     return { status: 'ok' };
+  });
+
+  // GET /templates - List available show format templates
+  app.get('/templates', async (_request: FastifyRequest, reply: FastifyReply) => {
+    const __dirname = path.dirname(fileURLToPath(import.meta.url));
+    const formatsDir = path.join(__dirname, '../../src/formats');
+
+    try {
+      const files = await fs.readdir(formatsDir);
+      const jsonFiles = files.filter(f => f.endsWith('.json'));
+
+      const templates = await Promise.all(
+        jsonFiles.map(async (file) => {
+          const content = await fs.readFile(path.join(formatsDir, file), 'utf-8');
+          return JSON.parse(content);
+        })
+      );
+
+      return reply.send(templates);
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+        return reply.status(404).send({ error: 'Templates directory not found' });
+      }
+      logger.error('Failed to read templates:', err);
+      return reply.status(500).send({ error: 'Failed to read templates' });
+    }
+  });
+
+  // GET /characters - List available character definitions
+  app.get('/characters', async (_request: FastifyRequest, reply: FastifyReply) => {
+    const __dirname = path.dirname(fileURLToPath(import.meta.url));
+    const charactersDir = path.join(__dirname, '../../src/formats/characters');
+
+    try {
+      const files = await fs.readdir(charactersDir);
+      const jsonFiles = files.filter(f => f.endsWith('.json'));
+
+      const characters = await Promise.all(
+        jsonFiles.map(async (file) => {
+          const content = await fs.readFile(path.join(charactersDir, file), 'utf-8');
+          return JSON.parse(content);
+        })
+      );
+
+      return reply.send(characters);
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+        return reply.status(404).send({ error: 'Characters directory not found' });
+      }
+      logger.error('Failed to read characters:', err);
+      return reply.status(500).send({ error: 'Failed to read characters' });
+    }
   });
 
   // GET /shows/:id/events - SSE endpoint for real-time events

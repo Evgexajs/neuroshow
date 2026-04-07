@@ -1406,3 +1406,19 @@ Wildcard: Максим имеет компромат на Виктора (фин
 - `npm run lint` — passes (warnings only)
 - `npm test` — 364 tests pass
 
+
+## 2026-04-07 — TASK-069: API endpoints for templates and characters
+
+### Summary
+Added two API endpoints to retrieve available show templates and character definitions.
+
+### Changes Made
+1. **GET /templates** — returns all JSON files from `src/formats/*.json`
+2. **GET /characters** — returns all JSON files from `src/formats/characters/*.json`
+3. Both endpoints return full objects (not just id/name)
+4. Error handling for missing directories (returns 404)
+
+### Verification
+- `npm run lint` — passes (warnings only)
+- `npm run typecheck` — passes
+- `npm test` — 364 tests pass
