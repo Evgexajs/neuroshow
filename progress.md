@@ -1734,3 +1734,18 @@ Added a template information panel to the Debug UI that displays template name, 
 - `npm run lint` — passes (warnings only, pre-existing)
 - `npm run typecheck` — passes
 - `npm test` — core tests pass (context-builder, orchestrator, host-module, mock-adapter, integration)
+
+## [2026-04-07] TASK-079: Добавить таймеры для диагностики производительности
+**Статус:** done
+**Время:** ~15 минут
+**Изменения:**
+- src/core/orchestrator.ts - добавлены таймеры для:
+  - Общее время шоу (showStartTime -> showElapsedMs)
+  - Время выполнения каждой фазы (phaseStartTime -> phaseElapsedMs)
+  - Время каждого LLM вызова (llmCallStart -> llmCallMs)
+
+**Тесты:** Все тесты проходят (51 passed)
+**Заметки:** 
+- Mock шоу с 5 персонажами выполняется за ~383ms (< 5 секунд)
+- Bottleneck не найден - LLM вызовы занимают 0ms на mock адаптере
+- Логи показывают детальные тайминги для будущей диагностики

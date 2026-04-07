@@ -201,9 +201,10 @@ export class Orchestrator {
         : 1;
     const totalTurns = turnQueue.length * turnsPerCharacter;
 
-    // Log phase start
+    // Log phase start with timing
     const phaseNum = phaseIndex !== undefined ? phaseIndex + 1 : '?';
     const phasesTotal = totalPhases ?? '?';
+    const phaseStartTime = Date.now();
     logger.info(`[Phase ${phaseNum}/${phasesTotal}] "${phase.name}" started (${totalTurns} turns expected)`);
 
     // Check for empty phase
@@ -264,8 +265,9 @@ export class Orchestrator {
       }
     }
 
-    // Log phase end
-    logger.info(`[Phase ${phaseNum}/${phasesTotal}] "${phase.name}" ended (${this.turnIndex} turns completed)`);
+    // Log phase end with timing
+    const phaseElapsedMs = Date.now() - phaseStartTime;
+    logger.info(`[Phase ${phaseNum}/${phasesTotal}] "${phase.name}" ended (${this.turnIndex} turns completed, ${phaseElapsedMs}ms)`);
 
     // Create phase_end event
     const phaseEndEvent: Omit<ShowEvent, 'sequenceNumber'> = {
@@ -348,9 +350,10 @@ export class Orchestrator {
         : 1;
     const totalTurns = turnQueue.length * turnsPerCharacter;
 
-    // Log phase start
+    // Log phase start with timing
     const phaseNum = phaseIndex !== undefined ? phaseIndex + 1 : '?';
     const phasesTotal = totalPhases ?? '?';
+    const phaseStartTime = Date.now();
     logger.info(`[Phase ${phaseNum}/${phasesTotal}] "${phase.name}" started (${totalTurns} turns expected, DEBUG mode)`);
 
     // Check for empty phase
@@ -414,8 +417,9 @@ export class Orchestrator {
       }
     }
 
-    // Log phase end
-    logger.info(`[Phase ${phaseNum}/${phasesTotal}] "${phase.name}" ended (${this.turnIndex} turns completed)`);
+    // Log phase end with timing
+    const phaseElapsedMs = Date.now() - phaseStartTime;
+    logger.info(`[Phase ${phaseNum}/${phasesTotal}] "${phase.name}" ended (${this.turnIndex} turns completed, ${phaseElapsedMs}ms)`);
 
     // Create phase_end event
     const phaseEndEvent: Omit<ShowEvent, 'sequenceNumber'> = {
@@ -524,7 +528,10 @@ export class Orchestrator {
     );
 
     // Call the adapter to get response
+    const llmCallStart = Date.now();
     const response = await this.activeAdapter.call(promptPackage);
+    const llmCallMs = Date.now() - llmCallStart;
+    logger.debug(`[LLM Call] ${characterId}: ${llmCallMs}ms (adapter: ${this.activeAdapter.providerId})`);
 
     // Get all characters for audienceIds (speech is public)
     const characters = await this.store.getCharacters(showId);
@@ -866,6 +873,7 @@ export class Orchestrator {
       startedAt: Date.now(),
     });
 
+    const showStartTime = Date.now();
     logger.info(`Show ${showId} started`);
 
     // Parse configSnapshot to get phases and decisionConfig
@@ -931,7 +939,8 @@ export class Orchestrator {
       completedAt: Date.now(),
     });
 
-    logger.info(`Show ${showId} completed`);
+    const showElapsedMs = Date.now() - showStartTime;
+    logger.info(`Show ${showId} completed (total time: ${showElapsedMs}ms)`);
   }
 
   /**
@@ -1189,6 +1198,7 @@ export class Orchestrator {
       startedAt: Date.now(),
     });
 
+    const showStartTime = Date.now();
     logger.info(`Show ${showId} started`);
 
     // Parse configSnapshot to get phases and decisionConfig
@@ -1254,6 +1264,7 @@ export class Orchestrator {
       completedAt: Date.now(),
     });
 
-    logger.info(`Show ${showId} completed`);
+    const showElapsedMs = Date.now() - showStartTime;
+    logger.info(`Show ${showId} completed (total time: ${showElapsedMs}ms)`);
   }
 }
