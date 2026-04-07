@@ -8,6 +8,7 @@ import fastifyStatic from '@fastify/static';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs/promises';
+import OpenAI from 'openai';
 import { config } from '../config.js';
 import { SqliteStore } from '../storage/sqlite-store.js';
 import { EventJournal } from '../core/event-journal.js';
@@ -17,10 +18,227 @@ import { MockAdapter } from '../adapters/mock-adapter.js';
 import { Orchestrator } from '../core/orchestrator.js';
 import { ModelAdapter } from '../types/adapter.js';
 import { logger } from '../utils/logger.js';
+import { CharacterDefinition } from '../types/character.js';
+import { SpeakFrequency } from '../types/enums.js';
+import { generateId } from '../utils/id.js';
 import {
   validateCreateShowRequest,
   validateControlShowRequest,
 } from '../validation/schemas.js';
+
+/**
+ * Generate characters using OpenAI API
+ */
+async function generateCharactersWithOpenAI(count: number, theme?: string): Promise<CharacterDefinition[]> {
+  const client = new OpenAI({ apiKey: config.openaiApiKey });
+
+  const themeContext = theme
+    ? `Сеттинг/тема персонажей: "${theme}". Все персонажи должны соответствовать этой теме.`
+    : 'Персонажи могут быть из любого сеттинга - современность, фэнтези, научная фантастика, историческая эпоха и т.д.';
+
+  const prompt = `Сгенерируй ${count} уникальных персонажей для интерактивного шоу-дискуссии.
+
+${themeContext}
+
+Каждый персонаж должен быть уникальным и интересным. У них должны быть разные:
+- Характеры и темпераменты
+- Мотивации и цели
+- Секреты и скрытые стороны
+- Стили общения (кто-то говорит много, кто-то мало)
+
+Верни JSON массив с ${count} персонажами в формате:
+[
+  {
+    "name": "Имя персонажа",
+    "publicCard": "Публичное описание персонажа (2-3 предложения, что видят другие)",
+    "personalityPrompt": "Инструкция для ИИ как отыгрывать этого персонажа (стиль речи, манеры, особенности)",
+    "motivationPrompt": "Скрытые мотивации и цели персонажа",
+    "secrets": ["секрет 1", "секрет 2"],
+    "goals": ["цель 1", "цель 2"],
+    "speakFrequency": "low" | "medium" | "high",
+    "boundaryRules": ["что персонаж никогда не сделает"]
+  }
+]
+
+ВАЖНО: Персонажи должны быть разнообразными - не делай их похожими друг на друга!
+Используй разные speakFrequency: хотя бы один "low", хотя бы один "high", остальные "medium".`;
+
+  const response = await client.chat.completions.create({
+    model: config.openaiDefaultModel,
+    messages: [
+      {
+        role: 'system',
+        content: 'Ты генератор персонажей для интерактивных шоу. Отвечай только валидным JSON без дополнительного текста.',
+      },
+      {
+        role: 'user',
+        content: prompt,
+      },
+    ],
+    response_format: { type: 'json_object' },
+    temperature: 1.0, // More creative generation
+  });
+
+  const content = response.choices[0]?.message?.content ?? '{"characters":[]}';
+  const parsed = JSON.parse(content);
+
+  // Handle both array and object with characters key
+  const rawCharacters = Array.isArray(parsed) ? parsed : (parsed.characters ?? []);
+
+  // Convert to CharacterDefinition format
+  return rawCharacters.map((char: {
+    name: string;
+    publicCard: string;
+    personalityPrompt: string;
+    motivationPrompt: string;
+    secrets?: string[];
+    goals?: string[];
+    speakFrequency?: string;
+    boundaryRules?: string[];
+  }) => ({
+    id: generateId(),
+    name: char.name,
+    publicCard: char.publicCard,
+    personalityPrompt: char.personalityPrompt,
+    motivationPrompt: char.motivationPrompt,
+    boundaryRules: char.boundaryRules ?? [],
+    startingPrivateContext: {
+      secrets: char.secrets ?? [],
+      alliances: [],
+      goals: char.goals ?? [],
+      wildcards: [],
+    },
+    speakFrequency: (char.speakFrequency as SpeakFrequency) ?? SpeakFrequency.medium,
+    responseConstraints: {
+      maxTokens: 256,
+      format: 'free' as const,
+      language: 'ru',
+    },
+  }));
+}
+
+/**
+ * Generate mock characters as fallback when OpenAI is unavailable
+ */
+function generateMockCharacters(count: number, theme?: string): CharacterDefinition[] {
+  const themePrefix = theme ? `[${theme}] ` : '';
+
+  const mockTemplates = [
+    {
+      name: 'Алексей Громов',
+      publicCard: 'Опытный бизнесмен, владелец сети ресторанов. Уверен в себе и привык добиваться своего.',
+      personalityPrompt: 'Говори уверенно и деловито. Используй бизнес-лексику. Ценишь время и конкретику.',
+      motivationPrompt: 'Хочешь расширить влияние и найти новых партнёров.',
+      speakFrequency: SpeakFrequency.high,
+      secrets: ['В прошлом году чуть не обанкротился'],
+      goals: ['Заключить выгодную сделку'],
+    },
+    {
+      name: 'Марина Светлова',
+      publicCard: 'Психолог с 15-летним стажем. Внимательно слушает и задаёт неудобные вопросы.',
+      personalityPrompt: 'Говори мягко но проницательно. Задавай вопросы. Анализируй мотивы других.',
+      motivationPrompt: 'Хочешь понять истинные мотивы каждого участника.',
+      speakFrequency: SpeakFrequency.medium,
+      secrets: ['Пишет книгу об этом шоу'],
+      goals: ['Собрать материал для исследования'],
+    },
+    {
+      name: 'Дмитрий Волков',
+      publicCard: 'Молчаливый программист. Больше наблюдает, чем говорит.',
+      personalityPrompt: 'Говори кратко и по делу. Предпочитай логику эмоциям. Часто молчишь.',
+      motivationPrompt: 'Анализируешь ситуацию и ждёшь подходящего момента.',
+      speakFrequency: SpeakFrequency.low,
+      secrets: ['Разрабатывает конкурентный продукт'],
+      goals: ['Собрать информацию о конкурентах'],
+    },
+    {
+      name: 'Елена Краснова',
+      publicCard: 'Яркая журналистка, ведущая популярного блога. Любит провокации.',
+      personalityPrompt: 'Говори эмоционально и провокационно. Ищи скандалы. Задавай острые вопросы.',
+      motivationPrompt: 'Хочешь найти сенсационный материал для статьи.',
+      speakFrequency: SpeakFrequency.high,
+      secrets: ['Работает на конкурента одного из участников'],
+      goals: ['Раскопать компромат'],
+    },
+    {
+      name: 'Андрей Миронов',
+      publicCard: 'Философ и преподаватель университета. Любит рассуждать о высоком.',
+      personalityPrompt: 'Говори размеренно и философски. Цитируй классиков. Ищи глубинный смысл.',
+      motivationPrompt: 'Хочешь найти единомышленников для нового проекта.',
+      speakFrequency: SpeakFrequency.medium,
+      secrets: ['Уволен из университета за скандал'],
+      goals: ['Восстановить репутацию'],
+    },
+    {
+      name: 'Ольга Петрова',
+      publicCard: 'Домохозяйка с тремя детьми. Простая и открытая.',
+      personalityPrompt: 'Говори просто и по-домашнему. Делись бытовыми примерами. Будь эмпатичной.',
+      motivationPrompt: 'Хочешь доказать, что обычные люди тоже могут быть интересными.',
+      speakFrequency: SpeakFrequency.medium,
+      secrets: ['В прошлом была успешным адвокатом'],
+      goals: ['Найти новое призвание'],
+    },
+    {
+      name: 'Виктор Сидоров',
+      publicCard: 'Отставной военный, полковник в отставке. Дисциплинирован и прямолинеен.',
+      personalityPrompt: 'Говори чётко и по-военному. Цени порядок и иерархию. Не терпи хаоса.',
+      motivationPrompt: 'Хочешь навести порядок в любой ситуации.',
+      speakFrequency: SpeakFrequency.medium,
+      secrets: ['Участвовал в засекреченной операции'],
+      goals: ['Найти достойного преемника'],
+    },
+    {
+      name: 'Анна Белова',
+      publicCard: 'Молодая художница, мечтательница. Видит мир иначе.',
+      personalityPrompt: 'Говори образно и поэтично. Используй метафоры. Будь немного не от мира сего.',
+      motivationPrompt: 'Ищешь вдохновение для новой серии работ.',
+      speakFrequency: SpeakFrequency.low,
+      secrets: ['Её картины - это зашифрованные послания'],
+      goals: ['Найти человека, который поймёт её искусство'],
+    },
+    {
+      name: 'Игорь Козлов',
+      publicCard: 'Стендап-комик, любит шутить даже в серьёзных ситуациях.',
+      personalityPrompt: 'Шути постоянно. Разряжай обстановку. Используй иронию и сарказм.',
+      motivationPrompt: 'Хочешь проверить новый материал на живой аудитории.',
+      speakFrequency: SpeakFrequency.high,
+      secrets: ['Страдает от тяжёлой депрессии'],
+      goals: ['Скрыть свою уязвимость за юмором'],
+    },
+    {
+      name: 'Татьяна Орлова',
+      publicCard: 'Бывший следователь, теперь частный детектив. Замечает всё.',
+      personalityPrompt: 'Будь наблюдательной и подозрительной. Задавай уточняющие вопросы. Ищи противоречия.',
+      motivationPrompt: 'Расследуешь одного из участников по заказу клиента.',
+      speakFrequency: SpeakFrequency.medium,
+      secrets: ['Знает компромат на нескольких участников'],
+      goals: ['Собрать доказательства'],
+    },
+  ];
+
+  const selected = mockTemplates.slice(0, count);
+
+  return selected.map((template) => ({
+    id: generateId(),
+    name: themePrefix + template.name,
+    publicCard: template.publicCard,
+    personalityPrompt: template.personalityPrompt,
+    motivationPrompt: template.motivationPrompt,
+    boundaryRules: [],
+    startingPrivateContext: {
+      secrets: template.secrets,
+      alliances: [],
+      goals: template.goals,
+      wildcards: [],
+    },
+    speakFrequency: template.speakFrequency,
+    responseConstraints: {
+      maxTokens: 256,
+      format: 'free' as const,
+      language: 'ru',
+    },
+  }));
+}
 
 /**
  * Application dependencies container
@@ -153,6 +371,35 @@ export async function createServer(): Promise<{
       }
       logger.error('Failed to read characters:', err);
       return reply.status(500).send({ error: 'Failed to read characters' });
+    }
+  });
+
+  // POST /generate/characters - Generate random characters via OpenAI
+  app.post('/generate/characters', async (request: FastifyRequest, reply: FastifyReply) => {
+    const { count = 5, theme } = request.body as { count?: number; theme?: string };
+
+    // Validate count
+    if (count < 1 || count > 10) {
+      return reply.status(400).send({ error: 'Count must be between 1 and 10' });
+    }
+
+    // Check if OpenAI API key is available
+    const hasOpenAIKey = Boolean(config.openaiApiKey);
+
+    if (!hasOpenAIKey) {
+      // Fallback: generate mock characters
+      const characters = generateMockCharacters(count, theme);
+      return reply.send(characters);
+    }
+
+    try {
+      const characters = await generateCharactersWithOpenAI(count, theme);
+      return reply.send(characters);
+    } catch (err) {
+      logger.error('OpenAI character generation failed, using fallback:', err);
+      // Fallback to mock on error
+      const characters = generateMockCharacters(count, theme);
+      return reply.send(characters);
     }
   });
 

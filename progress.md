@@ -1518,3 +1518,43 @@ All criteria are met by existing implementation in `web/debug-ui/app.ts`:
 - `npm run lint` — passes (warnings only)
 - `npm run typecheck` — passes
 - `npm test` — 364 tests pass
+
+## [2026-04-07] TASK-073: API + UI: генерация рандомных персонажей через OpenAI
+**Статус:** done
+**Время:** ~20 минут
+**Изменения:**
+- src/api/server.ts — добавлен POST /generate/characters endpoint:
+  - Принимает параметры: count (1-10), theme (опционально)
+  - Генерирует персонажей через OpenAI API с prompt на русском
+  - Fallback на mock characters если OPENAI_API_KEY отсутствует или OpenAI вернул ошибку
+  - Возвращает массив CharacterDefinition с уникальными личностями
+  - Персонажи имеют разные speakFrequency, мотивации, секреты
+
+- web/debug-ui/index.html — добавлена секция генерации в модалке создания шоу:
+  - Input для темы (опционально)
+  - Кнопка "Generate Characters"
+  - Статус генерации (loading/success/error)
+
+- web/debug-ui/styles.css — добавлены стили для секции генерации:
+  - .generate-section, .theme-input, .btn-generate, .generate-status
+
+- web/debug-ui/app.ts — добавлена логика генерации:
+  - handleGenerateCharacters() — вызывает POST /generate/characters
+  - Автоматически выбирает сгенерированных персонажей в форме
+  - Обновляет список персонажей и валидацию
+  - Очистка состояния в resetModalState()
+
+### Acceptance Criteria Verified
+1. POST /generate/characters — генерирует N персонажей через OpenAI
+2. Принимает параметры: count (количество), theme (тема/сеттинг, опционально)
+3. Возвращает массив CharacterDefinition с уникальными личностями
+4. Персонажи имеют разные speakFrequency, мотивации, секреты
+5. UI: кнопка 'Сгенерировать персонажей' в форме создания шоу
+6. UI: опциональное поле для темы (например 'средневековье', 'офис', 'космос')
+7. Сгенерированные персонажи автоматически выбираются в форме
+8. Fallback на MockAdapter если нет OPENAI_API_KEY
+
+### Verification
+- `npm run lint` — passes (warnings only)
+- `npm run typecheck` — passes
+- `npm test` — 364 tests pass
