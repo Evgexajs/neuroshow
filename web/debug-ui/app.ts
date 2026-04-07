@@ -1004,6 +1004,13 @@ interface ShowHistoryItem {
   completedAt: number | null;
 }
 
+interface RecentShowInfo {
+  id: string;
+  status: string;
+  formatId: string;
+  savedAt: number;
+}
+
 /**
  * Open the history modal and load shows
  */
@@ -1019,6 +1026,13 @@ function closeHistoryModal(): void {
   showHistoryModal.classList.add('hidden');
 }
 
+interface ServerShowResponse {
+  showId: string;
+  status: string;
+  createdAt: string | null;
+  templateName: string;
+}
+
 /**
  * Load show history from server
  */
@@ -1032,8 +1046,16 @@ async function loadShowHistory(): Promise<void> {
       throw new Error(`HTTP ${response.status}`);
     }
 
-    const data = await response.json() as { shows: ShowHistoryItem[] };
-    renderShowHistory(data.shows);
+    const data = await response.json() as { shows: ServerShowResponse[] };
+    // Map server response to ShowHistoryItem format
+    const shows: ShowHistoryItem[] = data.shows.map((s) => ({
+      id: s.showId,
+      status: s.status,
+      formatId: s.templateName,
+      startedAt: s.createdAt ? new Date(s.createdAt).getTime() : null,
+      completedAt: null,
+    }));
+    renderShowHistory(shows);
   } catch (err) {
     console.error('Failed to load show history:', err);
     allShowsList.innerHTML = '<p class="placeholder error">Failed to load shows</p>';
@@ -1047,22 +1069,30 @@ async function loadShowHistory(): Promise<void> {
  * Load recent shows from localStorage
  */
 function loadRecentShows(): void {
-  const recentShowIds = getRecentShowIds();
-  if (recentShowIds.length === 0) {
+  const recentShows = getRecentShows();
+  if (recentShows.length === 0) {
     recentShowsList.innerHTML = '<p class="placeholder">No recent shows...</p>';
     return;
   }
 
-  recentShowsList.innerHTML = recentShowIds
-    .map(
-      (id) => `
-      <div class="history-item" data-show-id="${id}">
-        <div class="history-item-info">
-          <span class="history-show-id">${id}</span>
+  recentShowsList.innerHTML = recentShows
+    .map((show) => {
+      const dateStr = show.savedAt
+        ? new Date(show.savedAt).toLocaleString()
+        : 'Unknown date';
+      const statusClass = `status-${show.status}`;
+
+      return `
+        <div class="history-item" data-show-id="${show.id}">
+          <div class="history-item-info">
+            <span class="history-show-id">${show.id}</span>
+            <span class="history-status ${statusClass}">${show.status}</span>
+          </div>
+          <span class="history-template">${show.formatId}</span>
+          <span class="history-date">${dateStr}</span>
         </div>
-      </div>
-    `
-    )
+      `;
+    })
     .join('');
 
   // Add click listeners
@@ -1077,13 +1107,41 @@ function loadRecentShows(): void {
 }
 
 /**
- * Get recent show IDs from localStorage
+ * Get recent shows from localStorage, handling migration from old format
  */
-function getRecentShowIds(): string[] {
+function getRecentShows(): RecentShowInfo[] {
   try {
     const stored = localStorage.getItem('neuroshow_recent_shows');
     if (stored) {
-      return JSON.parse(stored) as string[];
+      const parsed = JSON.parse(stored) as (string | RecentShowInfo)[];
+      // Migrate old format (string IDs) to new format (objects)
+      return parsed.map((item) => {
+        if (typeof item === 'string') {
+          // Old format: just the ID string
+          return {
+            id: item,
+            status: 'unknown',
+            formatId: 'Unknown',
+            savedAt: 0,
+          };
+        }
+        // New format or object - ensure it has required fields
+        if (item && typeof item === 'object' && 'id' in item) {
+          return {
+            id: String(item.id),
+            status: String(item.status ?? 'unknown'),
+            formatId: String(item.formatId ?? 'Unknown'),
+            savedAt: Number(item.savedAt) || 0,
+          };
+        }
+        // Fallback for malformed data
+        return {
+          id: String(item),
+          status: 'unknown',
+          formatId: 'Unknown',
+          savedAt: 0,
+        };
+      });
     }
   } catch {
     // Ignore parse errors
@@ -1092,13 +1150,21 @@ function getRecentShowIds(): string[] {
 }
 
 /**
- * Save show ID to recent shows in localStorage
+ * Save show to recent shows in localStorage with full info
  */
 function saveToRecentShows(showId: string): void {
-  const recent = getRecentShowIds();
-  // Remove if already exists, then add to front
-  const filtered = recent.filter((id) => id !== showId);
-  filtered.unshift(showId);
+  const recent = getRecentShows();
+  // Remove if already exists
+  const filtered = recent.filter((show) => show.id !== showId);
+  // Create new entry with current show info
+  const newEntry: RecentShowInfo = {
+    id: showId,
+    status: currentShowStatus ?? 'created',
+    formatId: showConfig?.templateId ?? 'Unknown',
+    savedAt: Date.now(),
+  };
+  // Add to front
+  filtered.unshift(newEntry);
   // Keep only last 10
   const trimmed = filtered.slice(0, 10);
   localStorage.setItem('neuroshow_recent_shows', JSON.stringify(trimmed));

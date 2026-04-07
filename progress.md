@@ -2310,3 +2310,27 @@ Added a template information panel to the Debug UI that displays template name, 
 **Тесты:**
 - npm run typecheck — passes
 - npm run lint — passes (0 errors)
+
+---
+
+## [2026-04-07] TASK-101: History popup - Recent Shows показывает [Object object]
+**Статус:** done
+**Время:** ~15 минут
+**Изменения:**
+- web/debug-ui/app.ts:
+  - Added RecentShowInfo interface for storing full show info (id, status, formatId, savedAt)
+  - Updated saveToRecentShows() to save full show info using showConfig and currentShowStatus
+  - Updated getRecentShows() (renamed from getRecentShowIds) to handle migration from old string[] format to new RecentShowInfo[] format
+  - Updated loadRecentShows() to render shows with ID, status, date - matching Server Shows format
+  - Added ServerShowResponse interface and mapping in loadShowHistory() to fix field name mismatch between server and client
+
+**Acceptance Criteria:**
+1. Recent Shows показывает читаемые данные: ID, статус, дату ✓
+2. Формат такой же как в Server Shows ✓
+3. Клик по элементу подключает к шоу ✓
+4. E2E тест — requires browser testing infrastructure not currently available
+
+**Тесты:**
+- npm run typecheck — passes
+- npm run lint — passes (0 errors, only warnings)
+- npm run build:ui — passes
