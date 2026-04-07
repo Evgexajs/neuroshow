@@ -1136,4 +1136,211 @@ describe('HostModule', () => {
       expect(decisionEvent!.metadata.decisionValue).toBe('I think we should proceed carefully');
     });
   });
+
+  describe('runRevelation', () => {
+    // Helper to create mock decision callback
+    const createMockCallback = (responses: Map<string, CharacterResponse>): DecisionCallback => {
+      return async (characterId: string, _trigger: string, _previousDecisions: Array<{ characterId: string; decision: string }>) => {
+        const response = responses.get(characterId);
+        if (!response) {
+          return { text: 'default response', decisionValue: 'default' };
+        }
+        return response;
+      };
+    };
+
+    it('creates revelation events for each decision after decision phase', async () => {
+      const template = createTestTemplate();
+      const characters = [
+        createTestCharacter('char-1', 'Alice'),
+        createTestCharacter('char-2', 'Bob'),
+        createTestCharacter('char-3', 'Charlie'),
+        createTestCharacter('char-4', 'Diana'),
+        createTestCharacter('char-5', 'Eve'),
+      ];
+
+      const show = await hostModule.initializeShow(template, characters);
+      const decisionConfig: DecisionConfig = {
+        timing: 'simultaneous',
+        visibility: 'secret_until_reveal',
+        revealMoment: 'after_all',
+        format: 'choice',
+        options: ['accept', 'reject'],
+      };
+
+      // Run decision phase first
+      const responses = new Map<string, CharacterResponse>();
+      responses.set('char-1', { text: 'I accept', decisionValue: 'accept' });
+      responses.set('char-2', { text: 'I reject', decisionValue: 'reject' });
+      responses.set('char-3', { text: 'I accept', decisionValue: 'accept' });
+      responses.set('char-4', { text: 'I accept', decisionValue: 'accept' });
+      responses.set('char-5', { text: 'I reject', decisionValue: 'reject' });
+
+      await hostModule.runDecisionPhase(show.id, decisionConfig, createMockCallback(responses));
+
+      // Run revelation
+      await hostModule.runRevelation(show.id, decisionConfig);
+
+      // Get all events
+      const events = await eventJournal.getEvents(show.id);
+      const revelationEvents = events.filter(e => e.type === EventType.revelation);
+
+      // With after_all, should have 1 revelation event
+      expect(revelationEvents).toHaveLength(1);
+    });
+
+    it('creates one revelation event with all decisions for after_all', async () => {
+      const template = createTestTemplate();
+      const characters = [
+        createTestCharacter('char-1', 'Alice'),
+        createTestCharacter('char-2', 'Bob'),
+        createTestCharacter('char-3', 'Charlie'),
+      ];
+
+      const show = await hostModule.initializeShow(template, characters);
+      const decisionConfig: DecisionConfig = {
+        timing: 'simultaneous',
+        visibility: 'secret_until_reveal',
+        revealMoment: 'after_all',
+        format: 'choice',
+        options: ['yes', 'no'],
+      };
+
+      const responses = new Map<string, CharacterResponse>();
+      responses.set('char-1', { text: 'Yes', decisionValue: 'yes' });
+      responses.set('char-2', { text: 'No', decisionValue: 'no' });
+      responses.set('char-3', { text: 'Yes', decisionValue: 'yes' });
+
+      await hostModule.runDecisionPhase(show.id, decisionConfig, createMockCallback(responses));
+      await hostModule.runRevelation(show.id, decisionConfig);
+
+      const events = await eventJournal.getEvents(show.id);
+      const revelationEvents = events.filter(e => e.type === EventType.revelation);
+
+      expect(revelationEvents).toHaveLength(1);
+      const revelation = revelationEvents[0]!;
+
+      // Check content includes all decisions
+      expect(revelation.content).toContain('char-1: yes');
+      expect(revelation.content).toContain('char-2: no');
+      expect(revelation.content).toContain('char-3: yes');
+
+      // Check metadata contains all decisions
+      expect(revelation.metadata.decisions).toHaveLength(3);
+      expect(revelation.metadata.revealMoment).toBe('after_all');
+    });
+
+    it('creates one revelation event per decision for after_each', async () => {
+      const template = createTestTemplate();
+      const characters = [
+        createTestCharacter('char-1', 'Alice'),
+        createTestCharacter('char-2', 'Bob'),
+        createTestCharacter('char-3', 'Charlie'),
+      ];
+
+      const show = await hostModule.initializeShow(template, characters);
+      const decisionConfig: DecisionConfig = {
+        timing: 'sequential',
+        visibility: 'secret_until_reveal',
+        revealMoment: 'after_each',
+        format: 'choice',
+        options: ['yes', 'no'],
+      };
+
+      const responses = new Map<string, CharacterResponse>();
+      responses.set('char-1', { text: 'Yes', decisionValue: 'yes' });
+      responses.set('char-2', { text: 'No', decisionValue: 'no' });
+      responses.set('char-3', { text: 'Yes', decisionValue: 'yes' });
+
+      await hostModule.runDecisionPhase(show.id, decisionConfig, createMockCallback(responses));
+      await hostModule.runRevelation(show.id, decisionConfig);
+
+      const events = await eventJournal.getEvents(show.id);
+      const revelationEvents = events.filter(e => e.type === EventType.revelation);
+
+      // With after_each, should have 3 revelation events (one per decision)
+      expect(revelationEvents).toHaveLength(3);
+
+      // Each revelation should have its own decision
+      const char1Revelation = revelationEvents.find(e => e.senderId === 'char-1');
+      expect(char1Revelation).toBeDefined();
+      expect(char1Revelation!.metadata.decision).toBe('yes');
+      expect(char1Revelation!.metadata.revealMoment).toBe('after_each');
+
+      const char2Revelation = revelationEvents.find(e => e.senderId === 'char-2');
+      expect(char2Revelation).toBeDefined();
+      expect(char2Revelation!.metadata.decision).toBe('no');
+    });
+
+    it('all revelation events are PUBLIC with all characters as audience', async () => {
+      const template = createTestTemplate();
+      const characters = [
+        createTestCharacter('char-1', 'Alice'),
+        createTestCharacter('char-2', 'Bob'),
+        createTestCharacter('char-3', 'Charlie'),
+      ];
+
+      const show = await hostModule.initializeShow(template, characters);
+      const decisionConfig: DecisionConfig = {
+        timing: 'simultaneous',
+        visibility: 'secret_until_reveal',
+        revealMoment: 'after_all',
+        format: 'choice',
+        options: ['yes', 'no'],
+      };
+
+      const mockCallback: DecisionCallback = async () => ({ text: 'yes', decisionValue: 'yes' });
+      await hostModule.runDecisionPhase(show.id, decisionConfig, mockCallback);
+      await hostModule.runRevelation(show.id, decisionConfig);
+
+      const events = await eventJournal.getEvents(show.id);
+      const revelationEvents = events.filter(e => e.type === EventType.revelation);
+
+      for (const event of revelationEvents) {
+        expect(event.channel).toBe(ChannelType.PUBLIC);
+        expect(event.visibility).toBe(ChannelType.PUBLIC);
+        expect(event.audienceIds).toHaveLength(3);
+        expect(event.audienceIds).toContain('char-1');
+        expect(event.audienceIds).toContain('char-2');
+        expect(event.audienceIds).toContain('char-3');
+      }
+    });
+
+    it('does nothing if no decision events exist', async () => {
+      const template = createTestTemplate();
+      const characters = [
+        createTestCharacter('char-1', 'Alice'),
+        createTestCharacter('char-2', 'Bob'),
+      ];
+
+      const show = await hostModule.initializeShow(template, characters);
+      const decisionConfig: DecisionConfig = {
+        timing: 'simultaneous',
+        visibility: 'secret_until_reveal',
+        revealMoment: 'after_all',
+        format: 'choice',
+        options: ['yes', 'no'],
+      };
+
+      // Run revelation without decision phase
+      await hostModule.runRevelation(show.id, decisionConfig);
+
+      const events = await eventJournal.getEvents(show.id);
+      const revelationEvents = events.filter(e => e.type === EventType.revelation);
+
+      expect(revelationEvents).toHaveLength(0);
+    });
+
+    it('throws error if show not found', async () => {
+      const decisionConfig: DecisionConfig = {
+        timing: 'simultaneous',
+        visibility: 'secret_until_reveal',
+        revealMoment: 'after_all',
+        format: 'choice',
+        options: ['yes', 'no'],
+      };
+
+      await expect(hostModule.runRevelation('non-existent-show', decisionConfig)).rejects.toThrow('Show non-existent-show not found');
+    });
+  });
 });

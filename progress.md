@@ -542,3 +542,25 @@
 **Тесты:** npm run typecheck, npm test — все пройдены (157 tests passed).
 **Заметки:** Метод использует DecisionCallback для получения ответов от персонажей. Orchestrator (TASK-035) будет предоставлять callback с вызовом ModelAdapter. От этой задачи зависит TASK-034.
 
+## [2026-04-07] TASK-034: Host Module: runRevelation()
+**Статус:** done
+**Время:** ~10 минут
+**Изменения:**
+- src/core/host-module.ts — добавлен метод runRevelation():
+  - runRevelation(showId, decisionConfig): Promise<void>
+  - Получает decision events из текущей фазы
+  - При revealMoment: 'after_all' — создаёт одно revelation событие со всеми решениями
+  - При revealMoment: 'after_each' — создаёт одно revelation событие на каждое решение
+  - Все события PUBLIC с audienceIds = все персонажи
+  - metadata содержит revealMoment и данные решений
+- tests/unit/host-module.test.ts — добавлены 6 тестов для runRevelation():
+  - Создание revelation events после decision phase для 5 персонажей
+  - Одно событие со всеми решениями для after_all
+  - Отдельное событие на каждое решение для after_each
+  - Все события PUBLIC с полным audienceIds
+  - Ничего не делает если нет decision events
+  - Выбрасывает ошибку если show не найден
+
+**Тесты:** npm run typecheck, npm test — все пройдены (163 tests passed).
+**Заметки:** Метод вызывается после runDecisionPhase() для раскрытия решений всем участникам. Зависящих задач нет.
+

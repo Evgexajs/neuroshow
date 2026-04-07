@@ -606,4 +606,103 @@ export class HostModule {
 
     return `Previous decisions:\n${decisionsText}\n\n${baseTrigger}`;
   }
+
+  /**
+   * Run the revelation phase, revealing decisions to all participants
+   *
+   * For revealMoment: 'after_all' - creates one revelation event with all decisions
+   * For revealMoment: 'after_each' - creates one revelation event per decision
+   *
+   * All revelation events are PUBLIC with audienceIds = all characters
+   *
+   * @param showId - Show ID
+   * @param decisionConfig - Configuration for the revelation
+   */
+  async runRevelation(showId: string, decisionConfig: DecisionConfig): Promise<void> {
+    // Get show info for phase and seed
+    const showRecord = await this.store.getShow(showId);
+    if (!showRecord) {
+      throw new Error(`Show ${showId} not found`);
+    }
+    const phaseId = showRecord.currentPhaseId ?? '';
+    const seed = showRecord.seed;
+
+    // Get all characters for this show (for audienceIds)
+    const characters = await this.store.getCharacters(showId);
+    if (characters.length === 0) {
+      return;
+    }
+    const allCharacterIds = characters.map((c) => c.characterId);
+
+    // Get all events to find decision events from current phase
+    const allEvents = await this.eventJournal.getEvents(showId);
+    const decisionEvents = allEvents.filter(
+      (e) => e.type === EventType.decision && e.phaseId === phaseId
+    );
+
+    if (decisionEvents.length === 0) {
+      return;
+    }
+
+    if (decisionConfig.revealMoment === 'after_all') {
+      // Create one revelation event with all decisions
+      const decisionsContent = decisionEvents
+        .map((e) => {
+          const decisionValue = e.metadata?.decisionValue ?? e.content;
+          return `${e.senderId}: ${decisionValue}`;
+        })
+        .join('\n');
+
+      const revelationEvent: Omit<ShowEvent, 'sequenceNumber'> = {
+        id: generateId(),
+        showId,
+        timestamp: Date.now(),
+        phaseId,
+        type: EventType.revelation,
+        channel: ChannelType.PUBLIC,
+        visibility: ChannelType.PUBLIC,
+        senderId: '', // System event
+        receiverIds: allCharacterIds,
+        audienceIds: allCharacterIds,
+        content: `Decision results:\n${decisionsContent}`,
+        metadata: {
+          revealMoment: 'after_all',
+          decisions: decisionEvents.map((e) => ({
+            characterId: e.senderId,
+            decision: e.metadata?.decisionValue ?? e.content,
+          })),
+        },
+        seed,
+      };
+
+      await this.eventJournal.append(revelationEvent);
+    } else {
+      // revealMoment === 'after_each': create one revelation event per decision
+      for (const decisionEvent of decisionEvents) {
+        const decisionValue = decisionEvent.metadata?.decisionValue ?? decisionEvent.content;
+
+        const revelationEvent: Omit<ShowEvent, 'sequenceNumber'> = {
+          id: generateId(),
+          showId,
+          timestamp: Date.now(),
+          phaseId,
+          type: EventType.revelation,
+          channel: ChannelType.PUBLIC,
+          visibility: ChannelType.PUBLIC,
+          senderId: decisionEvent.senderId,
+          receiverIds: allCharacterIds,
+          audienceIds: allCharacterIds,
+          content: `${decisionEvent.senderId} decided: ${decisionValue}`,
+          metadata: {
+            revealMoment: 'after_each',
+            characterId: decisionEvent.senderId,
+            decision: decisionValue,
+          },
+          seed,
+        };
+
+        await this.eventJournal.append(revelationEvent);
+      }
+    }
+  }
 }
