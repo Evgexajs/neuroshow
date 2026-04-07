@@ -14,7 +14,7 @@ import { EventType, ChannelType, SpeakFrequency, ShowStatus, CharacterIntent, Bu
 import { generateId } from '../utils/id.js';
 import { CharacterDefinition } from '../types/character.js';
 import { Show } from '../types/runtime.js';
-import { ResponseConstraints, PrivateChannelRules } from '../types/primitives.js';
+import { ResponseConstraints, PrivateChannelRules, DecisionConfig } from '../types/primitives.js';
 import { logger } from '../utils/logger.js';
 
 /**
@@ -580,5 +580,80 @@ export class Orchestrator {
   async shouldLimitPrivates(showId: string): Promise<boolean> {
     const mode = await this.checkBudget(showId);
     return mode === BudgetMode.budget_saving || mode === BudgetMode.graceful_finish;
+  }
+
+  /**
+   * Gracefully finish a show.
+   *
+   * - Completes the current turn
+   * - Closes open private channels
+   * - Skips remaining phases and runs Decision Phase
+   * - Collects decisions and executes Revelation
+   * - Creates a 'system' event with graceful_finish: true
+   *
+   * @param showId - Show ID
+   */
+  async gracefulFinish(showId: string): Promise<void> {
+    // Get show record
+    const showRecord = await this.store.getShow(showId);
+    if (!showRecord) {
+      throw new Error(`Show ${showId} not found`);
+    }
+
+    // Get all characters for event creation
+    const characters = await this.store.getCharacters(showId);
+    const allCharacterIds = characters.map((c) => c.characterId);
+    const seed = showRecord.seed;
+    const phaseId = showRecord.currentPhaseId ?? '';
+
+    // Close open private channels
+    await this.hostModule.closePrivateChannel(showId);
+
+    // Get decisionConfig from configSnapshot
+    const configSnapshot = JSON.parse(showRecord.configSnapshot) as Record<string, unknown>;
+    const decisionConfig = configSnapshot.decisionConfig as DecisionConfig;
+
+    // Run Decision Phase using callback for character decisions
+    const decisionCallback = async (
+      characterId: string,
+      trigger: string,
+      _previousDecisions: Array<{ characterId: string; decision: string }>
+    ) => {
+      return this.processCharacterTurn(showId, characterId, trigger);
+    };
+
+    await this.hostModule.runDecisionPhase(showId, decisionConfig, decisionCallback);
+
+    // Run Revelation
+    await this.hostModule.runRevelation(showId, decisionConfig);
+
+    // Create 'system' event with graceful_finish: true
+    const systemEvent: Omit<ShowEvent, 'sequenceNumber'> = {
+      id: generateId(),
+      showId,
+      timestamp: Date.now(),
+      phaseId,
+      type: EventType.system,
+      channel: ChannelType.PUBLIC,
+      visibility: ChannelType.PUBLIC,
+      senderId: '',
+      receiverIds: allCharacterIds,
+      audienceIds: allCharacterIds,
+      content: 'Show ended via graceful finish',
+      metadata: {
+        graceful_finish: true,
+      },
+      seed,
+    };
+
+    await this.journal.append(systemEvent);
+
+    // Update show status to completed
+    await this.store.updateShow(showId, {
+      status: ShowStatus.completed,
+      completedAt: Date.now(),
+    });
+
+    logger.info(`Show ${showId} gracefully finished`);
   }
 }

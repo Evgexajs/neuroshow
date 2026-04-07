@@ -683,3 +683,19 @@
 
 **Тесты:** npm run typecheck, npm test — все пройдены (197 tests passed).
 **Заметки:** Метод проверяет использование токенового бюджета и автоматически переключает режимы экономии. В budget_saving режиме maxTokens сокращается на 50%, а приватные каналы ограничиваются.
+
+## [2026-04-07] TASK-040: Orchestrator.gracefulFinish()
+**Статус:** done
+**Время:** ~15 минут
+**Изменения:**
+- src/core/orchestrator.ts — добавлен метод gracefulFinish(showId):
+  - gracefulFinish(showId): Promise<void> — корректно завершает шоу
+    - Закрывает открытые приватные каналы через hostModule.closePrivateChannel()
+    - Пропускает оставшиеся фазы и запускает Decision Phase через hostModule.runDecisionPhase()
+    - Собирает решения и выполняет Revelation через hostModule.runRevelation()
+    - Создаёт событие 'system' с metadata.graceful_finish: true
+    - Обновляет статус шоу на 'completed' через store.updateShow()
+  - Добавлен импорт DecisionConfig из primitives
+
+**Тесты:** npm run typecheck, npm test — все пройдены (197 tests passed).
+**Заметки:** Метод позволяет корректно завершить шоу досрочно, выполнив все необходимые финальные действия (решения, revelation, закрытие каналов).
