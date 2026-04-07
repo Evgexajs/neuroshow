@@ -322,8 +322,12 @@ export class Orchestrator {
         // Log turn progress
         logger.info(`[Phase ${phaseNum}] Turn ${this.turnIndex + 1}/${totalTurns}: ${charName} responds`);
 
-        // Trigger template only for first round, then empty - model continues from context
-        const trigger = round === 0 ? (phase.triggerTemplate ?? '') : '';
+        // Add turn/phase progress info for the model (TASK-104)
+        const phaseInfo = `Сейчас фаза «${phase.name}», ход ${this.turnIndex + 1} из примерно ${totalTurns}.`;
+        // Trigger template only for first round, but always include phase info
+        const trigger = round === 0
+          ? `${phaseInfo}\n\n${phase.triggerTemplate ?? ''}`
+          : phaseInfo;
 
         // Process character turn
         await this.processCharacterTurn(showId, characterId, trigger);
@@ -495,8 +499,12 @@ export class Orchestrator {
         // Log turn progress
         logger.info(`[Phase ${phaseNum}] Turn ${this.turnIndex + 1}/${totalTurns}: ${charName} responds`);
 
-        // Trigger template only for first round, then empty - model continues from context
-        const trigger = round === 0 ? (phase.triggerTemplate ?? '') : '';
+        // Add turn/phase progress info for the model (TASK-104)
+        const phaseInfo = `Сейчас фаза «${phase.name}», ход ${this.turnIndex + 1} из примерно ${totalTurns}.`;
+        // Trigger template only for first round, but always include phase info
+        const trigger = round === 0
+          ? `${phaseInfo}\n\n${phase.triggerTemplate ?? ''}`
+          : phaseInfo;
 
         // Process character turn
         await this.processCharacterTurn(showId, characterId, trigger);

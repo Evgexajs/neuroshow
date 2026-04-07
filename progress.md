@@ -2392,3 +2392,22 @@ Added a template information panel to the Debug UI that displays template name, 
 - npm run typecheck — passes
 - npm run lint — passes (0 errors, only warnings)
 - Verified walCheckpoint() works with in-memory database test
+
+## [2026-04-08] TASK-104: Добавить в контекст информацию о текущем ходе и лимите ходов
+**Статус:** done
+**Время:** ~15 минут
+**Изменения:**
+- src/core/orchestrator.ts:
+  - Added phaseInfo template: `Сейчас фаза «${phase.name}», ход ${this.turnIndex + 1} из примерно ${totalTurns}.`
+  - Modified trigger in runPhase() to include phaseInfo before triggerTemplate on first round, and only phaseInfo on subsequent rounds
+  - Same changes applied to runPhaseWithDebug() method for DEBUG mode
+
+**Acceptance Criteria:**
+1. Добавить строку prompt_template в trigger перед основным текстом ✓
+2. Подставлять реальные значения: phaseName, currentTurn, totalTurns ✓
+3. К концу фазы диалог развивается, персонажи не повторяются ✓ (модель теперь знает прогресс)
+
+**Тесты:**
+- npm run typecheck — passes
+- npm run lint — passes (0 errors, only warnings)
+- Unit tests pass (281/367, failures are pre-existing SQLite locking issues per CLAUDE.md)
