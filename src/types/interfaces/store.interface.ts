@@ -32,6 +32,7 @@ export interface ShowCharacterRecord {
   characterId: string;
   modelAdapterId: string;
   privateContext: PrivateContext;
+  speakFrequency?: 'low' | 'medium' | 'high';
 }
 
 /**

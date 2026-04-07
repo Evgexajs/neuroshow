@@ -5,7 +5,7 @@
 
 import { IStore, ShowRecord, ShowCharacterRecord, TokenBudgetRecord } from '../types/interfaces/store.interface.js';
 import { EventJournal } from './event-journal.js';
-import { ShowFormatTemplate } from '../types/template.js';
+import { ShowFormatTemplate, Phase } from '../types/template.js';
 import { CharacterDefinition } from '../types/character.js';
 import { Show } from '../types/runtime.js';
 import { ShowStatus, BudgetMode } from '../types/enums.js';
@@ -74,6 +74,7 @@ export class HostModule {
         characterId: character.id,
         modelAdapterId: character.modelAdapterId ?? config.adapterMode,
         privateContext: character.startingPrivateContext,
+        speakFrequency: character.speakFrequency,
       };
       await this.store.createCharacter(charRecord);
     }
@@ -103,5 +104,98 @@ export class HostModule {
     };
 
     return show;
+  }
+
+  /**
+   * Manage turn queue for a phase
+   * Returns ordered list of characterIds based on phase.turnOrder
+   *
+   * @param showId - Show ID
+   * @param phase - Phase with turnOrder configuration
+   * @returns Ordered array of characterIds
+   */
+  async manageTurnQueue(showId: string, phase: Phase): Promise<string[]> {
+    // Get all characters for this show
+    const characters = await this.store.getCharacters(showId);
+
+    if (characters.length === 0) {
+      return [];
+    }
+
+    // Get show for seed (needed for deterministic ordering)
+    const showRecord = await this.store.getShow(showId);
+    const seed = showRecord ? parseInt(showRecord.seed, 10) : 0;
+
+    switch (phase.turnOrder) {
+      case 'sequential':
+        // Return characters in their stored order
+        return characters.map((c) => c.characterId);
+
+      case 'frequency_weighted':
+        // Prioritize by speakFrequency: high > medium > low
+        // Within same frequency, use deterministic shuffle based on seed
+        return this.orderByFrequency(characters, seed);
+
+      case 'host_controlled':
+        // For host_controlled, return in sequential order
+        // The host will control the actual turn order
+        return characters.map((c) => c.characterId);
+
+      default:
+        // Fallback to sequential
+        return characters.map((c) => c.characterId);
+    }
+  }
+
+  /**
+   * Order characters by speak frequency with deterministic shuffle within same frequency
+   * @param characters - Characters to order
+   * @param seed - Seed for deterministic shuffle
+   * @returns Ordered characterIds
+   */
+  private orderByFrequency(
+    characters: Array<{ characterId: string; speakFrequency?: 'low' | 'medium' | 'high' }>,
+    seed: number
+  ): string[] {
+    // Group by frequency
+    const highFreq: string[] = [];
+    const mediumFreq: string[] = [];
+    const lowFreq: string[] = [];
+
+    for (const char of characters) {
+      const freq = char.speakFrequency ?? 'medium';
+      if (freq === 'high') {
+        highFreq.push(char.characterId);
+      } else if (freq === 'medium') {
+        mediumFreq.push(char.characterId);
+      } else {
+        lowFreq.push(char.characterId);
+      }
+    }
+
+    // Deterministic shuffle each group using seed
+    const shuffleWithSeed = (arr: string[], s: number): string[] => {
+      const result = [...arr];
+      // Simple seeded shuffle (Fisher-Yates with seeded random)
+      let currentSeed = s;
+      const seededRandom = (): number => {
+        currentSeed = (currentSeed * 1103515245 + 12345) & 0x7fffffff;
+        return currentSeed / 0x7fffffff;
+      };
+
+      for (let i = result.length - 1; i > 0; i--) {
+        const j = Math.floor(seededRandom() * (i + 1));
+        [result[i], result[j]] = [result[j]!, result[i]!];
+      }
+      return result;
+    };
+
+    // Shuffle each group with different seed offsets for variety
+    const shuffledHigh = shuffleWithSeed(highFreq, seed);
+    const shuffledMedium = shuffleWithSeed(mediumFreq, seed + 1);
+    const shuffledLow = shuffleWithSeed(lowFreq, seed + 2);
+
+    // Concatenate: high frequency first, then medium, then low
+    return [...shuffledHigh, ...shuffledMedium, ...shuffledLow];
   }
 }

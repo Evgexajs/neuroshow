@@ -458,3 +458,25 @@
 **Тесты:** npm run typecheck, npm test — все пройдены (122 tests passed).
 **Заметки:** HostModule — основа для управления жизненным циклом шоу. От этой задачи зависят TASK-030, TASK-031, TASK-032, TASK-033.
 
+## [2026-04-07] TASK-030: Host Module: manageTurnQueue()
+**Статус:** done
+**Время:** ~15 минут
+**Изменения:**
+- src/types/interfaces/store.interface.ts — добавлено поле speakFrequency в ShowCharacterRecord
+- src/storage/sqlite-store.ts — добавлена колонка speak_frequency в таблицу show_characters, обновлены методы createCharacter и mapCharacterRow
+- src/core/host-module.ts — добавлен метод manageTurnQueue():
+  - manageTurnQueue(showId, phase): Promise<string[]> — возвращает порядок characterId
+  - Поддерживает turnOrder: sequential, frequency_weighted, host_controlled
+  - frequency_weighted приоритизирует high > medium > low с детерминированным shuffle по seed
+  - Приватный метод orderByFrequency() для группировки и сортировки по частоте
+- tests/unit/host-module.test.ts — добавлены 6 тестов для manageTurnQueue():
+  - sequential turnOrder возвращает в исходном порядке
+  - host_controlled возвращает в исходном порядке
+  - frequency_weighted сортирует по частоте (high > medium > low)
+  - детерминированный порядок при одинаковом seed
+  - пустой массив для шоу без персонажей
+  - корректная группировка множественных персонажей по частоте
+
+**Тесты:** npm run typecheck, npm test — все пройдены (128 tests passed).
+**Заметки:** Для frequency_weighted используется seeded Fisher-Yates shuffle. speakFrequency теперь сохраняется в show_characters для доступа без CharacterDefinition.
+

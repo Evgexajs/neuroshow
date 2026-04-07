@@ -252,4 +252,202 @@ describe('HostModule', () => {
       expect(show.currentPhaseId).toBeNull();
     });
   });
+
+  describe('manageTurnQueue', () => {
+    it('returns characterIds in order for sequential turnOrder', async () => {
+      const template = createTestTemplate();
+      const characters = [
+        createTestCharacter('char-1', 'Alice'),
+        createTestCharacter('char-2', 'Bob'),
+        createTestCharacter('char-3', 'Charlie'),
+      ];
+
+      const show = await hostModule.initializeShow(template, characters);
+      const phase: Phase = {
+        id: 'test-phase',
+        name: 'Test Phase',
+        type: PhaseType.discussion,
+        durationMode: 'turns',
+        durationValue: 5,
+        turnOrder: 'sequential',
+        allowedChannels: [ChannelType.PUBLIC],
+        triggerTemplate: 'Start',
+        completionCondition: 'turns_complete',
+      };
+
+      const queue = await hostModule.manageTurnQueue(show.id, phase);
+
+      expect(queue).toHaveLength(3);
+      expect(queue).toEqual(['char-1', 'char-2', 'char-3']);
+    });
+
+    it('returns characterIds for host_controlled turnOrder', async () => {
+      const template = createTestTemplate();
+      const characters = [
+        createTestCharacter('char-1', 'Alice'),
+        createTestCharacter('char-2', 'Bob'),
+      ];
+
+      const show = await hostModule.initializeShow(template, characters);
+      const phase: Phase = {
+        id: 'test-phase',
+        name: 'Test Phase',
+        type: PhaseType.discussion,
+        durationMode: 'turns',
+        durationValue: 5,
+        turnOrder: 'host_controlled',
+        allowedChannels: [ChannelType.PUBLIC],
+        triggerTemplate: 'Start',
+        completionCondition: 'turns_complete',
+      };
+
+      const queue = await hostModule.manageTurnQueue(show.id, phase);
+
+      expect(queue).toHaveLength(2);
+      expect(queue).toContain('char-1');
+      expect(queue).toContain('char-2');
+    });
+
+    it('orders by frequency for frequency_weighted turnOrder', async () => {
+      const template = createTestTemplate();
+
+      // Create characters with different frequencies
+      const highFreqChar = createTestCharacter('char-high', 'HighFreq');
+      highFreqChar.speakFrequency = SpeakFrequency.high;
+
+      const mediumFreqChar = createTestCharacter('char-medium', 'MediumFreq');
+      mediumFreqChar.speakFrequency = SpeakFrequency.medium;
+
+      const lowFreqChar = createTestCharacter('char-low', 'LowFreq');
+      lowFreqChar.speakFrequency = SpeakFrequency.low;
+
+      const characters = [lowFreqChar, mediumFreqChar, highFreqChar];
+
+      const show = await hostModule.initializeShow(template, characters);
+      const phase: Phase = {
+        id: 'test-phase',
+        name: 'Test Phase',
+        type: PhaseType.discussion,
+        durationMode: 'turns',
+        durationValue: 5,
+        turnOrder: 'frequency_weighted',
+        allowedChannels: [ChannelType.PUBLIC],
+        triggerTemplate: 'Start',
+        completionCondition: 'turns_complete',
+      };
+
+      const queue = await hostModule.manageTurnQueue(show.id, phase);
+
+      expect(queue).toHaveLength(3);
+      // High frequency character should be first
+      expect(queue[0]).toBe('char-high');
+      // Medium frequency character should be second
+      expect(queue[1]).toBe('char-medium');
+      // Low frequency character should be last
+      expect(queue[2]).toBe('char-low');
+    });
+
+    it('is deterministic with same seed', async () => {
+      const template = createTestTemplate();
+
+      // Multiple high-frequency characters to test shuffle
+      const char1 = createTestCharacter('char-1', 'A');
+      char1.speakFrequency = SpeakFrequency.high;
+      const char2 = createTestCharacter('char-2', 'B');
+      char2.speakFrequency = SpeakFrequency.high;
+      const char3 = createTestCharacter('char-3', 'C');
+      char3.speakFrequency = SpeakFrequency.high;
+
+      const characters = [char1, char2, char3];
+      const fixedSeed = 42;
+
+      const show = await hostModule.initializeShow(template, characters, fixedSeed);
+      const phase: Phase = {
+        id: 'test-phase',
+        name: 'Test Phase',
+        type: PhaseType.discussion,
+        durationMode: 'turns',
+        durationValue: 5,
+        turnOrder: 'frequency_weighted',
+        allowedChannels: [ChannelType.PUBLIC],
+        triggerTemplate: 'Start',
+        completionCondition: 'turns_complete',
+      };
+
+      // Call twice with same show (same seed)
+      const queue1 = await hostModule.manageTurnQueue(show.id, phase);
+      const queue2 = await hostModule.manageTurnQueue(show.id, phase);
+
+      expect(queue1).toEqual(queue2);
+    });
+
+    it('returns empty array for show with no characters', async () => {
+      const template = createTestTemplate();
+      const show = await hostModule.initializeShow(template, []);
+      const phase: Phase = {
+        id: 'test-phase',
+        name: 'Test Phase',
+        type: PhaseType.discussion,
+        durationMode: 'turns',
+        durationValue: 5,
+        turnOrder: 'sequential',
+        allowedChannels: [ChannelType.PUBLIC],
+        triggerTemplate: 'Start',
+        completionCondition: 'turns_complete',
+      };
+
+      const queue = await hostModule.manageTurnQueue(show.id, phase);
+
+      expect(queue).toHaveLength(0);
+      expect(queue).toEqual([]);
+    });
+
+    it('high-frequency characters appear before medium and low', async () => {
+      const template = createTestTemplate();
+
+      // Create multiple characters of each frequency
+      const high1 = createTestCharacter('high-1', 'H1');
+      high1.speakFrequency = SpeakFrequency.high;
+      const high2 = createTestCharacter('high-2', 'H2');
+      high2.speakFrequency = SpeakFrequency.high;
+
+      const med1 = createTestCharacter('med-1', 'M1');
+      med1.speakFrequency = SpeakFrequency.medium;
+      const med2 = createTestCharacter('med-2', 'M2');
+      med2.speakFrequency = SpeakFrequency.medium;
+
+      const low1 = createTestCharacter('low-1', 'L1');
+      low1.speakFrequency = SpeakFrequency.low;
+
+      const characters = [low1, med1, high1, med2, high2];
+
+      const show = await hostModule.initializeShow(template, characters);
+      const phase: Phase = {
+        id: 'test-phase',
+        name: 'Test Phase',
+        type: PhaseType.discussion,
+        durationMode: 'turns',
+        durationValue: 5,
+        turnOrder: 'frequency_weighted',
+        allowedChannels: [ChannelType.PUBLIC],
+        triggerTemplate: 'Start',
+        completionCondition: 'turns_complete',
+      };
+
+      const queue = await hostModule.manageTurnQueue(show.id, phase);
+
+      expect(queue).toHaveLength(5);
+
+      // First 2 should be high frequency
+      expect(['high-1', 'high-2']).toContain(queue[0]);
+      expect(['high-1', 'high-2']).toContain(queue[1]);
+
+      // Next 2 should be medium frequency
+      expect(['med-1', 'med-2']).toContain(queue[2]);
+      expect(['med-1', 'med-2']).toContain(queue[3]);
+
+      // Last should be low frequency
+      expect(queue[4]).toBe('low-1');
+    });
+  });
 });

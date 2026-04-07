@@ -55,9 +55,17 @@ export class SqliteStore implements IStore {
         character_id TEXT NOT NULL,
         model_adapter_id TEXT NOT NULL,
         private_context TEXT NOT NULL,
+        speak_frequency TEXT DEFAULT 'medium',
         PRIMARY KEY (show_id, character_id)
       )
     `);
+
+    // Add speak_frequency column if it doesn't exist (migration for existing DBs)
+    try {
+      this.db.exec('ALTER TABLE show_characters ADD COLUMN speak_frequency TEXT DEFAULT \'medium\'');
+    } catch {
+      // Column already exists, ignore error
+    }
 
     // Create show_events table
     this.db.exec(`
@@ -219,14 +227,15 @@ export class SqliteStore implements IStore {
 
   async createCharacter(char: ShowCharacterRecord): Promise<void> {
     const stmt = this.db.prepare(`
-      INSERT INTO show_characters (show_id, character_id, model_adapter_id, private_context)
-      VALUES (?, ?, ?, ?)
+      INSERT INTO show_characters (show_id, character_id, model_adapter_id, private_context, speak_frequency)
+      VALUES (?, ?, ?, ?, ?)
     `);
     stmt.run(
       char.showId,
       char.characterId,
       char.modelAdapterId,
-      JSON.stringify(char.privateContext)
+      JSON.stringify(char.privateContext),
+      char.speakFrequency ?? 'medium'
     );
   }
 
@@ -262,6 +271,7 @@ export class SqliteStore implements IStore {
       characterId: row.character_id as string,
       modelAdapterId: row.model_adapter_id as string,
       privateContext: JSON.parse(row.private_context as string) as PrivateContext,
+      speakFrequency: (row.speak_frequency as 'low' | 'medium' | 'high') ?? 'medium',
     };
   }
 
