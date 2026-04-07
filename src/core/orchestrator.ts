@@ -254,8 +254,14 @@ export class Orchestrator {
         // Log turn progress
         logger.info(`[Phase ${phaseNum}] Turn ${this.turnIndex + 1}/${totalTurns}: ${charName} responds`);
 
-        // Process character turn (this was missing!)
-        await this.processCharacterTurn(showId, characterId, phase.triggerTemplate ?? '');
+        // Use trigger template only for first round, then use continuation prompt
+        // This prevents characters from repeating the same response (e.g., introducing themselves every turn)
+        const trigger = round === 0
+          ? (phase.triggerTemplate ?? '')
+          : 'Продолжи обсуждение, учитывая сказанное другими участниками.';
+
+        // Process character turn
+        await this.processCharacterTurn(showId, characterId, trigger);
 
         // Increment turn index
         this.turnIndex++;
@@ -406,8 +412,13 @@ export class Orchestrator {
         // Log turn progress
         logger.info(`[Phase ${phaseNum}] Turn ${this.turnIndex + 1}/${totalTurns}: ${charName} responds`);
 
+        // Use trigger template only for first round, then use continuation prompt
+        const trigger = round === 0
+          ? (phase.triggerTemplate ?? '')
+          : 'Продолжи обсуждение, учитывая сказанное другими участниками.';
+
         // Process character turn
-        await this.processCharacterTurn(showId, characterId, phase.triggerTemplate ?? '');
+        await this.processCharacterTurn(showId, characterId, trigger);
 
         // Increment turn index
         this.turnIndex++;
@@ -575,8 +586,8 @@ export class Orchestrator {
 
     await this.journal.append(speechEvent);
 
-    // Update token budget
-    const tokenEstimate = this.activeAdapter.estimateTokens(promptPackage);
+    // Update token budget (use same adapter that made the call)
+    const tokenEstimate = adapterToUse.estimateTokens(promptPackage);
     await this.store.updateBudget(
       showId,
       tokenEstimate.prompt,
