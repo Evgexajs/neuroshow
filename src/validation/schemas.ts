@@ -19,6 +19,7 @@ export function sanitizeString(input: string, maxLength?: number): string {
 
   // Remove control characters except newlines (\n) and tabs (\t)
   // Control characters are 0x00-0x1F and 0x7F, we keep 0x09 (tab) and 0x0A (newline)
+  // eslint-disable-next-line no-control-regex
   sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
 
   // Trim whitespace

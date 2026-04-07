@@ -4,7 +4,7 @@ import { HostModule } from '../../src/core/host-module.js';
 import { EventJournal } from '../../src/core/event-journal.js';
 import { ContextBuilder } from '../../src/core/context-builder.js';
 import { SqliteStore } from '../../src/storage/sqlite-store.js';
-import { ShowFormatTemplate, Phase } from '../../src/types/template.js';
+import { ShowFormatTemplate } from '../../src/types/template.js';
 import { CharacterDefinition } from '../../src/types/character.js';
 import { PhaseType, ChannelType, SpeakFrequency, EventType, CharacterIntent, BudgetMode } from '../../src/types/enums.js';
 import { PrivateContext } from '../../src/types/context.js';

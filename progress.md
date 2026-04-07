@@ -1294,3 +1294,35 @@ Wildcard: Максим имеет компромат на Виктора (фин
 7. ✅ Нет моков EventJournal — события реально пишутся и читаются из БД
 
 **Тесты:** npm run typecheck, npm test — все пройдены (332 tests passed).
+
+## [2026-04-07] TASK-067: Настройка ESLint + исправление всех ошибок линтера
+**Статус:** done
+**Время:** ~20 минут
+**Изменения:**
+- eslint.config.js — создан с правилами для TypeScript:
+  - eslint.configs.recommended + tseslint.configs.strict
+  - no-explicit-any: error
+  - no-unused-vars: error (с игнорированием ^_)
+  - no-non-null-assertion: warn
+- tsconfig.eslint.json — создан для ESLint (включает src/ и tests/)
+- package.json — добавлен скрипт "lint": "eslint src/ tests/ web/"
+- ralph.sh — добавлен npm run lint в проверки перед коммитом
+- src/adapters/openai-adapter.ts — исправлен useless assignment
+- src/core/orchestrator.ts — исправлен unused variable в for-of loop
+- src/validation/schemas.ts — добавлен eslint-disable для no-control-regex
+- tests/integration/full-show-openai.test.ts — удалена неиспользуемая переменная
+- tests/unit/coalition-template.test.ts — удалены неиспользуемые импорты и параметры
+- tests/unit/context-builder.test.ts — удалены неиспользуемые импорты
+- tests/unit/orchestrator.test.ts — удалён неиспользуемый импорт Phase
+- tests/unit/validation.test.ts — удалён неиспользуемый импорт
+
+**Acceptance Criteria:**
+1. ✅ eslint и @typescript-eslint установлены как devDependencies
+2. ✅ eslint.config.js создан с правилами для TypeScript
+3. ✅ Правила: strict типизация, no-any, no-unused-vars, consistent-return
+4. ✅ npm run lint скрипт добавлен в package.json
+5. ✅ npm run lint проходит БЕЗ ошибок на всём коде (только warnings для non-null assertions)
+6. ✅ Все найденные ошибки линтера исправлены
+7. ✅ ralph.sh обновлён: добавлен npm run lint в проверки перед коммитом
+
+**Тесты:** npm run lint, npm run typecheck, npm test — все пройдены (332 tests passed).

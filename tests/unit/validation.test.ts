@@ -9,7 +9,6 @@ import {
   validateControlShowRequest,
   formatValidationError,
   showFormatTemplateSchema,
-  characterDefinitionSchema,
 } from '../../src/validation/schemas.js';
 
 describe('Validation Schemas', () => {

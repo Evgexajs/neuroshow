@@ -41,10 +41,6 @@ const hasApiKey = (): boolean => {
   return config.openaiApiKey.length > 0 && config.openaiApiKey.startsWith('sk-');
 };
 
-/**
- * Skip reason message for tests
- */
-const skipReason = 'OPENAI_API_KEY not configured. Set it in .env to run this test.';
 
 describe('Full Show E2E with OpenAI Adapter', () => {
   let store: SqliteStore;

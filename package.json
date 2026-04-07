@@ -12,7 +12,8 @@
     "start": "node dist/index.js",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e-openai": "vitest run tests/integration/full-show-openai.test.ts"
+    "test:e2e-openai": "vitest run tests/integration/full-show-openai.test.ts",
+    "lint": "eslint src/ tests/ web/"
   },
   "keywords": [
     "ai",
@@ -31,10 +32,16 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/better-sqlite3": "^7.6.12",
     "@types/node": "^22.10.5",
+    "@typescript-eslint/eslint-plugin": "^8.58.0",
+    "@typescript-eslint/parser": "^8.58.0",
+    "eslint": "^10.2.0",
+    "globals": "^17.4.0",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",
+    "typescript-eslint": "^8.58.0",
     "vitest": "^2.1.8"
   },
   "engines": {

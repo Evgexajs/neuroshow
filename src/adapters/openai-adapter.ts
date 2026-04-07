@@ -89,7 +89,6 @@ export class OpenAIAdapter implements ModelAdapter {
     let rawResponse: unknown;
     let promptTokens: number | null = null;
     let completionTokens: number | null = null;
-    let responseContent: string | null = null;
     let lastError: Error | null = null;
 
     // Retry loop for API calls
@@ -110,7 +109,7 @@ export class OpenAIAdapter implements ModelAdapter {
         rawResponse = response;
         promptTokens = response.usage?.prompt_tokens ?? null;
         completionTokens = response.usage?.completion_tokens ?? null;
-        responseContent = response.choices[0]?.message?.content ?? '{}';
+        const responseContent = response.choices[0]?.message?.content ?? '{}';
 
         // Try to parse JSON - retry on invalid JSON
         try {

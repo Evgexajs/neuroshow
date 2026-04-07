@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import type { ShowFormatTemplate, Phase } from '../../src/types/template.js';
-import { PhaseType, ChannelType } from '../../src/types/enums.js';
 
 describe('Coalition Template', () => {
   const templatePath = join(__dirname, '../../src/formats/coalition.json');
@@ -58,7 +57,7 @@ describe('Coalition Template', () => {
     });
 
     it('should have all required Phase fields', () => {
-      template.phases.forEach((phase: Phase, index: number) => {
+      template.phases.forEach((phase: Phase) => {
         expect(phase.id).toBeTruthy();
         expect(phase.name).toBeTruthy();
         expect(phase.type).toBeTruthy();

@@ -222,7 +222,7 @@ export class Orchestrator {
 
     // Run turns until completion
     for (let round = 0; round < turnsPerCharacter; round++) {
-      for (const _characterId of turnQueue) {
+      for (let i = 0; i < turnQueue.length; i++) {
         // Check completion condition
         if (this.isPhaseComplete(phase, this.turnIndex, turnQueue.length * turnsPerCharacter)) {
           break;
