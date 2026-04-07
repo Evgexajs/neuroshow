@@ -40,6 +40,23 @@ interface ShowFormatTemplate {
   tokenBudget: unknown;
 }
 
+interface PhaseConfig {
+  id: string;
+  name: string;
+  type: string;
+  durationMode: string;
+  durationValue: number | string;
+  allowedChannels: string[];
+}
+
+interface ShowConfig {
+  templateId: string;
+  templateName: string;
+  templateDescription: string;
+  phases: PhaseConfig[];
+  currentPhaseId: string | null;
+}
+
 type CharacterStatus = 'waiting' | 'speaking' | 'in-private';
 
 type ShowStatus = 'running' | 'paused' | 'completed' | 'aborted' | null;
@@ -63,6 +80,8 @@ const showIdInput = document.getElementById('show-id') as HTMLInputElement;
 const connectBtn = document.getElementById('connect-btn') as HTMLButtonElement;
 const eventsContainer = document.getElementById('events-container') as HTMLDivElement;
 const cardsContainer = document.getElementById('cards-container') as HTMLDivElement;
+const templateDetailsEl = document.getElementById('template-details') as HTMLDivElement;
+const phasesListEl = document.getElementById('phases-list') as HTMLDivElement;
 
 // Control Panel Elements
 const startBtn = document.getElementById('start-btn') as HTMLButtonElement;
@@ -135,6 +154,10 @@ let availableTemplates: ShowFormatTemplate[] = [];
 let availableCharacters: CharacterDefinition[] = [];
 let selectedTemplate: ShowFormatTemplate | null = null;
 const selectedCharacterIds: Set<string> = new Set();
+
+// Show config state (template + phases)
+let showConfig: ShowConfig | null = null;
+const phaseTurnCounts: Map<string, number> = new Map();
 
 /**
  * Initialize the application
@@ -262,6 +285,12 @@ async function fetchStatus(showId: string): Promise<void> {
  */
 function updateControlPanelUI(status: StatusResponse): void {
   currentShowStatus = status.status;
+
+  // Update current phase if changed
+  if (status.currentPhaseId !== currentPhaseId) {
+    currentPhaseId = status.currentPhaseId;
+    renderTemplateInfo();
+  }
 
   // Update status display
   showStatusEl.textContent = status.status ?? '--';
@@ -399,6 +428,107 @@ function renderCharacterCards(): void {
 }
 
 /**
+ * Fetch show config (template + phases)
+ */
+async function fetchShowConfig(showId: string): Promise<void> {
+  try {
+    const response = await fetch(`/shows/${showId}/config`);
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    showConfig = await response.json() as ShowConfig;
+
+    // Initialize turn counts for each phase
+    phaseTurnCounts.clear();
+    for (const phase of showConfig.phases) {
+      phaseTurnCounts.set(phase.id, 0);
+    }
+
+    renderTemplateInfo();
+  } catch (err) {
+    console.error('Failed to fetch show config:', err);
+    addSystemMessage('Failed to load show config');
+  }
+}
+
+/**
+ * Render template info panel
+ */
+function renderTemplateInfo(): void {
+  if (!showConfig) {
+    templateDetailsEl.innerHTML = '<p class="placeholder">No template loaded...</p>';
+    phasesListEl.innerHTML = '';
+    return;
+  }
+
+  // Render template details
+  templateDetailsEl.innerHTML = `
+    <div class="template-name">${escapeHtml(showConfig.templateName)}</div>
+    <div class="template-description">${escapeHtml(showConfig.templateDescription || '')}</div>
+  `;
+
+  // Render phases list
+  phasesListEl.innerHTML = '';
+  for (const phase of showConfig.phases) {
+    const isCurrent = phase.id === currentPhaseId;
+    const turnCount = phaseTurnCounts.get(phase.id) ?? 0;
+    const maxTurns = typeof phase.durationValue === 'number' ? phase.durationValue : 0;
+    const progressPercent = maxTurns > 0 ? Math.min((turnCount / maxTurns) * 100, 100) : 0;
+
+    const phaseEl = document.createElement('div');
+    phaseEl.className = `phase-item${isCurrent ? ' current' : ''}`;
+    phaseEl.dataset.phaseId = phase.id;
+
+    // Build channels HTML
+    const channelsHtml = phase.allowedChannels
+      .map((ch) => `<span class="channel-tag ${ch.toLowerCase()}">${ch}</span>`)
+      .join('');
+
+    // Build progress HTML (only for current phase with turns-based duration)
+    let progressHtml = '';
+    if (phase.durationMode === 'turns' && maxTurns > 0) {
+      progressHtml = `
+        <div class="phase-progress">
+          <div class="phase-progress-bar">
+            <div class="phase-progress-fill" style="width: ${progressPercent}%"></div>
+          </div>
+          <div class="phase-progress-text">${turnCount} / ${maxTurns} ходов</div>
+        </div>
+      `;
+    }
+
+    phaseEl.innerHTML = `
+      <div class="phase-header">
+        <span class="phase-name">${escapeHtml(phase.name)}</span>
+        <span class="phase-type">${escapeHtml(phase.type)}</span>
+      </div>
+      <div class="phase-details">
+        <div class="phase-turns">
+          <span>${phase.durationMode}: ${phase.durationValue}</span>
+        </div>
+        <div class="phase-channels">${channelsHtml}</div>
+      </div>
+      ${progressHtml}
+    `;
+
+    phasesListEl.appendChild(phaseEl);
+  }
+}
+
+/**
+ * Update phase progress when speech event received
+ */
+function updatePhaseProgress(phaseId: string): void {
+  if (!phaseId) return;
+
+  const count = (phaseTurnCounts.get(phaseId) ?? 0) + 1;
+  phaseTurnCounts.set(phaseId, count);
+
+  // Re-render template info to update progress bar
+  renderTemplateInfo();
+}
+
+/**
  * Format status for display
  */
 function formatStatus(status: CharacterStatus): string {
@@ -468,8 +598,9 @@ async function connect(showId: string): Promise<void> {
   clearEvents();
   addSystemMessage('Connecting to show...');
 
-  // Fetch characters and start status polling
+  // Fetch characters, config, and start status polling
   await fetchCharacters(showId);
+  await fetchShowConfig(showId);
   startStatusPolling(showId);
 
   const url = `/shows/${showId}/events`;
@@ -487,10 +618,19 @@ async function connect(showId: string): Promise<void> {
       addEventToFeed(showEvent);
       updateCharacterStatus(showEvent);
 
-      // Count speech events as turns
+      // Count speech events as turns and update phase progress
       if (showEvent.type === 'speech') {
         turnCount++;
         turnNumberEl.textContent = String(turnCount);
+        if (showEvent.phaseId) {
+          updatePhaseProgress(showEvent.phaseId);
+        }
+      }
+
+      // Update current phase when phase_start received
+      if (showEvent.type === 'phase_start' && showEvent.phaseId) {
+        currentPhaseId = showEvent.phaseId;
+        renderTemplateInfo();
       }
     } catch (err) {
       console.error('Failed to parse event:', err);
@@ -529,6 +669,12 @@ function disconnect(): void {
   currentPhaseId = null;
   phaseEventCount = 0;
   cardsContainer.innerHTML = '<p class="placeholder">No characters loaded...</p>';
+
+  // Clear show config state
+  showConfig = null;
+  phaseTurnCounts.clear();
+  templateDetailsEl.innerHTML = '<p class="placeholder">Connect to a show to see template info...</p>';
+  phasesListEl.innerHTML = '';
 
   // Stop status polling and reset control panel
   stopStatusPolling();

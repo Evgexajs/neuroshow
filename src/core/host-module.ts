@@ -60,6 +60,7 @@ export class HostModule {
     const configSnapshot: Record<string, unknown> = {
       templateId: template.id,
       templateName: template.name,
+      templateDescription: template.description,
       contextWindowSize: template.contextWindowSize,
       decisionConfig: template.decisionConfig,
       privateChannelRules: template.privateChannelRules,

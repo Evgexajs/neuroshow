@@ -625,6 +625,46 @@ export async function createServer(): Promise<{
     }
   });
 
+  // GET /shows/:id/config - Get show config (template + phases info)
+  app.get('/shows/:id/config', async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id } = request.params as { id: string };
+
+    // Check if show exists
+    const show = await deps.store.getShow(id);
+    if (!show) {
+      return reply.status(404).send({ error: 'Show not found' });
+    }
+
+    try {
+      const config = JSON.parse(show.configSnapshot);
+      const phases = (config.phases ?? []) as Array<{
+        id: string;
+        name: string;
+        type: string;
+        durationMode: string;
+        durationValue: number | string;
+        allowedChannels: string[];
+      }>;
+
+      return reply.send({
+        templateId: config.templateId ?? show.formatId,
+        templateName: config.templateName ?? 'Unknown Template',
+        templateDescription: config.templateDescription ?? '',
+        phases: phases.map((p) => ({
+          id: p.id,
+          name: p.name,
+          type: p.type,
+          durationMode: p.durationMode,
+          durationValue: p.durationValue,
+          allowedChannels: p.allowedChannels,
+        })),
+        currentPhaseId: show.currentPhaseId,
+      });
+    } catch {
+      return reply.status(500).send({ error: 'Failed to parse show config' });
+    }
+  });
+
   // GET /shows/:id/characters - Get characters for a show
   app.get('/shows/:id/characters', async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = request.params as { id: string };

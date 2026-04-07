@@ -1691,3 +1691,46 @@ Fixed critical bug where runPhase() in AUTO mode never called processCharacterTu
 - `npm run lint` — passes (warnings only)
 - `npm run typecheck` — passes
 - `npm test` — orchestrator tests (51 tests) pass, full-show-mock tests (5 tests) pass
+
+---
+
+## 2026-04-07: TASK-078 — Debug UI: информационная панель о шаблоне и фазах
+
+### Summary
+Added a template information panel to the Debug UI that displays template name, description, list of phases with parameters, highlights the current phase, and shows a progress bar for turns completed in current phase.
+
+### Changes
+- **src/api/server.ts**:
+  - Added new GET /shows/:id/config endpoint returning template info and phases
+
+- **src/core/host-module.ts**:
+  - Added templateDescription to configSnapshot
+
+- **web/debug-ui/index.html**:
+  - Added template-info section with template-details and phases-list containers
+
+- **web/debug-ui/styles.css**:
+  - Added styles for template info panel, phase items, channel tags, and progress bar
+  - Current phase highlighted with accent color and glow effect
+
+- **web/debug-ui/app.ts**:
+  - Added PhaseConfig and ShowConfig interfaces
+  - Added fetchShowConfig() to fetch template and phases from API
+  - Added renderTemplateInfo() to display template name, description, and phases
+  - Added updatePhaseProgress() to track turns per phase
+  - Updated connect() to fetch config on connection
+  - Updated disconnect() to clear config state
+  - Updated onmessage handler to track phase progress on speech events
+  - Updated updateControlPanelUI() to sync currentPhaseId
+
+### Acceptance Criteria Verified
+1. Показывать название шаблона и описание — DONE (template-name, template-description elements)
+2. Показывать список всех фаз с их параметрами — DONE (phases-list with all phases)
+3. Для каждой фазы: название, тип, количество ходов, разрешённые каналы — DONE (phase-item with all details)
+4. Текущая фаза подсвечена — DONE (.current class with accent border and glow)
+5. Прогресс-бар: сколько ходов выполнено в текущей фазе — DONE (phase-progress-bar with fill percentage)
+
+### Verification
+- `npm run lint` — passes (warnings only, pre-existing)
+- `npm run typecheck` — passes
+- `npm test` — core tests pass (context-builder, orchestrator, host-module, mock-adapter, integration)
