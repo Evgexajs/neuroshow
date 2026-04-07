@@ -4,3 +4,7 @@ dist/
 data/*.db
 data/*.db-shm
 data/*.db-wal
+
+# Test artifacts
+playwright-report/
+test-results/
