@@ -313,6 +313,11 @@ body {
   color: var(--text-primary);
 }
 
+#rollback-btn {
+  background-color: var(--error);
+  color: white;
+}
+
 .control-btn:not(:disabled):hover {
   opacity: 0.85;
 }

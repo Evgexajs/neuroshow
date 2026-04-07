@@ -8,6 +8,17 @@ const showIdInput = document.getElementById('show-id');
 const connectBtn = document.getElementById('connect-btn');
 const eventsContainer = document.getElementById('events-container');
 const cardsContainer = document.getElementById('cards-container');
+// Control Panel Elements
+const startBtn = document.getElementById('start-btn');
+const pauseBtn = document.getElementById('pause-btn');
+const resumeBtn = document.getElementById('resume-btn');
+const stepBtn = document.getElementById('step-btn');
+const rollbackBtn = document.getElementById('rollback-btn');
+const showStatusEl = document.getElementById('show-status');
+const currentPhaseEl = document.getElementById('current-phase');
+const turnNumberEl = document.getElementById('turn-number');
+const tokenProgressEl = document.getElementById('token-progress');
+const tokenTextEl = document.getElementById('token-text');
 // State
 let eventSource = null;
 let currentShowId = null;
@@ -18,6 +29,11 @@ const RECONNECT_DELAY_MS = 2000;
 let characters = [];
 const characterStatuses = new Map();
 let activeCharacterId = null;
+// Control panel state
+let currentShowStatus = null;
+let statusPollInterval = null;
+const STATUS_POLL_INTERVAL_MS = 2000;
+let turnCount = 0;
 /**
  * Initialize the application
  */
@@ -30,6 +46,12 @@ function init() {
             handleConnect().catch(console.error);
         }
     });
+    // Control panel button listeners
+    startBtn.addEventListener('click', () => handleControl('start'));
+    pauseBtn.addEventListener('click', () => handleControl('pause'));
+    resumeBtn.addEventListener('click', () => handleControl('resume'));
+    stepBtn.addEventListener('click', () => handleControl('step'));
+    rollbackBtn.addEventListener('click', handleRollback);
 }
 /**
  * Handle connect button click
@@ -45,6 +67,135 @@ async function handleConnect() {
     }
     currentShowId = showId;
     await connect(showId);
+}
+/**
+ * Send control action to the server
+ */
+async function handleControl(action, phaseId) {
+    if (!currentShowId) {
+        addSystemMessage('No show connected');
+        return;
+    }
+    try {
+        const body = { action };
+        if (phaseId) {
+            body.phaseId = phaseId;
+        }
+        const response = await fetch(`/shows/${currentShowId}/control`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+        });
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || `HTTP ${response.status}`);
+        }
+        const result = await response.json();
+        addSystemMessage(`Control: ${result.message}`);
+        // Refresh status immediately after control action
+        await fetchStatus(currentShowId);
+    }
+    catch (err) {
+        console.error(`Control action ${action} failed:`, err);
+        addSystemMessage(`Control failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    }
+}
+/**
+ * Handle rollback button click - prompts for phase ID
+ */
+function handleRollback() {
+    if (!currentShowId) {
+        addSystemMessage('No show connected');
+        return;
+    }
+    const phaseId = prompt('Enter phase ID to rollback to:');
+    if (phaseId && phaseId.trim()) {
+        handleControl('rollback', phaseId.trim()).catch(console.error);
+    }
+}
+/**
+ * Fetch current show status from the server
+ */
+async function fetchStatus(showId) {
+    try {
+        const response = await fetch(`/shows/${showId}/status`);
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        const status = await response.json();
+        updateControlPanelUI(status);
+    }
+    catch (err) {
+        console.error('Failed to fetch status:', err);
+    }
+}
+/**
+ * Update the control panel UI based on status
+ */
+function updateControlPanelUI(status) {
+    currentShowStatus = status.status;
+    // Update status display
+    showStatusEl.textContent = status.status ?? '--';
+    currentPhaseEl.textContent = status.currentPhaseId ?? '--';
+    turnNumberEl.textContent = status.eventsCount > 0 ? String(status.eventsCount) : '--';
+    // Update token counter
+    if (status.tokenBudget) {
+        const { used, total, percentUsed } = status.tokenBudget;
+        tokenProgressEl.style.width = `${Math.min(percentUsed, 100)}%`;
+        tokenTextEl.textContent = `${used.toLocaleString()} / ${total.toLocaleString()}`;
+        // Change color based on usage
+        if (percentUsed >= 90) {
+            tokenProgressEl.style.backgroundColor = 'var(--error)';
+        }
+        else if (percentUsed >= 70) {
+            tokenProgressEl.style.backgroundColor = 'var(--warning)';
+        }
+        else {
+            tokenProgressEl.style.backgroundColor = 'var(--accent)';
+        }
+    }
+    else {
+        tokenProgressEl.style.width = '0%';
+        tokenTextEl.textContent = '0 / 0';
+    }
+    // Update button states
+    updateButtonStates();
+}
+/**
+ * Update control button enabled/disabled states based on show status
+ */
+function updateButtonStates() {
+    const isConnected = currentShowId !== null;
+    const status = currentShowStatus;
+    // START: enabled when connected and show is not yet running/paused (or completed/aborted for restart)
+    startBtn.disabled = !isConnected || status === 'running' || status === 'paused';
+    // PAUSE: enabled only when running
+    pauseBtn.disabled = !isConnected || status !== 'running';
+    // RESUME: enabled only when paused
+    resumeBtn.disabled = !isConnected || status !== 'paused';
+    // STEP: enabled when paused (for DEBUG mode stepping)
+    stepBtn.disabled = !isConnected || status !== 'paused';
+    // ROLLBACK: enabled when paused or running
+    rollbackBtn.disabled = !isConnected || (status !== 'paused' && status !== 'running');
+}
+/**
+ * Start polling for show status
+ */
+function startStatusPolling(showId) {
+    stopStatusPolling();
+    fetchStatus(showId).catch(console.error);
+    statusPollInterval = setInterval(() => {
+        fetchStatus(showId).catch(console.error);
+    }, STATUS_POLL_INTERVAL_MS);
+}
+/**
+ * Stop polling for show status
+ */
+function stopStatusPolling() {
+    if (statusPollInterval) {
+        clearInterval(statusPollInterval);
+        statusPollInterval = null;
+    }
 }
 /**
  * Fetch characters for a show
@@ -157,8 +308,9 @@ function updateCharacterStatus(event) {
 async function connect(showId) {
     clearEvents();
     addSystemMessage('Connecting to show...');
-    // Fetch characters first
+    // Fetch characters and start status polling
     await fetchCharacters(showId);
+    startStatusPolling(showId);
     const url = `/shows/${showId}/events`;
     eventSource = new EventSource(url);
     eventSource.onopen = () => {
@@ -171,6 +323,11 @@ async function connect(showId) {
             const showEvent = JSON.parse(event.data);
             addEventToFeed(showEvent);
             updateCharacterStatus(showEvent);
+            // Count speech events as turns
+            if (showEvent.type === 'speech') {
+                turnCount++;
+                turnNumberEl.textContent = String(turnCount);
+            }
         }
         catch (err) {
             console.error('Failed to parse event:', err);
@@ -203,6 +360,21 @@ function disconnect() {
     characterStatuses.clear();
     activeCharacterId = null;
     cardsContainer.innerHTML = '<p class="placeholder">No characters loaded...</p>';
+    // Stop status polling and reset control panel
+    stopStatusPolling();
+    currentShowStatus = null;
+    resetControlPanelUI();
+}
+/**
+ * Reset control panel UI to default state
+ */
+function resetControlPanelUI() {
+    showStatusEl.textContent = '--';
+    currentPhaseEl.textContent = '--';
+    turnNumberEl.textContent = '--';
+    tokenProgressEl.style.width = '0%';
+    tokenTextEl.textContent = '0 / 0';
+    updateButtonStates();
 }
 /**
  * Attempt to reconnect after connection loss
@@ -228,6 +400,7 @@ function attemptReconnect() {
  */
 function clearEvents() {
     eventsContainer.innerHTML = '';
+    turnCount = 0;
 }
 /**
  * Add a system message to the feed

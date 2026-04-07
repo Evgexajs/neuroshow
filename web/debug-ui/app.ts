@@ -23,11 +23,39 @@ interface Character {
 
 type CharacterStatus = 'waiting' | 'speaking' | 'in-private';
 
+type ShowStatus = 'running' | 'paused' | 'completed' | 'aborted' | null;
+
+interface StatusResponse {
+  status: ShowStatus;
+  currentPhaseId: string | null;
+  eventsCount: number;
+  tokenBudget: {
+    total: number;
+    used: number;
+    mode: string;
+    percentUsed: number;
+  } | null;
+}
+
+type ControlAction = 'start' | 'pause' | 'resume' | 'step' | 'rollback';
+
 // DOM Elements
 const showIdInput = document.getElementById('show-id') as HTMLInputElement;
 const connectBtn = document.getElementById('connect-btn') as HTMLButtonElement;
 const eventsContainer = document.getElementById('events-container') as HTMLDivElement;
 const cardsContainer = document.getElementById('cards-container') as HTMLDivElement;
+
+// Control Panel Elements
+const startBtn = document.getElementById('start-btn') as HTMLButtonElement;
+const pauseBtn = document.getElementById('pause-btn') as HTMLButtonElement;
+const resumeBtn = document.getElementById('resume-btn') as HTMLButtonElement;
+const stepBtn = document.getElementById('step-btn') as HTMLButtonElement;
+const rollbackBtn = document.getElementById('rollback-btn') as HTMLButtonElement;
+const showStatusEl = document.getElementById('show-status') as HTMLSpanElement;
+const currentPhaseEl = document.getElementById('current-phase') as HTMLSpanElement;
+const turnNumberEl = document.getElementById('turn-number') as HTMLSpanElement;
+const tokenProgressEl = document.getElementById('token-progress') as HTMLDivElement;
+const tokenTextEl = document.getElementById('token-text') as HTMLSpanElement;
 
 // State
 let eventSource: EventSource | null = null;
@@ -41,6 +69,12 @@ let characters: Character[] = [];
 const characterStatuses: Map<string, CharacterStatus> = new Map();
 let activeCharacterId: string | null = null;
 
+// Control panel state
+let currentShowStatus: ShowStatus = null;
+let statusPollInterval: ReturnType<typeof setInterval> | null = null;
+const STATUS_POLL_INTERVAL_MS = 2000;
+let turnCount = 0;
+
 /**
  * Initialize the application
  */
@@ -53,6 +87,13 @@ function init(): void {
       handleConnect().catch(console.error);
     }
   });
+
+  // Control panel button listeners
+  startBtn.addEventListener('click', () => handleControl('start'));
+  pauseBtn.addEventListener('click', () => handleControl('pause'));
+  resumeBtn.addEventListener('click', () => handleControl('resume'));
+  stepBtn.addEventListener('click', () => handleControl('step'));
+  rollbackBtn.addEventListener('click', handleRollback);
 }
 
 /**
@@ -71,6 +112,153 @@ async function handleConnect(): Promise<void> {
 
   currentShowId = showId;
   await connect(showId);
+}
+
+/**
+ * Send control action to the server
+ */
+async function handleControl(action: ControlAction, phaseId?: string): Promise<void> {
+  if (!currentShowId) {
+    addSystemMessage('No show connected');
+    return;
+  }
+
+  try {
+    const body: { action: ControlAction; phaseId?: string } = { action };
+    if (phaseId) {
+      body.phaseId = phaseId;
+    }
+
+    const response = await fetch(`/shows/${currentShowId}/control`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || `HTTP ${response.status}`);
+    }
+
+    const result = await response.json();
+    addSystemMessage(`Control: ${result.message}`);
+
+    // Refresh status immediately after control action
+    await fetchStatus(currentShowId);
+  } catch (err) {
+    console.error(`Control action ${action} failed:`, err);
+    addSystemMessage(`Control failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+  }
+}
+
+/**
+ * Handle rollback button click - prompts for phase ID
+ */
+function handleRollback(): void {
+  if (!currentShowId) {
+    addSystemMessage('No show connected');
+    return;
+  }
+
+  const phaseId = prompt('Enter phase ID to rollback to:');
+  if (phaseId && phaseId.trim()) {
+    handleControl('rollback', phaseId.trim()).catch(console.error);
+  }
+}
+
+/**
+ * Fetch current show status from the server
+ */
+async function fetchStatus(showId: string): Promise<void> {
+  try {
+    const response = await fetch(`/shows/${showId}/status`);
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    const status: StatusResponse = await response.json();
+    updateControlPanelUI(status);
+  } catch (err) {
+    console.error('Failed to fetch status:', err);
+  }
+}
+
+/**
+ * Update the control panel UI based on status
+ */
+function updateControlPanelUI(status: StatusResponse): void {
+  currentShowStatus = status.status;
+
+  // Update status display
+  showStatusEl.textContent = status.status ?? '--';
+  currentPhaseEl.textContent = status.currentPhaseId ?? '--';
+  turnNumberEl.textContent = status.eventsCount > 0 ? String(status.eventsCount) : '--';
+
+  // Update token counter
+  if (status.tokenBudget) {
+    const { used, total, percentUsed } = status.tokenBudget;
+    tokenProgressEl.style.width = `${Math.min(percentUsed, 100)}%`;
+    tokenTextEl.textContent = `${used.toLocaleString()} / ${total.toLocaleString()}`;
+
+    // Change color based on usage
+    if (percentUsed >= 90) {
+      tokenProgressEl.style.backgroundColor = 'var(--error)';
+    } else if (percentUsed >= 70) {
+      tokenProgressEl.style.backgroundColor = 'var(--warning)';
+    } else {
+      tokenProgressEl.style.backgroundColor = 'var(--accent)';
+    }
+  } else {
+    tokenProgressEl.style.width = '0%';
+    tokenTextEl.textContent = '0 / 0';
+  }
+
+  // Update button states
+  updateButtonStates();
+}
+
+/**
+ * Update control button enabled/disabled states based on show status
+ */
+function updateButtonStates(): void {
+  const isConnected = currentShowId !== null;
+  const status = currentShowStatus;
+
+  // START: enabled when connected and show is not yet running/paused (or completed/aborted for restart)
+  startBtn.disabled = !isConnected || status === 'running' || status === 'paused';
+
+  // PAUSE: enabled only when running
+  pauseBtn.disabled = !isConnected || status !== 'running';
+
+  // RESUME: enabled only when paused
+  resumeBtn.disabled = !isConnected || status !== 'paused';
+
+  // STEP: enabled when paused (for DEBUG mode stepping)
+  stepBtn.disabled = !isConnected || status !== 'paused';
+
+  // ROLLBACK: enabled when paused or running
+  rollbackBtn.disabled = !isConnected || (status !== 'paused' && status !== 'running');
+}
+
+/**
+ * Start polling for show status
+ */
+function startStatusPolling(showId: string): void {
+  stopStatusPolling();
+  fetchStatus(showId).catch(console.error);
+  statusPollInterval = setInterval(() => {
+    fetchStatus(showId).catch(console.error);
+  }, STATUS_POLL_INTERVAL_MS);
+}
+
+/**
+ * Stop polling for show status
+ */
+function stopStatusPolling(): void {
+  if (statusPollInterval) {
+    clearInterval(statusPollInterval);
+    statusPollInterval = null;
+  }
 }
 
 /**
@@ -199,8 +387,9 @@ async function connect(showId: string): Promise<void> {
   clearEvents();
   addSystemMessage('Connecting to show...');
 
-  // Fetch characters first
+  // Fetch characters and start status polling
   await fetchCharacters(showId);
+  startStatusPolling(showId);
 
   const url = `/shows/${showId}/events`;
   eventSource = new EventSource(url);
@@ -216,6 +405,12 @@ async function connect(showId: string): Promise<void> {
       const showEvent: ShowEvent = JSON.parse(event.data);
       addEventToFeed(showEvent);
       updateCharacterStatus(showEvent);
+
+      // Count speech events as turns
+      if (showEvent.type === 'speech') {
+        turnCount++;
+        turnNumberEl.textContent = String(turnCount);
+      }
     } catch (err) {
       console.error('Failed to parse event:', err);
     }
@@ -249,6 +444,23 @@ function disconnect(): void {
   characterStatuses.clear();
   activeCharacterId = null;
   cardsContainer.innerHTML = '<p class="placeholder">No characters loaded...</p>';
+
+  // Stop status polling and reset control panel
+  stopStatusPolling();
+  currentShowStatus = null;
+  resetControlPanelUI();
+}
+
+/**
+ * Reset control panel UI to default state
+ */
+function resetControlPanelUI(): void {
+  showStatusEl.textContent = '--';
+  currentPhaseEl.textContent = '--';
+  turnNumberEl.textContent = '--';
+  tokenProgressEl.style.width = '0%';
+  tokenTextEl.textContent = '0 / 0';
+  updateButtonStates();
 }
 
 /**
@@ -279,6 +491,7 @@ function attemptReconnect(): void {
  */
 function clearEvents(): void {
   eventsContainer.innerHTML = '';
+  turnCount = 0;
 }
 
 /**

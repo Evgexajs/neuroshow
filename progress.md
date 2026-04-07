@@ -1149,3 +1149,31 @@ Wildcard: Максим имеет компромат на Виктора (фин
 4. ✅ Подсветка активного персонажа
 
 **Тесты:** npm run typecheck, npm run build, npm test — все пройдены (310 tests passed).
+
+## [2026-04-07] TASK-052: Debug UI: Control Panel
+**Статус:** done
+**Время:** ~20 минут
+**Изменения:**
+- web/debug-ui/index.html — добавлена кнопка ROLLBACK в control panel
+- web/debug-ui/styles.css — добавлен стиль для #rollback-btn (красный цвет ошибки)
+- web/debug-ui/app.ts — реализован полный функционал Control Panel:
+  - Типы: ShowStatus, StatusResponse, ControlAction
+  - DOM элементы для всех кнопок и индикаторов
+  - handleControl() — отправка POST /shows/:id/control с action
+  - handleRollback() — prompt для phaseId и вызов rollback
+  - fetchStatus() — получение статуса через GET /shows/:id/status
+  - updateControlPanelUI() — обновление UI по статусу (фаза, ход, токены)
+  - updateButtonStates() — управление disabled состояниями кнопок
+  - startStatusPolling()/stopStatusPolling() — polling статуса каждые 2 секунды
+  - Интеграция в connect()/disconnect() — автоматический старт/стоп polling
+  - Token counter с цветовой индикацией (accent -> warning -> error)
+  - Подсчет ходов по speech событиям из SSE
+
+**Acceptance Criteria:**
+1. ✅ Кнопки: START, PAUSE, RESUME, STEP, ROLLBACK
+2. ✅ Кнопки вызывают POST /shows/:id/control
+3. ✅ Индикатор текущей фазы и номера хода
+4. ✅ Token counter: used / total (прогресс-бар)
+5. ✅ Кнопки disabled в неактуальных состояниях
+
+**Тесты:** npm run typecheck, npm run build, npm test — все пройдены (310 tests passed).
