@@ -1220,14 +1220,22 @@ describe('HostModule', () => {
       expect(revelationEvents).toHaveLength(1);
       const revelation = revelationEvents[0]!;
 
-      // Check content includes all decisions
-      expect(revelation.content).toContain('char-1: yes');
-      expect(revelation.content).toContain('char-2: no');
-      expect(revelation.content).toContain('char-3: yes');
+      // Check content includes all decisions with names (not IDs)
+      expect(revelation.content).toContain('Alice: yes');
+      expect(revelation.content).toContain('Bob: no');
+      expect(revelation.content).toContain('Charlie: yes');
 
-      // Check metadata contains all decisions
+      // Check content includes vote counts and winner
+      expect(revelation.content).toContain('yes - 2');
+      expect(revelation.content).toContain('no - 1');
+      expect(revelation.content).toContain('Победитель: yes');
+
+      // Check metadata contains all decisions with names
       expect(revelation.metadata.decisions).toHaveLength(3);
       expect(revelation.metadata.revealMoment).toBe('after_all');
+      expect(revelation.metadata.voteCounts).toEqual({ yes: 2, no: 1 });
+      expect(revelation.metadata.winner).toBe('yes');
+      expect(revelation.metadata.leaders).toEqual(['yes']);
     });
 
     it('creates one revelation event per decision for after_each', async () => {
@@ -1258,18 +1266,27 @@ describe('HostModule', () => {
       const events = await eventJournal.getEvents(show.id);
       const revelationEvents = events.filter(e => e.type === EventType.revelation);
 
-      // With after_each, should have 3 revelation events (one per decision)
-      expect(revelationEvents).toHaveLength(3);
+      // With after_each, should have 4 revelation events (one per decision + summary)
+      expect(revelationEvents).toHaveLength(4);
 
-      // Each revelation should have its own decision
+      // Each revelation should have its own decision with character name
       const char1Revelation = revelationEvents.find(e => e.senderId === 'char-1');
       expect(char1Revelation).toBeDefined();
       expect(char1Revelation!.metadata.decision).toBe('yes');
       expect(char1Revelation!.metadata.revealMoment).toBe('after_each');
+      expect(char1Revelation!.metadata.characterName).toBe('Alice');
+      expect(char1Revelation!.content).toContain('Alice');
 
       const char2Revelation = revelationEvents.find(e => e.senderId === 'char-2');
       expect(char2Revelation).toBeDefined();
       expect(char2Revelation!.metadata.decision).toBe('no');
+      expect(char2Revelation!.metadata.characterName).toBe('Bob');
+
+      // Check summary event at the end
+      const summaryEvent = revelationEvents.find(e => e.metadata.revealMoment === 'after_each_summary');
+      expect(summaryEvent).toBeDefined();
+      expect(summaryEvent!.metadata.winner).toBe('yes');
+      expect(summaryEvent!.metadata.voteCounts).toEqual({ yes: 2, no: 1 });
     });
 
     it('all revelation events are PUBLIC with all characters as audience', async () => {

@@ -865,6 +865,11 @@ export class HostModule {
    *
    * All revelation events are PUBLIC with audienceIds = all characters
    *
+   * Results include:
+   * - Vote counts per candidate (using names, not IDs)
+   * - Winner determination (most votes)
+   * - Tie handling (show all leaders or use first-voter tiebreaker)
+   *
    * @param showId - Show ID
    * @param decisionConfig - Configuration for the revelation
    */
@@ -884,6 +889,27 @@ export class HostModule {
     }
     const allCharacterIds = characters.map((c) => c.characterId);
 
+    // Get character definitions from configSnapshot to build name map
+    const configSnapshot = JSON.parse(showRecord.configSnapshot) as Record<string, unknown>;
+    const characterDefinitions = configSnapshot.characterDefinitions as
+      | Array<{ id: string; name: string; responseConstraints?: { language?: string } }>
+      | undefined;
+
+    // Build name map: characterId -> name
+    const nameMap = new Map<string, string>();
+    let isRussian = false;
+    if (characterDefinitions) {
+      for (const def of characterDefinitions) {
+        nameMap.set(def.id, def.name);
+        if (def.responseConstraints?.language === 'ru') {
+          isRussian = true;
+        }
+      }
+    }
+
+    // Helper to get name from ID
+    const getName = (id: string): string => nameMap.get(id) ?? id;
+
     // Get all events to find decision events from current phase
     const allEvents = await this.eventJournal.getEvents(showId);
     const decisionEvents = allEvents.filter(
@@ -894,14 +920,98 @@ export class HostModule {
       return;
     }
 
+    // Count votes for each candidate
+    const voteCounts = new Map<string, number>();
+    const voteOrder: string[] = []; // Track order of votes for tiebreaker
+
+    for (const event of decisionEvents) {
+      const decision = (event.metadata?.decisionValue ?? event.content) as string;
+      if (decision && decision !== 'invalid') {
+        const currentCount = voteCounts.get(decision) ?? 0;
+        voteCounts.set(decision, currentCount + 1);
+        if (!voteOrder.includes(decision)) {
+          voteOrder.push(decision);
+        }
+      }
+    }
+
+    // Determine winner(s)
+    let maxVotes = 0;
+    for (const count of voteCounts.values()) {
+      if (count > maxVotes) {
+        maxVotes = count;
+      }
+    }
+
+    const leaders: string[] = [];
+    for (const [candidate, count] of voteCounts.entries()) {
+      if (count === maxVotes) {
+        leaders.push(candidate);
+      }
+    }
+
+    // Determine final winner and tiebreaker info
+    let winner: string | null = null;
+    let tiebreakerUsed = false;
+    let tiebreakerRule = '';
+
+    if (leaders.length === 1) {
+      winner = leaders[0]!;
+    } else if (leaders.length > 1) {
+      // Use first-voter tiebreaker: the candidate who received their first vote earliest wins
+      tiebreakerUsed = true;
+      for (const candidate of voteOrder) {
+        if (leaders.includes(candidate)) {
+          winner = candidate;
+          break;
+        }
+      }
+      tiebreakerRule = isRussian ? 'первый получивший голос' : 'first to receive a vote';
+    }
+
     if (decisionConfig.revealMoment === 'after_all') {
-      // Create one revelation event with all decisions
-      const decisionsContent = decisionEvents
+      // Build human-readable results with names and vote counts
+      const voteCountsArray = Array.from(voteCounts.entries())
+        .sort((a, b) => b[1] - a[1]) // Sort by vote count descending
+        .map(([candidate, count]) => {
+          const voteWord = this.getVoteWord(count, isRussian);
+          return `${candidate} - ${count} ${voteWord}`;
+        });
+
+      // Build voter list with names
+      const votersList = decisionEvents
         .map((e) => {
-          const decisionValue = e.metadata?.decisionValue ?? e.content;
-          return `${e.senderId}: ${decisionValue}`;
+          const voterName = getName(e.senderId);
+          const decision = (e.metadata?.decisionValue ?? e.content) as string;
+          return `${voterName}: ${decision}`;
         })
         .join('\n');
+
+      // Build final content
+      let content: string;
+      if (isRussian) {
+        content = `Результаты голосования:\n${votersList}\n\nИтог: ${voteCountsArray.join(', ')}.`;
+        if (winner) {
+          if (tiebreakerUsed) {
+            content += ` Победитель: ${winner} (по правилу: ${tiebreakerRule})`;
+          } else {
+            content += ` Победитель: ${winner}`;
+          }
+        } else if (leaders.length > 1) {
+          content += ` Ничья между: ${leaders.join(', ')}`;
+        }
+      } else {
+        content = `Voting results:\n${votersList}\n\nSummary: ${voteCountsArray.join(', ')}.`;
+        if (winner) {
+          if (tiebreakerUsed) {
+            content += ` Winner: ${winner} (by rule: ${tiebreakerRule})`;
+          } else {
+            content += ` Winner: ${winner}`;
+          }
+        } else if (leaders.length > 1) {
+          content += ` Tie between: ${leaders.join(', ')}`;
+        }
+      }
 
       const revelationEvent: Omit<ShowEvent, 'sequenceNumber'> = {
         id: generateId(),
@@ -914,13 +1024,19 @@ export class HostModule {
         senderId: '', // System event
         receiverIds: allCharacterIds,
         audienceIds: allCharacterIds,
-        content: `Decision results:\n${decisionsContent}`,
+        content,
         metadata: {
           revealMoment: 'after_all',
           decisions: decisionEvents.map((e) => ({
             characterId: e.senderId,
+            characterName: getName(e.senderId),
             decision: e.metadata?.decisionValue ?? e.content,
           })),
+          voteCounts: Object.fromEntries(voteCounts),
+          winner,
+          leaders,
+          tiebreakerUsed,
+          tiebreakerRule: tiebreakerUsed ? tiebreakerRule : undefined,
         },
         seed,
       };
@@ -929,7 +1045,12 @@ export class HostModule {
     } else {
       // revealMoment === 'after_each': create one revelation event per decision
       for (const decisionEvent of decisionEvents) {
-        const decisionValue = decisionEvent.metadata?.decisionValue ?? decisionEvent.content;
+        const voterName = getName(decisionEvent.senderId);
+        const decisionValue = (decisionEvent.metadata?.decisionValue ?? decisionEvent.content) as string;
+
+        const content = isRussian
+          ? `${voterName} проголосовал за: ${decisionValue}`
+          : `${voterName} voted for: ${decisionValue}`;
 
         const revelationEvent: Omit<ShowEvent, 'sequenceNumber'> = {
           id: generateId(),
@@ -942,10 +1063,11 @@ export class HostModule {
           senderId: decisionEvent.senderId,
           receiverIds: allCharacterIds,
           audienceIds: allCharacterIds,
-          content: `${decisionEvent.senderId} decided: ${decisionValue}`,
+          content,
           metadata: {
             revealMoment: 'after_each',
             characterId: decisionEvent.senderId,
+            characterName: voterName,
             decision: decisionValue,
           },
           seed,
@@ -953,6 +1075,89 @@ export class HostModule {
 
         await this.eventJournal.append(revelationEvent);
       }
+
+      // After all individual revelations, emit final summary with winner
+      const voteCountsArray = Array.from(voteCounts.entries())
+        .sort((a, b) => b[1] - a[1])
+        .map(([candidate, count]) => {
+          const voteWord = this.getVoteWord(count, isRussian);
+          return `${candidate} - ${count} ${voteWord}`;
+        });
+
+      let summaryContent: string;
+      if (isRussian) {
+        summaryContent = `Итог: ${voteCountsArray.join(', ')}.`;
+        if (winner) {
+          if (tiebreakerUsed) {
+            summaryContent += ` Победитель: ${winner} (по правилу: ${tiebreakerRule})`;
+          } else {
+            summaryContent += ` Победитель: ${winner}`;
+          }
+        } else if (leaders.length > 1) {
+          summaryContent += ` Ничья между: ${leaders.join(', ')}`;
+        }
+      } else {
+        summaryContent = `Summary: ${voteCountsArray.join(', ')}.`;
+        if (winner) {
+          if (tiebreakerUsed) {
+            summaryContent += ` Winner: ${winner} (by rule: ${tiebreakerRule})`;
+          } else {
+            summaryContent += ` Winner: ${winner}`;
+          }
+        } else if (leaders.length > 1) {
+          summaryContent += ` Tie between: ${leaders.join(', ')}`;
+        }
+      }
+
+      const summaryEvent: Omit<ShowEvent, 'sequenceNumber'> = {
+        id: generateId(),
+        showId,
+        timestamp: Date.now(),
+        phaseId,
+        type: EventType.revelation,
+        channel: ChannelType.PUBLIC,
+        visibility: ChannelType.PUBLIC,
+        senderId: '', // System event
+        receiverIds: allCharacterIds,
+        audienceIds: allCharacterIds,
+        content: summaryContent,
+        metadata: {
+          revealMoment: 'after_each_summary',
+          voteCounts: Object.fromEntries(voteCounts),
+          winner,
+          leaders,
+          tiebreakerUsed,
+          tiebreakerRule: tiebreakerUsed ? tiebreakerRule : undefined,
+        },
+        seed,
+      };
+
+      await this.eventJournal.append(summaryEvent);
     }
+  }
+
+  /**
+   * Get the correct word form for "vote(s)" based on count and language
+   * Handles Russian plural forms (1 голос, 2-4 голоса, 5+ голосов)
+   */
+  private getVoteWord(count: number, isRussian: boolean): string {
+    if (!isRussian) {
+      return count === 1 ? 'vote' : 'votes';
+    }
+
+    // Russian plural rules
+    const lastTwo = count % 100;
+    const lastOne = count % 10;
+
+    if (lastTwo >= 11 && lastTwo <= 19) {
+      return 'голосов';
+    }
+    if (lastOne === 1) {
+      return 'голос';
+    }
+    if (lastOne >= 2 && lastOne <= 4) {
+      return 'голоса';
+    }
+    return 'голосов';
   }
 }

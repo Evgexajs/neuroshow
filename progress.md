@@ -2117,3 +2117,35 @@ Added a template information panel to the Debug UI that displays template name, 
 3. При невалидном значении: логировать WARNING, попробовать извлечь имя из text ✓
 4. Если не удалось извлечь — записать 'invalid' и продолжить ✓
 5. Не ломать шоу из-за невалидного голоса ✓
+
+---
+
+## 2026-04-07: TASK-094 — Revelation с именами и победителем
+
+**Задача:** Revelation — показывать результаты голосования с именами и победителем
+
+**Изменения:**
+- Обновлён метод `runRevelation()` в `host-module.ts`:
+  - Маппинг ID → имена через configSnapshot.characterDefinitions
+  - Подсчёт голосов за каждого кандидата (Map<candidate, count>)
+  - Определение победителя (максимум голосов)
+  - Обработка ничьей: первый получивший голос побеждает (tiebreaker)
+  - Локализация: русский/английский вывод на основе responseConstraints.language
+  - Правильные склонения: "1 голос", "2-4 голоса", "5+ голосов"
+- Добавлен метод `getVoteWord()` для правильных склонений слова "голос"
+- Формат вывода: "Результаты: Виктор - 2 голоса, Алина - 2 голоса. Победитель: Виктор (по правилу: первый получивший голос)"
+- Для режима after_each добавлен итоговый summary event с результатами
+- В metadata добавлены: voteCounts, winner, leaders, tiebreakerUsed, tiebreakerRule, characterName
+- Обновлены тесты в host-module.test.ts для новых требований
+
+**Тесты:**
+- npm run typecheck — passes
+- npm run lint — passes (0 errors)
+- npm test tests/unit/host-module.test.ts — 50 tests passed
+
+**Acceptance Criteria:**
+1. В revelation событии маппить ID → имена ✓
+2. Подсчитать голоса за каждого кандидата ✓
+3. Определить победителя (максимум голосов) ✓
+4. При ничьей — использовать tiebreaker (первый получивший голос) ✓
+5. Формат: 'Результаты: X - N голосов. Победитель: Y (по правилу Z)' ✓
