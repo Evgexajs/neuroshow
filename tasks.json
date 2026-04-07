@@ -2674,7 +2674,7 @@
         "Ожидаемый результат: данные не теряются при graceful shutdown"
       ],
       "dependencies": [],
-      "status": "pending"
+      "status": "done"
     }
   ]
 }
