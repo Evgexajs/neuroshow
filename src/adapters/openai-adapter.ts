@@ -270,11 +270,18 @@ export class OpenAIAdapter implements ModelAdapter {
       contextParts.push('FACTS:\n' + contextLayers.factsList.map(f => `- ${f}`).join('\n'));
     }
 
+    // TASK-105: Include summary of older events if available
+    if (contextLayers.summary) {
+      contextParts.push('РАНЕЕ: ' + contextLayers.summary);
+    }
+
     if (contextLayers.slidingWindow.length > 0) {
       const history = contextLayers.slidingWindow
         .map(e => `[${e.senderName}]: ${e.content}`)
         .join('\n');
-      contextParts.push('RECENT EVENTS:\n' + history);
+      // Use "НЕДАВНО:" when summary is present, otherwise "RECENT EVENTS:"
+      const recentLabel = contextLayers.summary ? 'НЕДАВНО:' : 'RECENT EVENTS:';
+      contextParts.push(`${recentLabel}\n${history}`);
     }
 
     const contextMessage = contextParts.length > 0 ? contextParts.join('\n\n') : '';

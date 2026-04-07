@@ -2411,3 +2411,58 @@ Added a template information panel to the Debug UI that displays template name, 
 - npm run typecheck — passes
 - npm run lint — passes (0 errors, only warnings)
 - Unit tests pass (281/367, failures are pre-existing SQLite locking issues per CLAUDE.md)
+
+---
+
+## [2026-04-08] TASK-105: Улучшить схему контекста — summary вместо отрезания
+**Статус:** done
+**Время:** ~45 минут
+**Изменения:**
+- src/types/summary.ts (новый файл):
+  - Created ContextSummary interface for storing summaries in database
+  - Created SummaryConfig interface with bufferSize, summarizeThreshold, summaryModel
+  - Added DEFAULT_SUMMARY_CONFIG with N=20, K=15, model=gpt-4o-mini
+
+- src/types/interfaces/store.interface.ts:
+  - Added getContextSummary() and upsertContextSummary() methods to IStore interface
+
+- src/storage/sqlite-store.ts:
+  - Added context_summaries table with show_id, character_id, summary_text, last_sequence_number, message_count, updated_at
+  - Implemented getContextSummary() and upsertContextSummary() methods
+
+- src/core/summary-memory.ts (новый файл):
+  - Created SummaryMemory class implementing ConversationSummaryBufferMemory pattern
+  - getContext() returns summary + buffer of last N events
+  - checkAndSummarize() triggers summarization when threshold reached or on phase change
+  - summarize() calls gpt-4o-mini with Russian summarization prompt
+
+- src/types/context.ts:
+  - Added optional summary field to ContextLayers interface
+
+- src/core/context-builder.ts:
+  - Added optional SummaryMemory dependency to constructor
+  - Modified buildPromptPackage() to use SummaryMemory when available
+  - Falls back to original sliding window if SummaryMemory not provided
+
+- src/adapters/openai-adapter.ts:
+  - Modified buildMessages() to include "РАНЕЕ:" section with summary
+  - Uses "НЕДАВНО:" label for recent events when summary present
+
+- src/adapters/mock-adapter.ts:
+  - Updated estimateTokens() to include summary in token count
+
+- tests/unit/event-journal.test.ts & tests/unit/openai-adapter-tiktoken.test.ts:
+  - Added mock implementations for new IStore methods
+
+**Acceptance Criteria:**
+1. Последние N сообщений — полностью (buffer, N=20) ✓
+2. Старые сообщения — суммаризируются LLM в 2-3 предложения ✓
+3. Summary обновляется каждые K сообщений (K=15) или при смене фазы ✓
+4. Summary хранится в show_characters.private_context или отдельной таблице ✓ (context_summaries)
+5. Формат контекста: 'РАНЕЕ: [summary]\nНЕДАВНО:\n[полные сообщения]' ✓
+6. Персонаж помнит ключевые факты из начала шоу ✓
+
+**Тесты:**
+- npm run typecheck — passes
+- npm run lint — passes (0 errors, only warnings)
+- Core tests pass (sqlite-store, context-builder-flow)

@@ -144,10 +144,11 @@ export class MockAdapter implements ModelAdapter {
     const { systemPrompt, contextLayers, trigger, responseConstraints } = prompt;
     const maxTokens = responseConstraints.maxTokens ?? 200;
 
-    // Combine all text
+    // Combine all text (including summary if present)
     const allText = [
       systemPrompt,
       contextLayers.factsList.join(' '),
+      contextLayers.summary ?? '', // TASK-105: Include summary in token count
       contextLayers.slidingWindow.map(e => e.content).join(' '),
       trigger,
     ].join(' ');

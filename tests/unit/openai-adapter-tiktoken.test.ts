@@ -35,6 +35,8 @@ function createMockStore(): IStore {
     getBudget: vi.fn(),
     updateBudget: vi.fn(),
     setBudgetMode: vi.fn(),
+    getContextSummary: vi.fn(),
+    upsertContextSummary: vi.fn(),
     initSchema: vi.fn(),
     walCheckpoint: vi.fn(),
     close: vi.fn(),

@@ -9,6 +9,7 @@
 import { ShowEvent } from '../events.js';
 import { ShowStatus, BudgetMode } from '../enums.js';
 import { PrivateContext } from '../context.js';
+import { ContextSummary } from '../summary.js';
 
 /**
  * Show record in storage
@@ -141,6 +142,14 @@ export interface IStore {
 
   /** Set budget mode */
   setBudgetMode(showId: string, mode: BudgetMode): Promise<void>;
+
+  // ─── Context Summaries ─────────────────────────────────────────
+
+  /** Get context summary for character in show */
+  getContextSummary(showId: string, characterId: string): Promise<ContextSummary | null>;
+
+  /** Create or update context summary */
+  upsertContextSummary(summary: ContextSummary): Promise<void>;
 
   // ─── Lifecycle ─────────────────────────────────────────────────
 

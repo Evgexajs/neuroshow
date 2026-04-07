@@ -4,6 +4,7 @@
  */
 
 import { EventJournal } from './event-journal.js';
+import { SummaryMemory } from './summary-memory.js';
 import { IStore } from '../types/interfaces/store.interface.js';
 import { EventType } from '../types/enums.js';
 import { EventSummary } from '../types/events.js';
@@ -24,7 +25,8 @@ import { ResponseConstraints } from '../types/primitives.js';
 export class ContextBuilder {
   constructor(
     private readonly journal: EventJournal,
-    private readonly store: IStore
+    private readonly store: IStore,
+    private readonly summaryMemory?: SummaryMemory
   ) {}
 
   /**
@@ -178,18 +180,32 @@ export class ContextBuilder {
 
     // Build context layers
     const factsList = await this.buildFactsList(character.id, show.id, nameMap);
-    const slidingWindow = await this.buildSlidingWindow(
-      character.id,
-      show.id,
-      contextWindowSize,
-      nameMap
-    );
+
+    // Use SummaryMemory if available, otherwise fall back to sliding window
+    let slidingWindow: EventSummary[];
+    let summary: string | null = null;
+
+    if (this.summaryMemory) {
+      // TASK-105: Use SummaryMemory for context
+      const context = await this.summaryMemory.getContext(show.id, character.id, nameMap);
+      summary = context.summary;
+      slidingWindow = context.buffer;
+    } else {
+      // Fallback: Original sliding window behavior
+      slidingWindow = await this.buildSlidingWindow(
+        character.id,
+        show.id,
+        contextWindowSize,
+        nameMap
+      );
+    }
 
     return {
       systemPrompt,
       contextLayers: {
         factsList,
         slidingWindow,
+        summary,
       },
       trigger,
       responseConstraints: character.responseConstraints,

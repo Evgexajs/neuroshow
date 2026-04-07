@@ -40,11 +40,15 @@ export interface PrivateContext {
  * information to characters during the show:
  * - factsList: static facts that don't change during the show
  * - slidingWindow: recent events visible to the character
+ * - summary: LLM-generated summary of older events (TASK-105)
  */
 export interface ContextLayers {
   /** Static facts about the show format, rules, and character cards */
   factsList: string[];
 
-  /** Recent events visible to this character (sliding window) */
+  /** Recent events visible to this character (sliding window or buffer) */
   slidingWindow: EventSummary[];
+
+  /** LLM-generated summary of older events (TASK-105: SummaryMemory) */
+  summary?: string | null;
 }
