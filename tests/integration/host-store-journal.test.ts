@@ -165,7 +165,7 @@ describe('Integration: HostModule + SqliteStore + EventJournal', () => {
       expect(storedShow!.id).toBe(show.id);
       expect(storedShow!.formatId).toBe('test-format');
       expect(storedShow!.seed).toBe('42');
-      expect(storedShow!.status).toBe(ShowStatus.running);
+      expect(storedShow!.status).toBe(ShowStatus.created);
       expect(storedShow!.currentPhaseId).toBe('phase-1');
     });
 
@@ -565,7 +565,7 @@ describe('Integration: HostModule + SqliteStore + EventJournal', () => {
       // Step 6: Verify show record
       const finalShow = await store.getShow(show.id);
       expect(finalShow).not.toBeNull();
-      expect(finalShow!.status).toBe(ShowStatus.running);
+      expect(finalShow!.status).toBe(ShowStatus.created);
 
       // Step 7: Verify budget
       const budget = await store.getBudget(show.id);
