@@ -951,3 +951,29 @@
 
 **Тесты:** npm run typecheck, npm test — все пройдены (237 tests passed).
 **Заметки:** EventSource подключается по URL /shows/{showId}/events, поддерживает Last-Event-ID для reconnection.
+
+## TASK-053: Show Format: создание шаблона 'Коалиция' (MVP формат)
+
+**Дата:** 2026-04-07
+
+**Статус:** Выполнено
+
+**Изменения:**
+- src/formats/coalition.json — создан шаблон формата по спецификации из PRD раздел 12:
+  - id: "coalition", name: "Коалиция"
+  - minParticipants: 5, maxParticipants: 5
+  - 3 фазы:
+    - Фаза 1: Знакомство (PUBLIC, sequential, 15 ходов)
+    - Фаза 2: Переговоры (PUBLIC+PRIVATE, frequency_weighted, 15 ходов)
+    - Фаза 3: Финальное решение (DECISION, sequential)
+  - privateChannelRules: maxPrivatesPerPhase=4, maxPrivatesPerCharacterPerPhase=2
+  - decisionConfig: timing=simultaneous, visibility=secret_until_reveal, revealMoment=after_all, format=choice
+
+- tests/unit/coalition-template.test.ts — создан тест для валидации шаблона против ShowFormatTemplate:
+  - Проверка базовой структуры (id, name, participants)
+  - Проверк�� всех 3 фаз и их полей
+  - Проверка privateChannelRules и decisionConfig
+  - Проверка channelTypes и contextWindowSize
+
+**Тесты:** npm run typecheck, npm test — все пройдены (257 tests passed).
+**Заметки:** Шаблон соответствует ShowFormatTemplate из types/template.ts. Wildcard trigger будет реализован в контексте персонажей (TASK-054).

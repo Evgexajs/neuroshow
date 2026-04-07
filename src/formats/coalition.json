@@ -1,0 +1,59 @@
+{
+  "id": "coalition",
+  "name": "Коалиция",
+  "description": "5 персонажей соревнуются за один приз. До начала у некоторых есть тайные предварительные договорённости. В финале каждый тайно голосует за другого участника, кто получит приз.",
+  "minParticipants": 5,
+  "maxParticipants": 5,
+  "phases": [
+    {
+      "id": "phase-1-introduction",
+      "name": "Знакомство",
+      "type": "discussion",
+      "durationMode": "turns",
+      "durationValue": 15,
+      "turnOrder": "sequential",
+      "allowedChannels": ["PUBLIC"],
+      "triggerTemplate": "Расскажи о себе и своих ценностях",
+      "completionCondition": "all_turns_completed"
+    },
+    {
+      "id": "phase-2-negotiations",
+      "name": "Переговоры",
+      "type": "discussion",
+      "durationMode": "turns",
+      "durationValue": 15,
+      "turnOrder": "frequency_weighted",
+      "allowedChannels": ["PUBLIC", "PRIVATE"],
+      "triggerTemplate": "Продолжай переговоры. Ты можешь запросить приватный разговор с другим участником.",
+      "completionCondition": "all_turns_completed"
+    },
+    {
+      "id": "phase-3-decision",
+      "name": "Финальное решение",
+      "type": "decision",
+      "durationMode": "turns",
+      "durationValue": 5,
+      "turnOrder": "sequential",
+      "allowedChannels": ["PUBLIC"],
+      "triggerTemplate": "Время принять финальное решение. Тайно проголосуй за одного из других участников, кто, по твоему мнению, должен получить приз.",
+      "completionCondition": "all_decisions_collected"
+    }
+  ],
+  "decisionConfig": {
+    "timing": "simultaneous",
+    "visibility": "secret_until_reveal",
+    "revealMoment": "after_all",
+    "format": "choice",
+    "options": null
+  },
+  "channelTypes": ["PUBLIC", "PRIVATE"],
+  "privateChannelRules": {
+    "initiator": "character_request_host_approves",
+    "maxPrivatesPerPhase": 4,
+    "maxPrivatesPerCharacterPerPhase": 2,
+    "requestQueueMode": "fifo",
+    "requestFormat": "structured_signal"
+  },
+  "contextWindowSize": 50,
+  "allowCharacterInitiative": false
+}
