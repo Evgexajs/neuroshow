@@ -2285,3 +2285,28 @@ Added a template information panel to the Debug UI that displays template name, 
 **Тесты:**
 - npm run typecheck — passes
 - npm run lint — passes (0 errors, only warnings)
+
+---
+
+## [2026-04-07] TASK-100: Автоматически собирать debug-ui JS при коммите
+**Статус:** done
+**Время:** ~10 минут
+**Изменения:**
+- .git/hooks/pre-commit:
+  - Created pre-commit hook that checks if app.ts is staged
+  - If app.ts staged: automatically runs npm run build:ui and stages app.js
+  - Also checks if app.js is outdated relative to app.ts and blocks commit if so
+- CLAUDE.md:
+  - Added "Debug UI" section with reminder about building debug-ui
+  - Documents that pre-commit hook auto-rebuilds when app.ts is staged
+  - Instructions for manual build if commit is blocked
+
+**Acceptance Criteria:**
+1. Pre-commit hook проверяет что app.js актуален относительно app.ts ✓
+2. Или lint-staged автоматически пересобирает при изменении app.ts ✓ (hook auto-rebuilds)
+3. Коммит блокируется если JS устарел относительно TS ✓
+4. Добавить в CLAUDE.md напоминание про сборку debug-ui ✓
+
+**Тесты:**
+- npm run typecheck — passes
+- npm run lint — passes (0 errors)
