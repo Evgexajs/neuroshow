@@ -426,3 +426,18 @@
 **Тесты:** npm run typecheck, npm test — все пройдены (106 tests passed).
 **Заметки:** Метод собирает полный PromptPackage для вызова ModelAdapter.call(). От этой задачи зависят TASK-028, TASK-035, TASK-037.
 
+## [2026-04-07] TASK-028: Context Builder: trimToTokenBudget()
+**Статус:** done
+**Время:** ~10 минут
+**Изменения:**
+- src/core/context-builder.ts — добавлен метод trimToTokenBudget():
+  - trimToTokenBudget(package, maxTokens, adapter): PromptPackage
+  - Использует adapter.estimateTokens() для оценки токенов
+  - Сокращает slidingWindow (удаляет старейшие события) если превышен лимит
+  - factsList НИКОГДА не обрезается — всегда сохраняется полностью
+  - Возвращает пакет, укладывающийся в бюджет
+- tests/unit/context-builder.test.ts — добавлены 7 тестов для trimToTokenBudget()
+
+**Тесты:** npm run typecheck, npm test — все пройдены (113 tests passed).
+**Заметки:** Метод позволяет контролировать размер контекста для LLM-вызовов. Приоритет отдаётся сохранению factsList (секреты, цели, альянсы), slidingWindow сокращается при необходимости.
+

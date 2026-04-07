@@ -15,6 +15,7 @@ import { PrivateContext } from '../../src/types/context.js';
 import { CharacterDefinition } from '../../src/types/character.js';
 import { Show } from '../../src/types/runtime.js';
 import { ShowFormatTemplate } from '../../src/types/template.js';
+import { PromptPackage, ModelAdapter, TokenEstimate, CharacterResponse } from '../../src/types/adapter.js';
 
 // Mock store implementation
 function createMockStore(overrides: Partial<IStore> = {}): IStore {
@@ -642,6 +643,181 @@ describe('ContextBuilder', () => {
 
       // Default contextWindowSize is 50
       expect(journal.getVisibleEvents).toHaveBeenCalledWith('show-1', 'char-1', 50);
+    });
+  });
+
+  describe('trimToTokenBudget', () => {
+    // Helper: create a mock adapter that returns configurable token counts
+    function createMockAdapter(tokenCountFn: (pkg: PromptPackage) => number): ModelAdapter {
+      return {
+        providerId: 'mock',
+        modelId: 'mock-v1',
+        call: vi.fn().mockResolvedValue({ text: 'response' }),
+        estimateTokens: (pkg: PromptPackage): TokenEstimate => ({
+          prompt: tokenCountFn(pkg),
+          estimatedCompletion: 100, // Fixed completion estimate
+        }),
+      };
+    }
+
+    function createTestPromptPackage(slidingWindowSize: number, factsListSize: number): PromptPackage {
+      return {
+        systemPrompt: 'You are a test character.',
+        contextLayers: {
+          factsList: Array.from({ length: factsListSize }, (_, i) => `[Fact] Fact number ${i + 1}`),
+          slidingWindow: Array.from({ length: slidingWindowSize }, (_, i) => ({
+            senderId: `char-${i % 3 + 1}`,
+            channel: ChannelType.PUBLIC,
+            content: `Message ${i + 1}: This is a test message with some content.`,
+            timestamp: 1000 + i * 100,
+          })),
+        },
+        trigger: 'What do you think?',
+        responseConstraints: {
+          maxTokens: 200,
+          format: 'structured',
+          language: 'en',
+        },
+      };
+    }
+
+    it('should return package unchanged if within budget', () => {
+      const store = createMockStore();
+      const journal = new EventJournal(store);
+      const builder = new ContextBuilder(journal, store);
+
+      // Create a small package
+      const pkg = createTestPromptPackage(5, 3);
+
+      // Adapter that counts 50 tokens per sliding window entry + 100 base
+      const adapter = createMockAdapter((p) => 100 + p.contextLayers.slidingWindow.length * 50);
+
+      // 100 base + 5 * 50 = 350 prompt + 100 completion = 450 total
+      // Budget is 500, so it should fit
+      const result = builder.trimToTokenBudget(pkg, 500, adapter);
+
+      expect(result.contextLayers.slidingWindow.length).toBe(5);
+      expect(result.contextLayers.factsList.length).toBe(3);
+    });
+
+    it('should trim slidingWindow when over budget', () => {
+      const store = createMockStore();
+      const journal = new EventJournal(store);
+      const builder = new ContextBuilder(journal, store);
+
+      // Create a package with 10 events in sliding window
+      const pkg = createTestPromptPackage(10, 3);
+
+      // Adapter that counts 50 tokens per sliding window entry + 100 base
+      const adapter = createMockAdapter((p) => 100 + p.contextLayers.slidingWindow.length * 50);
+
+      // 100 base + 10 * 50 = 600 prompt + 100 completion = 700 total
+      // Budget is 500, need to remove at least 4 events to get to 400 prompt + 100 = 500
+      const result = builder.trimToTokenBudget(pkg, 500, adapter);
+
+      expect(result.contextLayers.slidingWindow.length).toBeLessThan(10);
+      expect(result.contextLayers.slidingWindow.length).toBe(6); // 100 + 6*50 = 400 + 100 = 500
+    });
+
+    it('should NEVER trim factsList', () => {
+      const store = createMockStore();
+      const journal = new EventJournal(store);
+      const builder = new ContextBuilder(journal, store);
+
+      // Create a package with large facts list
+      const pkg = createTestPromptPackage(5, 10);
+
+      // Adapter that counts based on slidingWindow only (facts are "free")
+      const adapter = createMockAdapter((p) => 100 + p.contextLayers.slidingWindow.length * 100);
+
+      // Even with tight budget, factsList should remain intact
+      const result = builder.trimToTokenBudget(pkg, 300, adapter);
+
+      // All 10 facts should remain
+      expect(result.contextLayers.factsList.length).toBe(10);
+      expect(result.contextLayers.factsList).toEqual(pkg.contextLayers.factsList);
+    });
+
+    it('should remove oldest events first (from beginning)', () => {
+      const store = createMockStore();
+      const journal = new EventJournal(store);
+      const builder = new ContextBuilder(journal, store);
+
+      const pkg = createTestPromptPackage(5, 2);
+
+      // Adapter: 50 tokens per event + 100 base
+      const adapter = createMockAdapter((p) => 100 + p.contextLayers.slidingWindow.length * 50);
+
+      // 100 + 5*50 = 350 prompt + 100 = 450 total
+      // Budget 350 means we need 250 prompt, i.e., 3 events max
+      const result = builder.trimToTokenBudget(pkg, 350, adapter);
+
+      expect(result.contextLayers.slidingWindow.length).toBe(3);
+
+      // Should keep newest events (index 2, 3, 4 from original)
+      expect(result.contextLayers.slidingWindow[0].content).toBe('Message 3: This is a test message with some content.');
+      expect(result.contextLayers.slidingWindow[1].content).toBe('Message 4: This is a test message with some content.');
+      expect(result.contextLayers.slidingWindow[2].content).toBe('Message 5: This is a test message with some content.');
+    });
+
+    it('should handle empty slidingWindow', () => {
+      const store = createMockStore();
+      const journal = new EventJournal(store);
+      const builder = new ContextBuilder(journal, store);
+
+      const pkg = createTestPromptPackage(0, 3);
+
+      // Even with very low budget, should not error
+      const adapter = createMockAdapter(() => 500); // Always 500 tokens
+
+      const result = builder.trimToTokenBudget(pkg, 100, adapter);
+
+      expect(result.contextLayers.slidingWindow.length).toBe(0);
+      expect(result.contextLayers.factsList.length).toBe(3);
+    });
+
+    it('should return package fitting within budget', () => {
+      const store = createMockStore();
+      const journal = new EventJournal(store);
+      const builder = new ContextBuilder(journal, store);
+
+      const pkg = createTestPromptPackage(20, 5);
+
+      // Adapter: realistic token counting
+      const adapter = createMockAdapter((p) => {
+        const base = 200; // System prompt + trigger
+        const perEvent = 30;
+        return base + p.contextLayers.slidingWindow.length * perEvent;
+      });
+
+      const maxTokens = 500;
+      const result = builder.trimToTokenBudget(pkg, maxTokens, adapter);
+
+      // Verify result fits within budget
+      const estimate = adapter.estimateTokens(result);
+      const total = estimate.prompt + estimate.estimatedCompletion;
+      expect(total).toBeLessThanOrEqual(maxTokens);
+    });
+
+    it('should use adapter.estimateTokens() for estimation', () => {
+      const store = createMockStore();
+      const journal = new EventJournal(store);
+      const builder = new ContextBuilder(journal, store);
+
+      const pkg = createTestPromptPackage(5, 2);
+
+      const estimateTokensSpy = vi.fn().mockReturnValue({ prompt: 100, estimatedCompletion: 50 });
+      const adapter: ModelAdapter = {
+        providerId: 'mock',
+        modelId: 'mock-v1',
+        call: vi.fn().mockResolvedValue({ text: 'response' }),
+        estimateTokens: estimateTokensSpy,
+      };
+
+      builder.trimToTokenBudget(pkg, 200, adapter);
+
+      // Should have called estimateTokens at least once
+      expect(estimateTokensSpy).toHaveBeenCalled();
     });
   });
 });

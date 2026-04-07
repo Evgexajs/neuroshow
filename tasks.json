@@ -3,7 +3,6 @@
   "version": "1.0.0",
   "created_at": "2026-03-18",
   "based_on": "PRD.md v1.3",
-
   "agent_instructions": {
     "before_start": [
       "Прочитай этот файл и выполни: git log --oneline -20",
@@ -32,10 +31,19 @@
       "Если метод не найден с ТОЧНЫМ именем — задача НЕ выполнена",
       "Добавь тест который проверяет return value для методов возвращающих данные"
     ],
-    "status_values": ["pending", "in_progress", "done", "blocked"],
-    "priority_order": ["critical", "high", "medium", "low"]
+    "status_values": [
+      "pending",
+      "in_progress",
+      "done",
+      "blocked"
+    ],
+    "priority_order": [
+      "critical",
+      "high",
+      "medium",
+      "low"
+    ]
   },
-
   "tasks": [
     {
       "id": "TASK-000",
@@ -94,7 +102,9 @@
         "Проверь, что config.port возвращает значение из .env",
         "Ожидаемый результат: конфигурация читается корректно"
       ],
-      "dependencies": ["TASK-001"],
+      "dependencies": [
+        "TASK-001"
+      ],
       "status": "done"
     },
     {
@@ -114,7 +124,9 @@
         "Выполни: npm run test",
         "Ожидаемый результат: тест проходит, vitest показывает зелёный статус"
       ],
-      "dependencies": ["TASK-001"],
+      "dependencies": [
+        "TASK-001"
+      ],
       "status": "done"
     },
     {
@@ -134,7 +146,9 @@
         "Проверь, что ID уникальны",
         "Ожидаемый результат: логи выводятся с форматированием, ID уникальны"
       ],
-      "dependencies": ["TASK-002"],
+      "dependencies": [
+        "TASK-002"
+      ],
       "status": "done"
     },
     {
@@ -159,7 +173,9 @@
         "Проверь, что EventType.speech === 'speech'",
         "Ожидаемый результат: типы доступны и корректны"
       ],
-      "dependencies": ["TASK-001"],
+      "dependencies": [
+        "TASK-001"
+      ],
       "status": "done"
     },
     {
@@ -182,7 +198,9 @@
         "Выполни: npm run build",
         "Ожидаемый результат: компиляция успешна"
       ],
-      "dependencies": ["TASK-005"],
+      "dependencies": [
+        "TASK-005"
+      ],
       "status": "done"
     },
     {
@@ -202,7 +220,10 @@
         "Выполни: npm run build",
         "Ожидаемый результат: компиляция успешна, типы строгие"
       ],
-      "dependencies": ["TASK-005", "TASK-006"],
+      "dependencies": [
+        "TASK-005",
+        "TASK-006"
+      ],
       "status": "done"
     },
     {
@@ -222,7 +243,10 @@
         "Выполни: npm run build",
         "Ожидаемый результат: компиляция успешна"
       ],
-      "dependencies": ["TASK-006", "TASK-007"],
+      "dependencies": [
+        "TASK-006",
+        "TASK-007"
+      ],
       "status": "done"
     },
     {
@@ -241,7 +265,10 @@
         "Выполни: npm run build",
         "Ожидаемый результат: компиляция успешна"
       ],
-      "dependencies": ["TASK-006", "TASK-008"],
+      "dependencies": [
+        "TASK-006",
+        "TASK-008"
+      ],
       "status": "done"
     },
     {
@@ -261,7 +288,10 @@
         "Выполни: npm run build",
         "Ожидаемый результат: компиляция успешна"
       ],
-      "dependencies": ["TASK-005", "TASK-006"],
+      "dependencies": [
+        "TASK-005",
+        "TASK-006"
+      ],
       "status": "done"
     },
     {
@@ -283,7 +313,11 @@
         "Выполни: npm run build",
         "Ожидаемый результат: все типы доступны через один импорт"
       ],
-      "dependencies": ["TASK-008", "TASK-009", "TASK-010"],
+      "dependencies": [
+        "TASK-008",
+        "TASK-009",
+        "TASK-010"
+      ],
       "status": "done"
     },
     {
@@ -303,7 +337,10 @@
         "Выполни: npm run build",
         "Ожидаемый результат: компиляция успешна"
       ],
-      "dependencies": ["TASK-005", "TASK-008"],
+      "dependencies": [
+        "TASK-005",
+        "TASK-008"
+      ],
       "status": "done"
     },
     {
@@ -324,7 +361,10 @@
         "Проверь наличие таблиц через SQL: SELECT name FROM sqlite_master WHERE type='table'",
         "Ожидаемый результат: 5 таблиц созданы"
       ],
-      "dependencies": ["TASK-007", "TASK-012"],
+      "dependencies": [
+        "TASK-007",
+        "TASK-012"
+      ],
       "status": "done"
     },
     {
@@ -346,7 +386,9 @@
         "Проверь, что getShow() возвращает обновлённые данные",
         "Ожидаемый результат: CRUD работает корректно"
       ],
-      "dependencies": ["TASK-013"],
+      "dependencies": [
+        "TASK-013"
+      ],
       "status": "done"
     },
     {
@@ -367,7 +409,10 @@
         "Получи одного персонажа через getCharacter()",
         "Ожидаемый результат: персонажи сохраняются и читаются"
       ],
-      "dependencies": ["TASK-013", "TASK-014"],
+      "dependencies": [
+        "TASK-013",
+        "TASK-014"
+      ],
       "status": "done"
     },
     {
@@ -389,7 +434,10 @@
         "Проверь, что осталось только 3 события",
         "Ожидаемый результат: append-only логика работает, rollback удаляет"
       ],
-      "dependencies": ["TASK-013", "TASK-014"],
+      "dependencies": [
+        "TASK-013",
+        "TASK-014"
+      ],
       "status": "done"
     },
     {
@@ -413,7 +461,10 @@
         "Получи вызов через getLLMCallByEventId()",
         "Ожидаемый результат: бюджет и логи работают"
       ],
-      "dependencies": ["TASK-013", "TASK-014"],
+      "dependencies": [
+        "TASK-013",
+        "TASK-014"
+      ],
       "status": "done"
     },
     {
@@ -435,7 +486,9 @@
         "Проверь, что sequenceNumber назначены корректно (1, 2, 3)",
         "Ожидаемый результат: журнал работает корректно"
       ],
-      "dependencies": ["TASK-016"],
+      "dependencies": [
+        "TASK-016"
+      ],
       "status": "done"
     },
     {
@@ -457,7 +510,9 @@
         "Проверь, что вернулось только 3 PUBLIC события",
         "Ожидаемый результат: приватность соблюдается"
       ],
-      "dependencies": ["TASK-018"],
+      "dependencies": [
+        "TASK-018"
+      ],
       "status": "done"
     },
     {
@@ -477,7 +532,9 @@
         "Проверь, что осталось только 5 событий",
         "Ожидаемый результат: rollback работает корректно"
       ],
-      "dependencies": ["TASK-018"],
+      "dependencies": [
+        "TASK-018"
+      ],
       "status": "done"
     },
     {
@@ -500,7 +557,9 @@
         "Проверь, что повторный вызов с тем же seed возвращает тот же ответ",
         "Ожидаемый результат: mock работает детерминированно"
       ],
-      "dependencies": ["TASK-011"],
+      "dependencies": [
+        "TASK-011"
+      ],
       "status": "done"
     },
     {
@@ -523,7 +582,10 @@
         "Проверь, что вызов залогирован в БД",
         "Ожидаемый результат: интеграция с OpenAI работает"
       ],
-      "dependencies": ["TASK-011", "TASK-017"],
+      "dependencies": [
+        "TASK-011",
+        "TASK-017"
+      ],
       "status": "done"
     },
     {
@@ -544,7 +606,9 @@
         "Проверь, что после retry возвращается fallback",
         "Ожидаемый результат: система устойчива к ошибкам API"
       ],
-      "dependencies": ["TASK-022"],
+      "dependencies": [
+        "TASK-022"
+      ],
       "status": "done"
     },
     {
@@ -564,7 +628,9 @@
         "Сравни с реальным usage из ответа API (погрешность < 10%)",
         "Ожидаемый результат: оценка близка к реальности"
       ],
-      "dependencies": ["TASK-022"],
+      "dependencies": [
+        "TASK-022"
+      ],
       "status": "done"
     },
     {
@@ -586,7 +652,10 @@
         "Проверь, что раскрытый wildcard (revelation event) включён",
         "Ожидаемый результат: факты собираются корректно"
       ],
-      "dependencies": ["TASK-018", "TASK-019"],
+      "dependencies": [
+        "TASK-018",
+        "TASK-019"
+      ],
       "status": "done"
     },
     {
@@ -607,7 +676,9 @@
         "Проверь, что PRIVATE события других персонажей отфильтрованы",
         "Ожидаемый результат: sliding window работает с приватностью"
       ],
-      "dependencies": ["TASK-019"],
+      "dependencies": [
+        "TASK-019"
+      ],
       "status": "done"
     },
     {
@@ -629,7 +700,10 @@
         "Проверь, что factsList не пустой",
         "Ожидаемый результат: полный пакет собирается"
       ],
-      "dependencies": ["TASK-025", "TASK-026"],
+      "dependencies": [
+        "TASK-025",
+        "TASK-026"
+      ],
       "status": "done"
     },
     {
@@ -651,8 +725,11 @@
         "Проверь, что factsList остался полным",
         "Ожидаемый результат: пакет укладывается в бюджет"
       ],
-      "dependencies": ["TASK-027", "TASK-021"],
-      "status": "pending"
+      "dependencies": [
+        "TASK-027",
+        "TASK-021"
+      ],
+      "status": "done"
     },
     {
       "id": "TASK-029",
@@ -676,7 +753,12 @@
         "Проверь, что бюджет создан",
         "Ожидаемый результат: шоу инициализируется полностью"
       ],
-      "dependencies": ["TASK-014", "TASK-015", "TASK-017", "TASK-018"],
+      "dependencies": [
+        "TASK-014",
+        "TASK-015",
+        "TASK-017",
+        "TASK-018"
+      ],
       "status": "pending"
     },
     {
@@ -698,7 +780,9 @@
         "Проверь, что high-frequency персонажи чаще в начале",
         "Ожидаемый результат: очередь формируется по правилам"
       ],
-      "dependencies": ["TASK-029"],
+      "dependencies": [
+        "TASK-029"
+      ],
       "status": "pending"
     },
     {
@@ -718,7 +802,10 @@
         "Проверь audienceIds события",
         "Ожидаемый результат: триггер записывается корректно"
       ],
-      "dependencies": ["TASK-018", "TASK-029"],
+      "dependencies": [
+        "TASK-018",
+        "TASK-029"
+      ],
       "status": "pending"
     },
     {
@@ -739,7 +826,10 @@
         "Проверь, что channel_change события записаны",
         "Ожидаемый результат: лимиты соблюдаются"
       ],
-      "dependencies": ["TASK-018", "TASK-029"],
+      "dependencies": [
+        "TASK-018",
+        "TASK-029"
+      ],
       "status": "pending"
     },
     {
@@ -762,7 +852,10 @@
         "Проверь visibility событий по decisionConfig.visibility",
         "Ожидаемый результат: решения собираются по правилам"
       ],
-      "dependencies": ["TASK-030", "TASK-031"],
+      "dependencies": [
+        "TASK-030",
+        "TASK-031"
+      ],
       "status": "pending"
     },
     {
@@ -783,7 +876,9 @@
         "Проверь, что все персонажи видят результаты",
         "Ожидаемый результат: раскрытие происходит по правилам"
       ],
-      "dependencies": ["TASK-033"],
+      "dependencies": [
+        "TASK-033"
+      ],
       "status": "pending"
     },
     {
@@ -802,7 +897,12 @@
         "Проверь, что getState() возвращает начальное состояние",
         "Ожидаемый результат: DI работает корректно"
       ],
-      "dependencies": ["TASK-018", "TASK-021", "TASK-027", "TASK-029"],
+      "dependencies": [
+        "TASK-018",
+        "TASK-021",
+        "TASK-027",
+        "TASK-029"
+      ],
       "status": "pending"
     },
     {
@@ -824,7 +924,9 @@
         "Проверь, что phase_end событие записано",
         "Ожидаемый результат: фаза выполняется полностью"
       ],
-      "dependencies": ["TASK-035"],
+      "dependencies": [
+        "TASK-035"
+      ],
       "status": "pending"
     },
     {
@@ -846,7 +948,10 @@
         "Проверь, что бюджет обновился",
         "Ожидаемый результат: ход выполняется с LLM вызовом"
       ],
-      "dependencies": ["TASK-035", "TASK-027"],
+      "dependencies": [
+        "TASK-035",
+        "TASK-027"
+      ],
       "status": "pending"
     },
     {
@@ -868,7 +973,10 @@
         "Проверь, что событие 'revelation' создано",
         "Ожидаемый результат: все intent обрабатываются"
       ],
-      "dependencies": ["TASK-037", "TASK-032"],
+      "dependencies": [
+        "TASK-037",
+        "TASK-032"
+      ],
       "status": "pending"
     },
     {
@@ -890,7 +998,10 @@
         "Проверь, что событие 'system' записано",
         "Ожидаемый результат: пороги срабатывают"
       ],
-      "dependencies": ["TASK-017", "TASK-037"],
+      "dependencies": [
+        "TASK-017",
+        "TASK-037"
+      ],
       "status": "pending"
     },
     {
@@ -913,7 +1024,11 @@
         "Проверь, что шоу завершено со статусом 'completed'",
         "Ожидаемый результат: шоу завершается корректно"
       ],
-      "dependencies": ["TASK-033", "TASK-034", "TASK-039"],
+      "dependencies": [
+        "TASK-033",
+        "TASK-034",
+        "TASK-039"
+      ],
       "status": "pending"
     },
     {
@@ -937,7 +1052,13 @@
         "Проверь, что статус шоу = 'completed'",
         "Ожидаемый результат: полный выпуск проходит end-to-end"
       ],
-      "dependencies": ["TASK-036", "TASK-037", "TASK-038", "TASK-039", "TASK-040"],
+      "dependencies": [
+        "TASK-036",
+        "TASK-037",
+        "TASK-038",
+        "TASK-039",
+        "TASK-040"
+      ],
       "status": "pending"
     },
     {
@@ -960,7 +1081,9 @@
         "Вызови resume() - шоу продолжается автоматически",
         "Ожидаемый результат: DEBUG режим работает"
       ],
-      "dependencies": ["TASK-041"],
+      "dependencies": [
+        "TASK-041"
+      ],
       "status": "pending"
     },
     {
@@ -982,7 +1105,10 @@
         "Вызови step() - выполняется первый ход 2-й фазы заново",
         "Ожидаемый результат: rollback работает"
       ],
-      "dependencies": ["TASK-020", "TASK-042"],
+      "dependencies": [
+        "TASK-020",
+        "TASK-042"
+      ],
       "status": "pending"
     },
     {
@@ -1003,7 +1129,10 @@
         "Проверь, что вернулся { status: 'ok' }",
         "Ожидаемый результат: сервер работает"
       ],
-      "dependencies": ["TASK-002", "TASK-035"],
+      "dependencies": [
+        "TASK-002",
+        "TASK-035"
+      ],
       "status": "pending"
     },
     {
@@ -1023,7 +1152,10 @@
         "Проверь, что шоу создано в БД",
         "Ожидаемый результат: шоу создаётся через API"
       ],
-      "dependencies": ["TASK-044", "TASK-029"],
+      "dependencies": [
+        "TASK-044",
+        "TASK-029"
+      ],
       "status": "pending"
     },
     {
@@ -1045,7 +1177,10 @@
         "Добавь новое событие - проверь, что оно пришло в stream",
         "Ожидаемый результат: SSE работает в реальном времени"
       ],
-      "dependencies": ["TASK-044", "TASK-018"],
+      "dependencies": [
+        "TASK-044",
+        "TASK-018"
+      ],
       "status": "pending"
     },
     {
@@ -1068,7 +1203,10 @@
         "Проверь, что шоу приостановилось",
         "Ожидаемый результат: все команды работают"
       ],
-      "dependencies": ["TASK-044", "TASK-042"],
+      "dependencies": [
+        "TASK-044",
+        "TASK-042"
+      ],
       "status": "pending"
     },
     {
@@ -1087,7 +1225,10 @@
         "Проверь, что вернулись все поля",
         "Ожидаемый результат: статус возвращается корректно"
       ],
-      "dependencies": ["TASK-044", "TASK-039"],
+      "dependencies": [
+        "TASK-044",
+        "TASK-039"
+      ],
       "status": "pending"
     },
     {
@@ -1107,7 +1248,9 @@
         "Измени размер окна - проверь responsive",
         "Ожидаемый результат: layout отображается корректно"
       ],
-      "dependencies": ["TASK-044"],
+      "dependencies": [
+        "TASK-044"
+      ],
       "status": "pending"
     },
     {
@@ -1130,7 +1273,10 @@
         "Проверь цвета: PUBLIC белый, PRIVATE жёлтый",
         "Ожидаемый результат: лента обновляется live"
       ],
-      "dependencies": ["TASK-046", "TASK-049"],
+      "dependencies": [
+        "TASK-046",
+        "TASK-049"
+      ],
       "status": "pending"
     },
     {
@@ -1150,7 +1296,9 @@
         "Запусти ход персонажа - проверь, что его карточка подсвечена",
         "Ожидаемый результат: статусы персонажей актуальны"
       ],
-      "dependencies": ["TASK-050"],
+      "dependencies": [
+        "TASK-050"
+      ],
       "status": "pending"
     },
     {
@@ -1172,7 +1320,10 @@
         "Проверь, что token counter обновляется",
         "Ожидаемый результат: управление работает через UI"
       ],
-      "dependencies": ["TASK-047", "TASK-050"],
+      "dependencies": [
+        "TASK-047",
+        "TASK-050"
+      ],
       "status": "pending"
     },
     {
@@ -1193,7 +1344,9 @@
         "Проверь, что privateChannelRules корректны",
         "Ожидаемый результат: шаблон валиден"
       ],
-      "dependencies": ["TASK-010"],
+      "dependencies": [
+        "TASK-010"
+      ],
       "status": "pending"
     },
     {
@@ -1215,7 +1368,9 @@
         "Проверь alliance между двумя персонажами",
         "Ожидаемый результат: все персонажи валидны"
       ],
-      "dependencies": ["TASK-009"],
+      "dependencies": [
+        "TASK-009"
+      ],
       "status": "pending"
     },
     {
@@ -1236,7 +1391,11 @@
         "Проверь журнал событий: phase_start/phase_end для каждой фазы",
         "Ожидаемый результат: mock-выпуск проходит end-to-end"
       ],
-      "dependencies": ["TASK-041", "TASK-053", "TASK-054"],
+      "dependencies": [
+        "TASK-041",
+        "TASK-053",
+        "TASK-054"
+      ],
       "status": "pending"
     },
     {
@@ -1258,7 +1417,11 @@
         "Проверь логи в llm_calls",
         "Ожидаемый результат: реальные LLM ответы работают"
       ],
-      "dependencies": ["TASK-055", "TASK-022", "TASK-023"],
+      "dependencies": [
+        "TASK-055",
+        "TASK-022",
+        "TASK-023"
+      ],
       "status": "pending"
     },
     {
@@ -1280,7 +1443,10 @@
         "Проверь, что система не крашнулась",
         "Ожидаемый результат: невалидные данные отклоняются"
       ],
-      "dependencies": ["TASK-045", "TASK-053"],
+      "dependencies": [
+        "TASK-045",
+        "TASK-053"
+      ],
       "status": "pending"
     },
     {
@@ -1301,7 +1467,10 @@
         "Запусти сервер и проверь, что в консоль не выводятся LLM запросы",
         "Ожидаемый результат: секреты защищены"
       ],
-      "dependencies": ["TASK-002", "TASK-022"],
+      "dependencies": [
+        "TASK-002",
+        "TASK-022"
+      ],
       "status": "pending"
     },
     {
@@ -1321,7 +1490,10 @@
         "Сравни журналы событий оригинала и replay",
         "Ожидаемый результат: события идентичны"
       ],
-      "dependencies": ["TASK-041", "TASK-017"],
+      "dependencies": [
+        "TASK-041",
+        "TASK-017"
+      ],
       "status": "pending"
     },
     {
@@ -1342,7 +1514,10 @@
         "Проверь, что JSON содержит все события",
         "Ожидаемый результат: экспорт работает"
       ],
-      "dependencies": ["TASK-041", "TASK-046"],
+      "dependencies": [
+        "TASK-041",
+        "TASK-046"
+      ],
       "status": "pending"
     }
   ]

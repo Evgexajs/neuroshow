@@ -7,7 +7,7 @@ import { EventJournal } from './event-journal.js';
 import { IStore } from '../types/interfaces/store.interface.js';
 import { EventType } from '../types/enums.js';
 import { EventSummary } from '../types/events.js';
-import { PromptPackage } from '../types/adapter.js';
+import { PromptPackage, ModelAdapter } from '../types/adapter.js';
 import { CharacterDefinition } from '../types/character.js';
 import { Show } from '../types/runtime.js';
 import { ShowFormatTemplate } from '../types/template.js';
@@ -224,5 +224,50 @@ export class ContextBuilder {
     }
 
     return revealed;
+  }
+
+  /**
+   * Trim PromptPackage to fit within token budget
+   *
+   * Uses adapter.estimateTokens() to check if package exceeds budget.
+   * If over budget, trims slidingWindow (oldest events first).
+   * NEVER trims factsList - facts are always preserved.
+   *
+   * @param pkg - The PromptPackage to trim
+   * @param maxTokens - Maximum allowed tokens (prompt + completion)
+   * @param adapter - ModelAdapter used for token estimation
+   * @returns PromptPackage that fits within the budget
+   */
+  trimToTokenBudget(
+    pkg: PromptPackage,
+    maxTokens: number,
+    adapter: ModelAdapter
+  ): PromptPackage {
+    // Start with a copy of the package
+    const result: PromptPackage = {
+      systemPrompt: pkg.systemPrompt,
+      contextLayers: {
+        factsList: [...pkg.contextLayers.factsList], // Never trim facts
+        slidingWindow: [...pkg.contextLayers.slidingWindow],
+      },
+      trigger: pkg.trigger,
+      responseConstraints: { ...pkg.responseConstraints },
+    };
+
+    // Check if already within budget
+    let estimate = adapter.estimateTokens(result);
+    let totalTokens = estimate.prompt + estimate.estimatedCompletion;
+
+    // Trim slidingWindow from the beginning (oldest events) until within budget
+    while (totalTokens > maxTokens && result.contextLayers.slidingWindow.length > 0) {
+      // Remove the oldest event (first element)
+      result.contextLayers.slidingWindow.shift();
+
+      // Re-estimate tokens
+      estimate = adapter.estimateTokens(result);
+      totalTokens = estimate.prompt + estimate.estimatedCompletion;
+    }
+
+    return result;
   }
 }
