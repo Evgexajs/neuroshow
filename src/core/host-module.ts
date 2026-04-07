@@ -47,13 +47,15 @@ export class HostModule {
    * @param characters - Character definitions with optional modelAdapterId
    * @param seed - Optional seed for reproducibility
    * @param tokenBudget - Optional token budget (defaults to config.tokenBudgetPerShow)
+   * @param backstory - Optional show backstory (generated or provided)
    * @returns Initialized Show object
    */
   async initializeShow(
     template: ShowFormatTemplate,
     characters: Array<CharacterDefinition & { modelAdapterId?: string }>,
     seed?: number,
-    tokenBudget?: number
+    tokenBudget?: number,
+    backstory?: string
   ): Promise<Show> {
     const showId = generateId();
     const showSeed = seed ?? Math.floor(Math.random() * 2147483647);
@@ -81,6 +83,8 @@ export class HostModule {
         speakFrequency: c.speakFrequency,
         responseConstraints: c.responseConstraints,
       })),
+      // Store backstory if provided
+      backstory,
     };
 
     // Create show record with 'created' status (will change to 'running' when started)

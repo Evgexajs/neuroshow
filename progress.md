@@ -2497,3 +2497,52 @@ Added a template information panel to the Debug UI that displays template name, 
 - npm run typecheck — passes
 - npm run lint — passes (0 errors)
 - Unit tests — pass
+
+---
+
+## TASK-107: Генерация и отображение предыстории шоу
+
+**Статус:** Done
+**Дата:** 2026-04-08
+**Время:** ~30 минут
+
+**Проблема:**
+Нет визуальной предыстории — непонятно в чём суть игры, стимулы, ситуация.
+
+**Решение:**
+Реализована логика генерации и отображения предыстории (backstory):
+- Если theme.length <= 150 символов — генерируем через LLM
+- Если theme.length > 150 символов — используем theme как готовую backstory
+
+**Изменения:**
+- src/validation/schemas.ts:
+  - Добавлено поле `theme` в createShowRequestSchema
+
+- src/api/server.ts:
+  - Добавлена функция `generateBackstoryWithOpenAI()` для генерации предыстории через LLM
+  - В POST /shows: логика генерации/использования backstory в зависимости от длины theme
+  - GET /shows/:id/config: добавлен возврат backstory
+
+- src/core/host-module.ts:
+  - Добавлен параметр `backstory` в initializeShow()
+  - Backstory сохраняется в configSnapshot
+
+- src/core/context-builder.ts:
+  - Backstory добавляется в FACTS персонажей первым (до личных секретов)
+  - Формат: `[Предыстория шоу] {backstory}`
+
+- web/debug-ui/app.ts:
+  - Добавлено поле `backstory` в интерфейс ShowConfig
+  - В renderTemplateInfo() отображается предыстория в блоке Template & Phases
+
+**Acceptance Criteria:**
+1. Если theme.length <= 150 — вызывается LLM с prompt_template ✓
+2. Если theme.length > 150 — используется theme как backstory ✓
+3. В UI в блоке 'Template & Phases' показывается предыстория ✓
+4. Персонажи получают предысторию в FACTS ✓
+
+**Тесты:**
+- npm run typecheck — passes
+- npm run lint — passes (warnings only, no errors)
+- npm run test — context-builder tests pass
+- npm run build:ui — passes

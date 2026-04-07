@@ -257,6 +257,59 @@ function generateMockCharacters(count: number, theme?: string): CharacterDefinit
 }
 
 /**
+ * Generate backstory using OpenAI API
+ * @param theme - Short theme to expand into backstory
+ * @param formatName - Show format name
+ * @param formatDescription - Show format description
+ * @param participantCount - Number of participants
+ * @returns Generated backstory string
+ */
+async function generateBackstoryWithOpenAI(
+  theme: string,
+  formatName: string,
+  formatDescription: string,
+  participantCount: number
+): Promise<string> {
+  const client = new OpenAI({ apiKey: config.openaiApiKey });
+
+  const prompt = `Ты — сценарист реалити-шоу. На основе темы создай предысторию для игры.
+
+Тема: ${theme}
+
+Формат шоу: ${formatName}
+Описание формата: ${formatDescription}
+Количество участников: ${participantCount}
+
+Напиши предысторию (3-5 предложений):
+- Где происходит действие
+- Что на кону (приз, выживание, честь)
+- Почему участники соревнуются
+- Как определится победитель
+
+Учитывай механику формата в предыстории. Ответ от второго лица ('Вы находитесь...', 'Вам предстоит...').`;
+
+  const response = await client.chat.completions.create({
+    model: config.openaiDefaultModel,
+    messages: [
+      {
+        role: 'system',
+        content: 'Ты сценарист реалити-шоу. Пиши кратко и драматично. Отвечай только текстом предыстории без дополнительных комментариев.',
+      },
+      {
+        role: 'user',
+        content: prompt,
+      },
+    ],
+    temperature: 0.8,
+    max_tokens: 500,
+  });
+
+  const backstory = response.choices[0]?.message?.content?.trim() ?? '';
+  logger.info(`Generated backstory: ${backstory.substring(0, 100)}...`);
+  return backstory;
+}
+
+/**
  * Application dependencies container
  * Created by composition root for dependency injection
  */
@@ -686,6 +739,7 @@ export async function createServer(): Promise<{
         templateId: config.templateId ?? show.formatId,
         templateName: config.templateName ?? 'Unknown Template',
         templateDescription: config.templateDescription ?? '',
+        backstory: config.backstory ?? null,
         phases: phases.map((p) => ({
           id: p.id,
           name: p.name,
@@ -754,7 +808,7 @@ export async function createServer(): Promise<{
       });
     }
 
-    const { formatId, characters, seed, tokenBudget } = validation.data;
+    const { formatId, characters, seed, tokenBudget, theme } = validation.data;
 
     // Validate character count against template limits
     if (characters.length < formatId.minParticipants) {
@@ -770,13 +824,38 @@ export async function createServer(): Promise<{
     }
 
     try {
+      // Generate or use backstory based on theme length
+      let backstory: string | undefined;
+      if (theme) {
+        if (theme.length <= 150) {
+          // Short theme - generate backstory via LLM
+          logger.info(`Generating backstory from theme: "${theme}"`);
+          try {
+            backstory = await generateBackstoryWithOpenAI(
+              theme,
+              formatId.name,
+              formatId.description,
+              characters.length
+            );
+          } catch (err) {
+            logger.warn('Failed to generate backstory, using theme as fallback:', err);
+            backstory = theme;
+          }
+        } else {
+          // Long theme - use as backstory directly
+          logger.info('Using theme as backstory (length > 150)');
+          backstory = theme;
+        }
+      }
+
       // Call HostModule.initializeShow()
       // Cast types - Zod validation ensures they match the interfaces
       const show = await deps.hostModule.initializeShow(
         formatId as import('../types/template.js').ShowFormatTemplate,
         characters as Array<import('../types/character.js').CharacterDefinition & { modelAdapterId?: string }>,
         seed,
-        tokenBudget
+        tokenBudget,
+        backstory
       );
 
       // Return response

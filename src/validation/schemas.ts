@@ -215,6 +215,7 @@ export const createShowRequestSchema = z.object({
   characters: z.array(characterWithAdapterSchema).min(1),
   seed: z.number().int().optional(),
   tokenBudget: z.number().int().positive().max(10000000).optional(),
+  theme: sanitizedString(2000).optional(),
 });
 
 /**

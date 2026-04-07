@@ -52,10 +52,17 @@ export class ContextBuilder {
   ): Promise<string[]> {
     const facts: string[] = [];
 
-    // Get show record for prologue
+    // Get show record for prologue and backstory
     const showRecord = await this.store.getShow(showId);
     if (showRecord) {
       const configSnapshot = JSON.parse(showRecord.configSnapshot) as Record<string, unknown>;
+
+      // Add backstory first (before personal secrets)
+      const backstory = configSnapshot.backstory as string | undefined;
+      if (backstory) {
+        facts.push(`[Предыстория шоу] ${backstory}`);
+      }
+
       const prologue = configSnapshot.prologue as string | undefined;
       if (prologue) {
         facts.push(`[Game Rules] ${prologue}`);

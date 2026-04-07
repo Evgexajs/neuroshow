@@ -53,6 +53,7 @@ interface ShowConfig {
   templateId: string;
   templateName: string;
   templateDescription: string;
+  backstory: string | null;
   phases: PhaseConfig[];
   currentPhaseId: string | null;
 }
@@ -513,9 +514,13 @@ function renderTemplateInfo(): void {
   }
 
   // Render template details
+  const backstoryHtml = showConfig.backstory
+    ? `<div class="template-backstory"><strong>Предыстория:</strong> ${escapeHtml(showConfig.backstory)}</div>`
+    : '';
   templateDetailsEl.innerHTML = `
     <div class="template-name">${escapeHtml(showConfig.templateName)}</div>
     <div class="template-description">${escapeHtml(showConfig.templateDescription || '')}</div>
+    ${backstoryHtml}
   `;
 
   // Render phases list
