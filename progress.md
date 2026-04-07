@@ -1975,3 +1975,39 @@ Added a template information panel to the Debug UI that displays template name, 
 4. Тест проверяет что кнопки управления всегда видны внизу ✓
 5. Тесты запускаются через npm run test:e2e ✓
 6. CI интеграция для автоматического запуска при PR ✓
+
+## [2026-04-07] TASK-089: Персонажи обращаются друг к другу по UUID вместо имён
+**Статус:** done
+**Время:** ~45 минут
+**Изменения:**
+- src/types/events.ts:
+  - Добавлено поле `senderName` в интерфейс EventSummary
+- src/core/context-builder.ts:
+  - buildSlidingWindow() принимает nameMap и заполняет senderName
+  - buildFactsList() принимает nameMap для алиансов и wildcards
+  - buildPromptPackage() строит nameMap из configSnapshot.characterDefinitions
+  - buildSystemPrompt() теперь показывает список других участников по именам
+  - getRevealedWildcards() использует имена отправителей
+- src/adapters/openai-adapter.ts:
+  - buildMessages() использует senderName вместо senderId в RECENT EVENTS
+- tests/unit/context-builder.test.ts:
+  - Обновлен тест для ожидания senderName в slidingWindow
+  - Добавлено senderName в тестовые EventSummary объекты
+- tests/unit/mock-adapter.test.ts:
+  - Добавлено senderName в тестовые EventSummary объекты
+- tests/unit/openai-adapter-tiktoken.test.ts:
+  - Добавлено senderName в тестовые EventSummary объекты
+
+**Тесты:**
+- npm run typecheck — passes
+- npm run lint — passes (0 errors)
+- npx vitest run tests/unit — 225 passed (server tests fail due to disk I/O, pre-existing issue)
+- npx vitest run tests/integration/context-builder-flow.test.ts — passes
+- npx vitest run tests/integration/turn-cycle.test.ts — passes
+
+**Acceptance Criteria:**
+1. В контексте для LLM передаются имена персонажей, а не и�� ID ✓
+2. В slidingWindow события содержат имя отправителя (Алина), а не ID (alina) ✓
+3. В system prompt список других участников содержит их имена ✓
+4. Персонажи в диалогах обращаются друг к другу по именам ✓
+5. UI уже показывает имена через characterNames.get() (не требует изменений) ✓

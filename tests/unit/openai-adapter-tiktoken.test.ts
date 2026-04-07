@@ -158,8 +158,8 @@ describe('OpenAIAdapter tiktoken', () => {
       const withContext = createTestPrompt({
         factsList: ['Important fact one', 'Important fact two', 'Important fact three'],
         slidingWindow: [
-          { senderId: 'char1', channel: ChannelType.PUBLIC, content: 'Hello everyone!', timestamp: Date.now() },
-          { senderId: 'char2', channel: ChannelType.PUBLIC, content: 'Nice to meet you!', timestamp: Date.now() },
+          { senderId: 'char1', senderName: 'Character 1', channel: ChannelType.PUBLIC, content: 'Hello everyone!', timestamp: Date.now() },
+          { senderId: 'char2', senderName: 'Character 2', channel: ChannelType.PUBLIC, content: 'Nice to meet you!', timestamp: Date.now() },
         ],
       });
 

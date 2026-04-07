@@ -2181,7 +2181,7 @@
         "Ожидаемый результат: диалог выглядит естественно с именами"
       ],
       "dependencies": [],
-      "status": "pending"
+      "status": "done"
     },
     {
       "id": "TASK-090",
@@ -2366,7 +2366,9 @@
         "Запусти screenshot тест",
         "Ожидаемый результат: layout стабильный"
       ],
-      "dependencies": ["TASK-088"],
+      "dependencies": [
+        "TASK-088"
+      ],
       "status": "pending"
     }
   ]

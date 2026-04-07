@@ -272,7 +272,7 @@ export class OpenAIAdapter implements ModelAdapter {
 
     if (contextLayers.slidingWindow.length > 0) {
       const history = contextLayers.slidingWindow
-        .map(e => `[${e.senderId}]: ${e.content}`)
+        .map(e => `[${e.senderName}]: ${e.content}`)
         .join('\n');
       contextParts.push('RECENT EVENTS:\n' + history);
     }

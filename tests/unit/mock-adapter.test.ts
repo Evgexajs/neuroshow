@@ -16,7 +16,7 @@ function createTestPrompt(trigger: string): PromptPackage {
     contextLayers: {
       factsList: ['Fact 1', 'Fact 2'],
       slidingWindow: [
-        { senderId: 'char1', channel: ChannelType.PUBLIC, content: 'Hello', timestamp: Date.now() },
+        { senderId: 'char1', senderName: 'Character 1', channel: ChannelType.PUBLIC, content: 'Hello', timestamp: Date.now() },
       ],
     },
     trigger,

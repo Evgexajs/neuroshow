@@ -319,6 +319,7 @@ describe('ContextBuilder', () => {
       expect(window.length).toBe(1);
       expect(window[0]).toEqual({
         senderId: 'char-1',
+        senderName: 'char-1', // Falls back to senderId when no nameMap
         channel: ChannelType.PUBLIC,
         content: 'Hello everyone',
         timestamp: 1100,
@@ -667,6 +668,7 @@ describe('ContextBuilder', () => {
           factsList: Array.from({ length: factsListSize }, (_, i) => `[Fact] Fact number ${i + 1}`),
           slidingWindow: Array.from({ length: slidingWindowSize }, (_, i) => ({
             senderId: `char-${i % 3 + 1}`,
+            senderName: `Character ${i % 3 + 1}`,
             channel: ChannelType.PUBLIC,
             content: `Message ${i + 1}: This is a test message with some content.`,
             timestamp: 1000 + i * 100,

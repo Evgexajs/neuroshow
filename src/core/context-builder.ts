@@ -39,9 +39,14 @@ export class ContextBuilder {
    *
    * @param characterId - Character ID to build facts for
    * @param showId - Show ID
+   * @param nameMap - Map of character IDs to display names
    * @returns Array of fact strings
    */
-  async buildFactsList(characterId: string, showId: string): Promise<string[]> {
+  async buildFactsList(
+    characterId: string,
+    showId: string,
+    nameMap?: Map<string, string>
+  ): Promise<string[]> {
     const facts: string[] = [];
 
     // Get character's private context from store
@@ -65,7 +70,8 @@ export class ContextBuilder {
     // Add active alliances
     for (const alliance of privateContext.alliances) {
       if (alliance.isActive) {
-        facts.push(`[Alliance] Partner: ${alliance.partnerId}, Agreement: ${alliance.agreement}`);
+        const partnerName = nameMap?.get(alliance.partnerId) ?? alliance.partnerId;
+        facts.push(`[Alliance] Partner: ${partnerName}, Agreement: ${alliance.agreement}`);
       }
     }
 
@@ -77,7 +83,7 @@ export class ContextBuilder {
     }
 
     // Add revealed wildcards from journal (own and others')
-    const revealedWildcards = await this.getRevealedWildcards(showId, characterId);
+    const revealedWildcards = await this.getRevealedWildcards(showId, characterId, nameMap);
     for (const revealed of revealedWildcards) {
       facts.push(revealed);
     }
@@ -94,19 +100,22 @@ export class ContextBuilder {
    * @param characterId - Character ID to build window for
    * @param showId - Show ID
    * @param limit - Maximum number of events to return
+   * @param nameMap - Map of character IDs to display names
    * @returns Array of EventSummary objects
    */
   async buildSlidingWindow(
     characterId: string,
     showId: string,
-    limit: number
+    limit: number,
+    nameMap?: Map<string, string>
   ): Promise<EventSummary[]> {
     // Get visible events using EventJournal's filtering
     const events = await this.journal.getVisibleEvents(showId, characterId, limit);
 
-    // Convert ShowEvent to EventSummary
+    // Convert ShowEvent to EventSummary with sender names
     return events.map((event) => ({
       senderId: event.senderId,
+      senderName: nameMap?.get(event.senderId) ?? event.senderId,
       channel: event.channel,
       content: event.content,
       timestamp: event.timestamp,
@@ -132,19 +141,37 @@ export class ContextBuilder {
     show: Show,
     trigger: string
   ): Promise<PromptPackage> {
-    // Build system prompt from character definition
-    const systemPrompt = this.buildSystemPrompt(character, character.responseConstraints);
-
     // Get context window size from show's config snapshot
     const template = show.configSnapshot as unknown as ShowFormatTemplate;
     const contextWindowSize = template?.contextWindowSize ?? 50;
 
+    // Build character name map from configSnapshot
+    const characterDefinitions = (show.configSnapshot as Record<string, unknown>)
+      .characterDefinitions as Array<{ id: string; name: string }> | undefined;
+    const nameMap = new Map<string, string>();
+    if (characterDefinitions) {
+      for (const def of characterDefinitions) {
+        nameMap.set(def.id, def.name);
+      }
+    }
+
+    // Build system prompt from character definition with other participants
+    const otherParticipants = characterDefinitions
+      ?.filter((c) => c.id !== character.id)
+      .map((c) => c.name) ?? [];
+    const systemPrompt = this.buildSystemPrompt(
+      character,
+      character.responseConstraints,
+      otherParticipants
+    );
+
     // Build context layers
-    const factsList = await this.buildFactsList(character.id, show.id);
+    const factsList = await this.buildFactsList(character.id, show.id, nameMap);
     const slidingWindow = await this.buildSlidingWindow(
       character.id,
       show.id,
-      contextWindowSize
+      contextWindowSize,
+      nameMap
     );
 
     return {
@@ -167,10 +194,12 @@ export class ContextBuilder {
    * - boundaryRules: what the character won't do
    * - format instruction: JSON response format
    * - language instruction: respond in specified language
+   * - other participants: list of other characters by name
    */
   private buildSystemPrompt(
     character: CharacterDefinition,
-    responseConstraints: ResponseConstraints
+    responseConstraints: ResponseConstraints,
+    otherParticipants: string[] = []
   ): string {
     const parts: string[] = [];
     const isRussian = responseConstraints.language === 'ru';
@@ -188,6 +217,16 @@ export class ContextBuilder {
     } else {
       parts.push(`You are ${character.name}.`);
       parts.push(`Public information about you: ${character.publicCard}`);
+    }
+
+    // Other participants
+    if (otherParticipants.length > 0) {
+      parts.push('');
+      if (isRussian) {
+        parts.push(`Другие участники: ${otherParticipants.join(', ')}.`);
+      } else {
+        parts.push(`Other participants: ${otherParticipants.join(', ')}.`);
+      }
     }
 
     // Personality
@@ -241,7 +280,11 @@ export class ContextBuilder {
    * Get revealed wildcards from journal events
    * Includes both character's own revelations and others' visible revelations
    */
-  private async getRevealedWildcards(showId: string, characterId: string): Promise<string[]> {
+  private async getRevealedWildcards(
+    showId: string,
+    characterId: string,
+    nameMap?: Map<string, string>
+  ): Promise<string[]> {
     const revealed: string[] = [];
 
     // Get all visible events for this character
@@ -251,7 +294,8 @@ export class ContextBuilder {
     for (const event of events) {
       if (event.type === EventType.revelation) {
         const isOwn = event.senderId === characterId;
-        const prefix = isOwn ? '[My Revealed Wildcard]' : `[Revealed by ${event.senderId}]`;
+        const senderName = nameMap?.get(event.senderId) ?? event.senderId;
+        const prefix = isOwn ? '[My Revealed Wildcard]' : `[Revealed by ${senderName}]`;
         revealed.push(`${prefix} ${event.content}`);
       }
     }

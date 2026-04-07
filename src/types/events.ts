@@ -72,8 +72,11 @@ export interface ShowEvent {
  * without the full event overhead
  */
 export interface EventSummary {
-  /** Who sent the message */
+  /** Who sent the message (ID) */
   senderId: string;
+
+  /** Who sent the message (display name) */
+  senderName: string;
 
   /** Channel (PUBLIC/PRIVATE/ZONE) */
   channel: ChannelType;
