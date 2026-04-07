@@ -5,8 +5,9 @@
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
-    "build": "tsc",
-    "typecheck": "tsc --noEmit",
+    "build": "tsc && tsc -p web/debug-ui/tsconfig.json",
+    "build:ui": "tsc -p web/debug-ui/tsconfig.json",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p web/debug-ui/tsconfig.json",
     "dev": "tsx watch src/index.ts",
     "start": "node dist/index.js",
     "test": "vitest run",

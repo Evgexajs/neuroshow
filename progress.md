@@ -1104,3 +1104,24 @@ Wildcard: Максим имеет компромат на Виктора (фин
 
 **Тесты:** npm run typecheck, npm test — все пройдены (310 tests passed).
 **Заметки:** Все меры безопасности были реализованы в предыдущих задачах (TASK-000, TASK-002, TASK-022). Данная задача является верификацией.
+
+## [2026-04-07] TASK-066: Переписать web/debug-ui/app.js на TypeScript
+**Статус:** done
+**Время:** ~10 минут
+**Изменения:**
+- web/debug-ui/app.js — удалён (заменён TypeScript версией)
+- web/debug-ui/app.ts — создан с полной типизацией:
+  - Интерфейс ShowEvent для событий
+  - Типизация DOM элементов (HTMLInputElement, HTMLButtonElement, HTMLDivElement)
+  - Типизация EventSource и обработчиков событий
+  - Типизация MessageEvent<string>
+- web/debug-ui/tsconfig.json — создан для браузерной среды:
+  - target: ES2020, lib: DOM, DOM.Iterable
+  - strict mode, sourceMap
+- package.json — обновлены скрипты:
+  - build теперь компилирует и src, и web/debug-ui
+  - typecheck проверяет оба tsconfig
+  - добавлен build:ui для отдельной компиляции UI
+
+**Тесты:** npm run typecheck, npm run build, npm test — все пройдены (310 tests passed).
+**Заметки:** index.html не требует изменений — TypeScript компилируется в app.js на то же место.
