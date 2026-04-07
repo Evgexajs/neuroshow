@@ -80,13 +80,24 @@ ${themeContext}
   });
 
   const content = response.choices[0]?.message?.content ?? '{"characters":[]}';
+  logger.info('OpenAI response content:', content);
+
   const parsed = JSON.parse(content);
 
-  // Handle both array and object with characters key
-  const rawCharacters = Array.isArray(parsed) ? parsed : (parsed.characters ?? []);
+  // Handle both array and object with any key containing an array
+  let rawCharacters: unknown[];
+  if (Array.isArray(parsed)) {
+    rawCharacters = parsed;
+  } else {
+    // Find the first array property in the object (could be "characters", "result", "data", "персонажи", etc.)
+    const arrayValue = Object.values(parsed).find((val) => Array.isArray(val));
+    rawCharacters = (arrayValue as unknown[]) ?? [];
+  }
 
-  // Convert to CharacterDefinition format
-  return rawCharacters.map((char: {
+  logger.info(`Parsed ${rawCharacters.length} characters from OpenAI response`);
+
+  // Define the expected shape of raw character from OpenAI
+  interface RawCharacter {
     name: string;
     publicCard: string;
     personalityPrompt: string;
@@ -95,7 +106,10 @@ ${themeContext}
     goals?: string[];
     speakFrequency?: string;
     boundaryRules?: string[];
-  }) => ({
+  }
+
+  // Convert to CharacterDefinition format
+  return (rawCharacters as RawCharacter[]).map((char) => ({
     id: generateId(),
     name: char.name,
     publicCard: char.publicCard,
@@ -378,8 +392,11 @@ export async function createServer(): Promise<{
   app.post('/generate/characters', async (request: FastifyRequest, reply: FastifyReply) => {
     const { count = 5, theme } = request.body as { count?: number; theme?: string };
 
+    logger.info(`POST /generate/characters - count: ${count}, theme: ${theme ?? 'none'}`);
+
     // Validate count
     if (count < 1 || count > 10) {
+      logger.warn(`Invalid count: ${count}`);
       return reply.status(400).send({ error: 'Count must be between 1 and 10' });
     }
 
@@ -387,18 +404,30 @@ export async function createServer(): Promise<{
     const hasOpenAIKey = Boolean(config.openaiApiKey);
 
     if (!hasOpenAIKey) {
+      logger.info('No OpenAI API key, using mock characters');
       // Fallback: generate mock characters
       const characters = generateMockCharacters(count, theme);
+      logger.info(`Generated ${characters.length} mock characters`);
       return reply.send(characters);
     }
 
     try {
       const characters = await generateCharactersWithOpenAI(count, theme);
+      logger.info(`Successfully generated ${characters.length} characters via OpenAI`);
+
+      if (characters.length === 0) {
+        logger.warn('OpenAI returned empty array, falling back to mock');
+        const mockCharacters = generateMockCharacters(count, theme);
+        return reply.send(mockCharacters);
+      }
+
       return reply.send(characters);
     } catch (err) {
-      logger.error('OpenAI character generation failed, using fallback:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      logger.error(`OpenAI character generation failed: ${errorMessage}`, err);
       // Fallback to mock on error
       const characters = generateMockCharacters(count, theme);
+      logger.info(`Fallback: generated ${characters.length} mock characters`);
       return reply.send(characters);
     }
   });
