@@ -377,4 +377,209 @@ describe('Orchestrator', () => {
       expect(capturedPrompt!.responseConstraints).toBeDefined();
     });
   });
+
+  describe('handleIntent', () => {
+    it('should do nothing for "speak" intent', async () => {
+      const template = createTestTemplate();
+      const characters = [
+        createTestCharacter('char-1', 'Alice'),
+        createTestCharacter('char-2', 'Bob'),
+      ];
+
+      const show = await hostModule.initializeShow(template, characters, 12345);
+
+      const response: CharacterResponse = {
+        text: 'Hello everyone!',
+        intent: CharacterIntent.speak,
+      };
+
+      // Get events before handling intent
+      const eventsBefore = await eventJournal.getEvents(show.id);
+      const countBefore = eventsBefore.length;
+
+      // Handle intent
+      await orchestrator.handleIntent(show.id, response, 'char-1');
+
+      // No additional events should be created for 'speak' intent
+      const eventsAfter = await eventJournal.getEvents(show.id);
+      expect(eventsAfter.length).toBe(countBefore);
+    });
+
+    it('should do nothing when no intent is provided', async () => {
+      const template = createTestTemplate();
+      const characters = [createTestCharacter('char-1', 'Alice')];
+
+      const show = await hostModule.initializeShow(template, characters, 12345);
+
+      const response: CharacterResponse = {
+        text: 'Hello!',
+        // No intent
+      };
+
+      const eventsBefore = await eventJournal.getEvents(show.id);
+      const countBefore = eventsBefore.length;
+
+      await orchestrator.handleIntent(show.id, response, 'char-1');
+
+      const eventsAfter = await eventJournal.getEvents(show.id);
+      expect(eventsAfter.length).toBe(countBefore);
+    });
+
+    it('should call validatePrivateRequest for "request_private" intent', async () => {
+      const template = createTestTemplate();
+      const characters = [
+        createTestCharacter('char-1', 'Alice'),
+        createTestCharacter('char-2', 'Bob'),
+      ];
+
+      const show = await hostModule.initializeShow(template, characters, 12345);
+
+      // Spy on validatePrivateRequest
+      const validateSpy = vi.spyOn(hostModule, 'validatePrivateRequest');
+
+      const response: CharacterResponse = {
+        text: 'I want to talk to Bob privately',
+        intent: CharacterIntent.request_private,
+        target: 'char-2',
+      };
+
+      await orchestrator.handleIntent(show.id, response, 'char-1');
+
+      expect(validateSpy).toHaveBeenCalledWith(
+        show.id,
+        'char-1',
+        'char-2',
+        expect.objectContaining({
+          maxPrivatesPerPhase: 3,
+          maxPrivatesPerCharacterPerPhase: 2,
+        })
+      );
+
+      validateSpy.mockRestore();
+    });
+
+    it('should open private channel if request_private is validated', async () => {
+      const template = createTestTemplate();
+      const characters = [
+        createTestCharacter('char-1', 'Alice'),
+        createTestCharacter('char-2', 'Bob'),
+      ];
+
+      const show = await hostModule.initializeShow(template, characters, 12345);
+
+      const response: CharacterResponse = {
+        text: 'I want to talk to Bob privately',
+        intent: CharacterIntent.request_private,
+        target: 'char-2',
+      };
+
+      await orchestrator.handleIntent(show.id, response, 'char-1');
+
+      // Check that channel_change event was created
+      const events = await eventJournal.getEvents(show.id);
+      const channelChangeEvents = events.filter(
+        (e) => e.type === EventType.channel_change && e.channel === ChannelType.PRIVATE
+      );
+
+      expect(channelChangeEvents.length).toBe(1);
+      expect(channelChangeEvents[0]!.metadata?.participants).toContain('char-1');
+      expect(channelChangeEvents[0]!.metadata?.participants).toContain('char-2');
+    });
+
+    it('should not open private channel if no target provided', async () => {
+      const template = createTestTemplate();
+      const characters = [createTestCharacter('char-1', 'Alice')];
+
+      const show = await hostModule.initializeShow(template, characters, 12345);
+
+      const response: CharacterResponse = {
+        text: 'I want a private talk',
+        intent: CharacterIntent.request_private,
+        // No target!
+      };
+
+      await orchestrator.handleIntent(show.id, response, 'char-1');
+
+      // No channel_change event should be created
+      const events = await eventJournal.getEvents(show.id);
+      const channelChangeEvents = events.filter((e) => e.type === EventType.channel_change);
+
+      expect(channelChangeEvents.length).toBe(0);
+    });
+
+    it('should create revelation event for "reveal_wildcard" intent', async () => {
+      const template = createTestTemplate();
+      const characters = [
+        createTestCharacter('char-1', 'Alice'),
+        createTestCharacter('char-2', 'Bob'),
+      ];
+
+      const show = await hostModule.initializeShow(template, characters, 12345);
+
+      const response: CharacterResponse = {
+        text: 'I have a secret weapon!',
+        intent: CharacterIntent.reveal_wildcard,
+      };
+
+      await orchestrator.handleIntent(show.id, response, 'char-1');
+
+      // Check that revelation event was created
+      const events = await eventJournal.getEvents(show.id);
+      const revelationEvents = events.filter((e) => e.type === EventType.revelation);
+
+      expect(revelationEvents.length).toBe(1);
+      expect(revelationEvents[0]!.content).toBe('I have a secret weapon!');
+      expect(revelationEvents[0]!.senderId).toBe('char-1');
+      expect(revelationEvents[0]!.metadata?.isWildcard).toBe(true);
+      expect(revelationEvents[0]!.channel).toBe(ChannelType.PUBLIC);
+    });
+
+    it('should set all characters as audience for wildcard revelation', async () => {
+      const template = createTestTemplate();
+      const characters = [
+        createTestCharacter('char-1', 'Alice'),
+        createTestCharacter('char-2', 'Bob'),
+        createTestCharacter('char-3', 'Carol'),
+      ];
+
+      const show = await hostModule.initializeShow(template, characters, 12345);
+
+      const response: CharacterResponse = {
+        text: 'My wildcard!',
+        intent: CharacterIntent.reveal_wildcard,
+      };
+
+      await orchestrator.handleIntent(show.id, response, 'char-1');
+
+      const events = await eventJournal.getEvents(show.id);
+      const revelationEvent = events.find((e) => e.type === EventType.revelation);
+
+      expect(revelationEvent!.audienceIds).toContain('char-1');
+      expect(revelationEvent!.audienceIds).toContain('char-2');
+      expect(revelationEvent!.audienceIds).toContain('char-3');
+      expect(revelationEvent!.audienceIds.length).toBe(3);
+    });
+
+    it('should log for "end_turn" intent without creating events', async () => {
+      const template = createTestTemplate();
+      const characters = [createTestCharacter('char-1', 'Alice')];
+
+      const show = await hostModule.initializeShow(template, characters, 12345);
+
+      const response: CharacterResponse = {
+        text: 'I pass',
+        intent: CharacterIntent.end_turn,
+      };
+
+      const eventsBefore = await eventJournal.getEvents(show.id);
+      const countBefore = eventsBefore.length;
+
+      // Handle intent - should just log
+      await orchestrator.handleIntent(show.id, response, 'char-1');
+
+      // No additional events should be created
+      const eventsAfter = await eventJournal.getEvents(show.id);
+      expect(eventsAfter.length).toBe(countBefore);
+    });
+  });
 });

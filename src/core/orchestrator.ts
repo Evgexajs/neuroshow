@@ -10,11 +10,12 @@ import { HostModule } from './host-module.js';
 import { ContextBuilder } from './context-builder.js';
 import { Phase } from '../types/template.js';
 import { ShowEvent } from '../types/events.js';
-import { EventType, ChannelType, SpeakFrequency, ShowStatus } from '../types/enums.js';
+import { EventType, ChannelType, SpeakFrequency, ShowStatus, CharacterIntent } from '../types/enums.js';
 import { generateId } from '../utils/id.js';
 import { CharacterDefinition } from '../types/character.js';
 import { Show } from '../types/runtime.js';
-import { ResponseConstraints } from '../types/primitives.js';
+import { ResponseConstraints, PrivateChannelRules } from '../types/primitives.js';
+import { logger } from '../utils/logger.js';
 
 /**
  * Orchestrator execution mode
@@ -313,5 +314,152 @@ export class Orchestrator {
     );
 
     return response;
+  }
+
+  /**
+   * Handle the intent from a character's response
+   *
+   * - 'speak': No additional action needed (speech event already created)
+   * - 'request_private': Validates and opens private channel if allowed
+   * - 'reveal_wildcard': Creates a 'revelation' event with the wildcard content
+   * - 'end_turn': Logs the turn skip
+   *
+   * @param showId - Show ID
+   * @param response - Character's response with intent
+   * @param senderId - Character ID who sent the response
+   */
+  async handleIntent(
+    showId: string,
+    response: CharacterResponse,
+    senderId: string
+  ): Promise<void> {
+    // If no intent, default to 'speak' (no action needed)
+    if (!response.intent) {
+      return;
+    }
+
+    switch (response.intent) {
+      case CharacterIntent.speak:
+        // Nothing additional needed - speech event already created in processCharacterTurn
+        break;
+
+      case CharacterIntent.request_private:
+        await this.handleRequestPrivate(showId, senderId, response.target);
+        break;
+
+      case CharacterIntent.reveal_wildcard:
+        await this.handleRevealWildcard(showId, senderId, response.text);
+        break;
+
+      case CharacterIntent.end_turn:
+        this.handleEndTurn(senderId);
+        break;
+
+      // Non-MVP intents are silently ignored for now
+      case CharacterIntent.request_to_speak:
+      case CharacterIntent.request_interrupt:
+        logger.debug(`Non-MVP intent ${response.intent} from ${senderId} ignored`);
+        break;
+    }
+  }
+
+  /**
+   * Handle 'request_private' intent
+   * Validates the request using HostModule and opens private channel if allowed
+   */
+  private async handleRequestPrivate(
+    showId: string,
+    requesterId: string,
+    targetId: string | undefined
+  ): Promise<void> {
+    if (!targetId) {
+      logger.warn(`request_private from ${requesterId} has no target, ignoring`);
+      return;
+    }
+
+    // Get private channel rules from config snapshot
+    const showRecord = await this.store.getShow(showId);
+    if (!showRecord) {
+      logger.error(`Show ${showId} not found when handling request_private`);
+      return;
+    }
+
+    const configSnapshot = JSON.parse(showRecord.configSnapshot) as Record<string, unknown>;
+    const rules = configSnapshot.privateChannelRules as PrivateChannelRules | undefined;
+
+    if (!rules) {
+      logger.warn(`No privateChannelRules found in config, denying request_private`);
+      return;
+    }
+
+    // Validate the request through HostModule
+    const isValid = await this.hostModule.validatePrivateRequest(
+      showId,
+      requesterId,
+      targetId,
+      rules
+    );
+
+    if (isValid) {
+      // Open private channel between requester and target
+      await this.hostModule.openPrivateChannel(showId, [requesterId, targetId]);
+      logger.debug(`Private channel opened between ${requesterId} and ${targetId}`);
+    } else {
+      logger.debug(`Private channel request from ${requesterId} to ${targetId} denied (limit reached)`);
+    }
+  }
+
+  /**
+   * Handle 'reveal_wildcard' intent
+   * Creates a 'revelation' event with the wildcard content
+   */
+  private async handleRevealWildcard(
+    showId: string,
+    senderId: string,
+    wildcardContent: string
+  ): Promise<void> {
+    const showRecord = await this.store.getShow(showId);
+    if (!showRecord) {
+      logger.error(`Show ${showId} not found when handling reveal_wildcard`);
+      return;
+    }
+
+    const seed = showRecord.seed;
+    const phaseId = showRecord.currentPhaseId ?? '';
+
+    // Get all characters for audienceIds (revelation is public)
+    const characters = await this.store.getCharacters(showId);
+    const allCharacterIds = characters.map((c) => c.characterId);
+
+    // Create revelation event for the wildcard
+    const revelationEvent: Omit<ShowEvent, 'sequenceNumber'> = {
+      id: generateId(),
+      showId,
+      timestamp: Date.now(),
+      phaseId,
+      type: EventType.revelation,
+      channel: ChannelType.PUBLIC,
+      visibility: ChannelType.PUBLIC,
+      senderId,
+      receiverIds: allCharacterIds,
+      audienceIds: allCharacterIds,
+      content: wildcardContent,
+      metadata: {
+        isWildcard: true,
+        revealedBy: senderId,
+      },
+      seed,
+    };
+
+    await this.journal.append(revelationEvent);
+    logger.debug(`Wildcard revealed by ${senderId}: ${wildcardContent.substring(0, 50)}...`);
+  }
+
+  /**
+   * Handle 'end_turn' intent
+   * Logs that the character is ending their turn early
+   */
+  private handleEndTurn(senderId: string): void {
+    logger.info(`Character ${senderId} ended their turn (skipped)`);
   }
 }

@@ -627,3 +627,29 @@
 
 **Тесты:** npm run typecheck, npm test — все пройдены (176 tests passed).
 **Заметки:** Метод реализует полный цикл обработки хода персонажа: сборка контекста -> вызов LLM -> запись в журнал -> обновление бюджета.
+
+
+## [2026-04-07] TASK-038: Orchestrator.handleIntent()
+**Статус:** done
+**Время:** ~15 минут
+**Изменения:**
+- src/core/orchestrator.ts — добавлен метод handleIntent():
+  - handleIntent(showId, response: CharacterResponse, senderId): Promise<void>
+  - Обрабатывает intent из CharacterResponse:
+    - 'speak' — ничего дополнительного (речь уже записана в processCharacterTurn)
+    - 'request_private' — вызывает HostModule.validatePrivateRequest() и открывает приватный канал если запрос валиден
+    - 'reveal_wildcard' — создаёт событие 'revelation' с козырем (isWildcard: true, PUBLIC)
+    - 'end_turn' — логирует пропуск хода через logger.info()
+  - Добавлены приватные методы: handleRequestPrivate(), handleRevealWildcard(), handleEndTurn()
+- tests/unit/orchestrator.test.ts — добавлены 8 тестов для handleIntent:
+  - Ничего не делает для 'speak' intent
+  - Ничего не делает когда intent не указан
+  - Вызывает validatePrivateRequest для 'request_private'
+  - Открывает приватный канал если запрос валиден
+  - Не открывает канал если target не указан
+  - Создаёт revelation событие для 'reveal_wildcard'
+  - Устанавливает всех персонажей как audience для wildcard revelation
+  - Логирует для 'end_turn' без создания событий
+
+**Тесты:** npm run typecheck, npm test — все пройдены (184 tests passed).
+**Заметки:** Метод обрабатывает различные интенты персонажей, позволяя им взаимодействовать с системой (запрос приватки, раскрытие козыря, пропуск хода).
