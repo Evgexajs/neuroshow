@@ -2636,7 +2636,7 @@
         "Проверь UI: голосование не дублируется"
       ],
       "dependencies": [],
-      "status": "pending"
+      "status": "done"
     }
   ]
 }
