@@ -414,6 +414,8 @@ export async function startServer(): Promise<void> {
   // Register shutdown handlers
   process.on('SIGTERM', () => shutdown('SIGTERM'));
   process.on('SIGINT', () => shutdown('SIGINT'));
+  process.on('SIGHUP', () => shutdown('SIGHUP'));
+  process.on('SIGTSTP', () => shutdown('SIGTSTP')); // Ctrl+Z
 
   // Start listening
   try {
