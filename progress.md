@@ -1940,3 +1940,38 @@ Added a template information panel to the Debug UI that displays template name, 
 4. Логика enabled/disabled кнопок корректна: START активен когда status='created' или 'paused' ✓
 5. Добавить console.log для отладки состояния кнопок ✓ (в updateButtonStates)
 6. Показывать текущий статус шоу рядом с кнопками ✓ (уже было в HTML, id=show-status)
+
+## [2026-04-07] TASK-088: Добавить скриншотные тесты для Debug UI
+**Статус:** done
+**Время:** ~30 минут
+**Изменения:**
+- playwright.config.ts (новый) - конфигурация Playwright с webServer на python3 http.server
+- tests/e2e/debug-ui.spec.ts (новый) - 4 теста для проверки layout:
+  - UI помещается в viewport по высоте
+  - Список сообщений скроллится внутри контейнера
+  - Кнопки управления (START/PAUSE/STEP) всегда видны внизу
+  - Control panel остается видимым при переполнении контентом
+- tests/e2e/__snapshots__/ - baseline скриншоты для визуальных регрессий
+- .github/workflows/e2e.yml (новый) - CI workflow для автоматического запуска e2e тестов при PR
+- package.json:
+  - Добавлен скрипт "test:e2e": "playwright test"
+  - Добавлена зависимость @playwright/test
+- tsconfig.json - исключены tests/e2e из основной компиляции (требуют DOM types)
+- web/debug-ui/styles.css - исправлен layout для фиксации высоты viewport:
+  - html { height: 100%; overflow: hidden; }
+  - body { height: 100%; overflow: hidden; }
+  - .container { height: 100%; overflow: hidden; }
+  - .main-content, .event-feed { min-height: 0; } для корректного flexbox shrink
+
+**Тесты:**
+- npm run test:e2e — 4 passed
+- npm run typecheck — passes
+- npm run lint — passes (only pre-existing warnings)
+
+**Acceptance Criteria:**
+1. Настроен Playwright для скриншотных тестов ✓
+2. Тест проверяет что UI помещается в viewport по высоте ✓
+3. Тест проверяет что список сообщений скроллится внутри контейнера ✓
+4. Тест проверяет что кнопки управления всегда видны внизу ✓
+5. Тесты запускаются через npm run test:e2e ✓
+6. CI интеграция для автоматического запуска при PR ✓
