@@ -21,6 +21,17 @@ import { OpenAIAdapter } from '../adapters/openai-adapter.js';
 import { config } from '../config.js';
 
 /**
+ * Custom error thrown when token budget is exceeded.
+ * This is a hard limit - no more LLM calls are allowed.
+ */
+export class BudgetExceededError extends Error {
+  constructor(showId: string, used: number, limit: number) {
+    super(`Token budget exceeded for show ${showId}: used ${used} tokens, limit is ${limit} tokens`);
+    this.name = 'BudgetExceededError';
+  }
+}
+
+/**
  * Orchestrator execution mode
  * - AUTO: Runs phases automatically without human intervention
  * - DEBUG: Allows step-by-step execution and rollback
@@ -535,6 +546,15 @@ export class Orchestrator {
       trigger
     );
 
+    // Check budget BEFORE making LLM call (hard limit)
+    const budget = await this.store.getBudget(showId);
+    if (budget) {
+      const totalUsed = budget.usedPrompt + budget.usedCompletion;
+      if (totalUsed > budget.totalLimit) {
+        throw new BudgetExceededError(showId, totalUsed, budget.totalLimit);
+      }
+    }
+
     // Call the adapter to get response
     // Use OpenAI adapter if configured, otherwise use the default adapter (mock)
     const llmCallStart = Date.now();
@@ -769,8 +789,10 @@ export class Orchestrator {
     let newMode: BudgetMode;
     if (usagePercent >= 100) {
       newMode = BudgetMode.graceful_finish;
+      logger.error(`[Budget] Show ${showId}: 100% budget reached (${totalUsed}/${budget.totalLimit} tokens, ${usagePercent.toFixed(1)}%)`);
     } else if (usagePercent >= 80) {
       newMode = BudgetMode.budget_saving;
+      logger.warn(`[Budget] Show ${showId}: 80% budget threshold reached (${totalUsed}/${budget.totalLimit} tokens, ${usagePercent.toFixed(1)}%)`);
     } else {
       newMode = BudgetMode.normal;
     }
@@ -1052,8 +1074,8 @@ export class Orchestrator {
    *
    * - Completes the current turn
    * - Closes open private channels
-   * - Skips remaining phases and runs Decision Phase
-   * - Collects decisions and executes Revelation
+   * - If budget allows: runs Decision Phase and Revelation
+   * - If budget exhausted: skips LLM calls entirely
    * - Creates a 'system' event with graceful_finish: true
    *
    * @param showId - Show ID
@@ -1074,23 +1096,33 @@ export class Orchestrator {
     // Close open private channels
     await this.hostModule.closePrivateChannel(showId);
 
-    // Get decisionConfig from configSnapshot
-    const configSnapshot = JSON.parse(showRecord.configSnapshot) as Record<string, unknown>;
-    const decisionConfig = configSnapshot.decisionConfig as DecisionConfig;
+    // Check if budget is exhausted - if so, skip LLM calls entirely
+    const budget = await this.store.getBudget(showId);
+    const budgetExhausted = budget
+      ? budget.usedPrompt + budget.usedCompletion >= budget.totalLimit
+      : false;
 
-    // Run Decision Phase using callback for character decisions
-    const decisionCallback = async (
-      characterId: string,
-      trigger: string,
-      _previousDecisions: Array<{ characterId: string; decision: string }>
-    ) => {
-      return this.processCharacterTurn(showId, characterId, trigger);
-    };
+    if (budgetExhausted) {
+      logger.warn(`[Budget] Show ${showId}: Budget exhausted, skipping decision phase LLM calls`);
+    } else {
+      // Get decisionConfig from configSnapshot
+      const configSnapshot = JSON.parse(showRecord.configSnapshot) as Record<string, unknown>;
+      const decisionConfig = configSnapshot.decisionConfig as DecisionConfig;
 
-    await this.hostModule.runDecisionPhase(showId, decisionConfig, decisionCallback);
+      // Run Decision Phase using callback for character decisions
+      const decisionCallback = async (
+        characterId: string,
+        trigger: string,
+        _previousDecisions: Array<{ characterId: string; decision: string }>
+      ) => {
+        return this.processCharacterTurn(showId, characterId, trigger);
+      };
 
-    // Run Revelation
-    await this.hostModule.runRevelation(showId, decisionConfig);
+      await this.hostModule.runDecisionPhase(showId, decisionConfig, decisionCallback);
+
+      // Run Revelation
+      await this.hostModule.runRevelation(showId, decisionConfig);
+    }
 
     // Create 'system' event with graceful_finish: true
     const systemEvent: Omit<ShowEvent, 'sequenceNumber'> = {
@@ -1104,9 +1136,10 @@ export class Orchestrator {
       senderId: '',
       receiverIds: allCharacterIds,
       audienceIds: allCharacterIds,
-      content: 'Show ended via graceful finish',
+      content: budgetExhausted ? 'Show ended: token budget exhausted' : 'Show ended via graceful finish',
       metadata: {
         graceful_finish: true,
+        budgetExhausted,
       },
       seed,
     };

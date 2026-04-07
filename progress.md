@@ -2036,3 +2036,29 @@ Added a template information panel to the Debug UI that displays template name, 
 3. В system prompt указать: target должен быть ID другого участника, не свой ✓
 4. Fallback валидация: если target === senderId — игнорировать intent, логировать warning ✓
 5. Приватное сообщение не должно дублировать публичное ✓ (указано в prompt)
+
+## [2026-04-07] TASK-091: Система игнорирует лимит токенов
+**Статус:** done
+**Время:** ~30 минут
+**Изменения:**
+- src/core/orchestrator.ts:
+  - Добавлен класс BudgetExceededError для hard limit при превышении бюджета
+  - checkBudget() теперь логирует WARNING при 80% и ERROR при 100% использования
+  - processCharacterTurn() проверяет бюджет ПЕРЕД каждым LLM вызовом
+  - Если used > budget — выбрасывае��ся BudgetExceededError (hard limit)
+  - gracefulFinish() пропускает LLM вызовы если бюджет исчерпан
+  - При budgetExhausted=true создается system событие с соответствующим сообщением
+
+**Тесты:**
+- npm run typecheck — passes
+- npm run lint — passes (0 errors)
+- ADAPTER_MODE=mock npx vitest run tests/unit/orchestrator.test.ts — 46 tests passed
+- npx vitest run tests/integration/token-budget-flow.test.ts — 21 tests passed
+
+**Acceptance Criteria:**
+1. checkBudget() вызывается ПЕРЕД каждым LLM вызовом, не после ✓
+2. При достижении 100% бюджета шоу немедленно переходит в graceful_finish ✓
+3. graceful_finish реально останавливает LLM вызовы, а не просто логирует ✓
+4. Добавить жёсткий лимит: if (used > budget) throw new BudgetExceededError() ✓
+5. UI показывает текущий расход токенов и процент от бюджета ✓ (уже было реализовано)
+6. Логировать WARNING при 80%, ERROR при 100% ✓
