@@ -1351,3 +1351,30 @@ Wildcard: Максим имеет компромат на Виктора (фин
 7. ✅ Тест приватного кана��а: ответ в private channel не виден другим персонажам в следующем ходе
 
 **Тесты:** npm run lint, npm run typecheck, npm test — все пройдены (343 tests passed).
+
+## [2026-04-07] TASK-065: Интеграционные тесты: отслеживание token budget
+**Статус:** done
+**Время:** ~20 минут
+**Изменения:**
+- tests/integration/token-budget-flow.test.ts — создан с 21 тестом:
+  - Budget creation during initializeShow (totalLimit, usedPrompt=0, usedCompletion=0, mode=normal)
+  - Budget decrease after updateBudget calls
+  - Token accumulation over multiple LLM calls
+  - budget_saving mode at 80% usage
+  - graceful_finish mode at 100% usage
+  - System events on mode transitions
+  - Mode persistence in database
+  - Correct summation of promptTokens and completionTokens
+  - Full budget flow progressing through all modes
+  - Edge cases: non-existent budget returns normal, no duplicate events for same mode
+
+**Acceptance Criteria:**
+1. ✅ tests/integration/token-budget-flow.test.ts создан
+2. ✅ Тест создания бюджета при initializeShow
+3. ✅ Тест уменьшения бюджета после каждого LLM вызова
+4. ✅ Тест budget_saving_mode: при достижении 80% возвращается BudgetMode.budget_saving
+5. ✅ Тест graceful_finish: при достижении 100% возвращается BudgetMode.graceful_finish
+6. ✅ Интеграция с Orchestrator.checkBudget() и реальным SqliteStore
+7. ✅ Проверка что promptTokens и completionTokens корректно суммируются
+
+**Тесты:** npm run lint (0 errors), npm run typecheck, npm test — все пройдены (364 tests passed).
