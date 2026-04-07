@@ -564,3 +564,17 @@
 **Тесты:** npm run typecheck, npm test — все пройдены (163 tests passed).
 **Заметки:** Метод вызывается после runDecisionPhase() для раскрытия решений всем участникам. Зависящих задач нет.
 
+## [2026-04-07] TASK-035: Orchestrator: базовый класс и dependency injection
+**Статус:** done
+**Время:** ~10 минут
+**Изменения:**
+- src/core/orchestrator.ts — создан новый файл:
+  - OrchestratorMode тип: 'AUTO' | 'DEBUG'
+  - OrchestratorState интерфейс: showId, currentPhaseIndex, turnIndex, mode
+  - Orchestrator class принимает 5 зависимостей: IStore, ModelAdapter, EventJournal, HostModule, ContextBuilder
+  - Хранит состояние: showId (null), currentPhaseIndex (0), turnIndex (0), mode ('AUTO')
+  - Метод getState(): OrchestratorState возвращает текущее состояние
+
+**Тесты:** npm run typecheck, npm test — все пройдены (163 tests passed).
+**Заметки:** Базовый класс для оркестрации шоу. От этой задачи зависят TASK-036, TASK-037, TASK-038, TASK-039, TASK-040.
+
