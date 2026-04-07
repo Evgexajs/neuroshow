@@ -489,7 +489,9 @@ function renderTemplateInfo(): void {
   for (const phase of showConfig.phases) {
     const isCurrent = phase.id === currentPhaseId;
     const turnCount = phaseTurnCounts.get(phase.id) ?? 0;
-    const maxTurns = typeof phase.durationValue === 'number' ? phase.durationValue : 0;
+    // Total turns = durationValue × number of characters (each character speaks durationValue times)
+    const turnsPerChar = typeof phase.durationValue === 'number' ? phase.durationValue : 0;
+    const maxTurns = turnsPerChar * characters.length;
     const progressPercent = maxTurns > 0 ? Math.min((turnCount / maxTurns) * 100, 100) : 0;
 
     const phaseEl = document.createElement('div');
@@ -521,7 +523,7 @@ function renderTemplateInfo(): void {
       </div>
       <div class="phase-details">
         <div class="phase-turns">
-          <span>${phase.durationMode}: ${phase.durationValue}</span>
+          <span>${phase.durationMode}: ${maxTurns} (${turnsPerChar}×${characters.length})</span>
         </div>
         <div class="phase-channels">${channelsHtml}</div>
       </div>

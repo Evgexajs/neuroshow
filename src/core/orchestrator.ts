@@ -254,11 +254,8 @@ export class Orchestrator {
         // Log turn progress
         logger.info(`[Phase ${phaseNum}] Turn ${this.turnIndex + 1}/${totalTurns}: ${charName} responds`);
 
-        // Use trigger template only for first round, then use continuation prompt
-        // This prevents characters from repeating the same response (e.g., introducing themselves every turn)
-        const trigger = round === 0
-          ? (phase.triggerTemplate ?? '')
-          : 'Продолжи обсуждение, учитывая сказанное другими участниками.';
+        // Trigger template only for first round, then empty - model continues from context
+        const trigger = round === 0 ? (phase.triggerTemplate ?? '') : '';
 
         // Process character turn
         await this.processCharacterTurn(showId, characterId, trigger);
@@ -412,10 +409,8 @@ export class Orchestrator {
         // Log turn progress
         logger.info(`[Phase ${phaseNum}] Turn ${this.turnIndex + 1}/${totalTurns}: ${charName} responds`);
 
-        // Use trigger template only for first round, then use continuation prompt
-        const trigger = round === 0
-          ? (phase.triggerTemplate ?? '')
-          : 'Продолжи обсуждение, учитывая сказанное другими участниками.';
+        // Trigger template only for first round, then empty - model continues from context
+        const trigger = round === 0 ? (phase.triggerTemplate ?? '') : '';
 
         // Process character turn
         await this.processCharacterTurn(showId, characterId, trigger);
