@@ -496,3 +496,20 @@
 **Тесты:** npm run typecheck, npm test — все пройдены (136 tests passed).
 **Заметки:** Метод используется Host Module для отправки триггеров персонажам. Шаблонизация позволяет динамически подставлять имена и количество участников. От этой задачи зависит TASK-033.
 
+## [2026-04-07] TASK-032: Host Module: managePrivateChannels()
+**Статус:** done
+**Время:** ~10 минут
+**Изменения:**
+- src/core/host-module.ts — добавлены методы для управления приватными каналами:
+  - openPrivateChannel(showId, participantIds): Promise<void> — создаёт channel_change событие с channel=PRIVATE
+  - closePrivateChannel(showId): Promise<void> — создаёт channel_change событие с channel=PUBLIC
+  - validatePrivateRequest(showId, requesterId, targetId, rules): Promise<boolean> — проверяет лимиты
+- Валидация проверяет:
+  - maxPrivatesPerPhase — общий лимит приваток в фазе
+  - maxPrivatesPerCharacterPerPhase — лимит приваток на персонажа (и для requester, и для target)
+- События channel_change содержат metadata.action ('open'/'close') и metadata.participants
+- tests/unit/host-module.test.ts — добавлены 12 тестов для managePrivateChannels()
+
+**Тесты:** npm run typecheck, npm test — все пройдены (148 tests passed).
+**Заметки:** Лимиты отслеживаются через подсчёт channel_change событий в текущей фазе. От этой задачи зависит TASK-038.
+

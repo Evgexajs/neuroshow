@@ -10,6 +10,7 @@ import { CharacterDefinition } from '../types/character.js';
 import { Show } from '../types/runtime.js';
 import { ShowEvent } from '../types/events.js';
 import { ShowStatus, BudgetMode, EventType, ChannelType } from '../types/enums.js';
+import { PrivateChannelRules } from '../types/primitives.js';
 import { generateId } from '../utils/id.js';
 import { config } from '../config.js';
 
@@ -298,5 +299,142 @@ export class HostModule {
     }
 
     return result;
+  }
+
+  /**
+   * Open a private channel between participants
+   * Creates a channel_change event in the journal
+   *
+   * @param showId - Show ID
+   * @param participantIds - Array of character IDs participating in the private channel
+   */
+  async openPrivateChannel(showId: string, participantIds: string[]): Promise<void> {
+    const showRecord = await this.store.getShow(showId);
+    const seed = showRecord?.seed ?? '0';
+    const phaseId = showRecord?.currentPhaseId ?? '';
+
+    const event: Omit<ShowEvent, 'sequenceNumber'> = {
+      id: generateId(),
+      showId,
+      timestamp: Date.now(),
+      phaseId,
+      type: EventType.channel_change,
+      channel: ChannelType.PRIVATE,
+      visibility: ChannelType.PRIVATE,
+      senderId: '', // System event
+      receiverIds: participantIds,
+      audienceIds: participantIds,
+      content: 'Private channel opened',
+      metadata: {
+        action: 'open',
+        participants: participantIds,
+      },
+      seed,
+    };
+
+    await this.eventJournal.append(event);
+  }
+
+  /**
+   * Close the current private channel and return to PUBLIC
+   * Creates a channel_change event in the journal
+   *
+   * @param showId - Show ID
+   */
+  async closePrivateChannel(showId: string): Promise<void> {
+    const showRecord = await this.store.getShow(showId);
+    const seed = showRecord?.seed ?? '0';
+    const phaseId = showRecord?.currentPhaseId ?? '';
+
+    // Get all characters for audience
+    const characters = await this.store.getCharacters(showId);
+    const allCharacterIds = characters.map((c) => c.characterId);
+
+    const event: Omit<ShowEvent, 'sequenceNumber'> = {
+      id: generateId(),
+      showId,
+      timestamp: Date.now(),
+      phaseId,
+      type: EventType.channel_change,
+      channel: ChannelType.PUBLIC,
+      visibility: ChannelType.PUBLIC,
+      senderId: '', // System event
+      receiverIds: allCharacterIds,
+      audienceIds: allCharacterIds,
+      content: 'Returned to public channel',
+      metadata: {
+        action: 'close',
+      },
+      seed,
+    };
+
+    await this.eventJournal.append(event);
+  }
+
+  /**
+   * Validate a private channel request against the rules
+   * Checks limits from privateChannelRules
+   *
+   * @param showId - Show ID
+   * @param requesterId - Character ID requesting private channel
+   * @param targetId - Target character ID
+   * @param rules - Private channel rules from template
+   * @returns true if the request is valid, false otherwise
+   */
+  async validatePrivateRequest(
+    showId: string,
+    requesterId: string,
+    targetId: string,
+    rules: PrivateChannelRules
+  ): Promise<boolean> {
+    // Get current phase
+    const showRecord = await this.store.getShow(showId);
+    if (!showRecord) {
+      return false;
+    }
+    const currentPhaseId = showRecord.currentPhaseId;
+
+    // Get all events in current phase
+    const allEvents = await this.eventJournal.getEvents(showId);
+    const phaseEvents = allEvents.filter((e) => e.phaseId === currentPhaseId);
+
+    // Count private channel openings in current phase
+    const privateChannelEvents = phaseEvents.filter(
+      (e) =>
+        e.type === EventType.channel_change &&
+        e.channel === ChannelType.PRIVATE &&
+        e.metadata?.action === 'open'
+    );
+
+    // Check maxPrivatesPerPhase limit
+    if (privateChannelEvents.length >= rules.maxPrivatesPerPhase) {
+      return false;
+    }
+
+    // Count private channel openings by requester in current phase
+    const requesterPrivateCount = privateChannelEvents.filter(
+      (e) =>
+        Array.isArray(e.metadata?.participants) &&
+        (e.metadata.participants as string[]).includes(requesterId)
+    ).length;
+
+    // Check maxPrivatesPerCharacterPerPhase limit
+    if (requesterPrivateCount >= rules.maxPrivatesPerCharacterPerPhase) {
+      return false;
+    }
+
+    // Count private channel openings by target in current phase
+    const targetPrivateCount = privateChannelEvents.filter(
+      (e) =>
+        Array.isArray(e.metadata?.participants) &&
+        (e.metadata.participants as string[]).includes(targetId)
+    ).length;
+
+    // Check maxPrivatesPerCharacterPerPhase limit for target
+    if (targetPrivateCount >= rules.maxPrivatesPerCharacterPerPhase) {
+      return false;
+    }
+
+    return true;
   }
 }

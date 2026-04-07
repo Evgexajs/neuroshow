@@ -6,6 +6,7 @@ import { ShowFormatTemplate, Phase } from '../../src/types/template.js';
 import { CharacterDefinition } from '../../src/types/character.js';
 import { PhaseType, ChannelType, SpeakFrequency, ShowStatus, BudgetMode, EventType } from '../../src/types/enums.js';
 import { PrivateContext } from '../../src/types/context.js';
+import { PrivateChannelRules } from '../../src/types/primitives.js';
 import * as fs from 'fs';
 
 describe('HostModule', () => {
@@ -568,6 +569,253 @@ describe('HostModule', () => {
 
       const events = await eventJournal.getEvents(show.id);
       expect(events[0]!.phaseId).toBe('phase-discussion-1');
+    });
+  });
+
+  describe('managePrivateChannels', () => {
+    describe('openPrivateChannel', () => {
+      it('creates channel_change event with PRIVATE channel', async () => {
+        const template = createTestTemplate();
+        const characters = [
+          createTestCharacter('char-1', 'Alice'),
+          createTestCharacter('char-2', 'Bob'),
+        ];
+
+        const show = await hostModule.initializeShow(template, characters);
+        await hostModule.openPrivateChannel(show.id, ['char-1', 'char-2']);
+
+        const events = await eventJournal.getEvents(show.id);
+        expect(events).toHaveLength(1);
+        expect(events[0]!.type).toBe(EventType.channel_change);
+        expect(events[0]!.channel).toBe(ChannelType.PRIVATE);
+      });
+
+      it('sets correct audienceIds and receiverIds to participants', async () => {
+        const template = createTestTemplate();
+        const characters = [
+          createTestCharacter('char-1', 'Alice'),
+          createTestCharacter('char-2', 'Bob'),
+          createTestCharacter('char-3', 'Charlie'),
+        ];
+
+        const show = await hostModule.initializeShow(template, characters);
+        await hostModule.openPrivateChannel(show.id, ['char-1', 'char-2']);
+
+        const events = await eventJournal.getEvents(show.id);
+        expect(events[0]!.audienceIds).toEqual(['char-1', 'char-2']);
+        expect(events[0]!.receiverIds).toEqual(['char-1', 'char-2']);
+        expect(events[0]!.audienceIds).not.toContain('char-3');
+      });
+
+      it('stores action:open and participants in metadata', async () => {
+        const template = createTestTemplate();
+        const characters = [
+          createTestCharacter('char-1', 'Alice'),
+          createTestCharacter('char-2', 'Bob'),
+        ];
+
+        const show = await hostModule.initializeShow(template, characters);
+        await hostModule.openPrivateChannel(show.id, ['char-1', 'char-2']);
+
+        const events = await eventJournal.getEvents(show.id);
+        expect(events[0]!.metadata.action).toBe('open');
+        expect(events[0]!.metadata.participants).toEqual(['char-1', 'char-2']);
+      });
+    });
+
+    describe('closePrivateChannel', () => {
+      it('creates channel_change event with PUBLIC channel', async () => {
+        const template = createTestTemplate();
+        const characters = [
+          createTestCharacter('char-1', 'Alice'),
+          createTestCharacter('char-2', 'Bob'),
+        ];
+
+        const show = await hostModule.initializeShow(template, characters);
+        await hostModule.openPrivateChannel(show.id, ['char-1', 'char-2']);
+        await hostModule.closePrivateChannel(show.id);
+
+        const events = await eventJournal.getEvents(show.id);
+        expect(events).toHaveLength(2);
+        expect(events[1]!.type).toBe(EventType.channel_change);
+        expect(events[1]!.channel).toBe(ChannelType.PUBLIC);
+      });
+
+      it('sets audienceIds to all characters', async () => {
+        const template = createTestTemplate();
+        const characters = [
+          createTestCharacter('char-1', 'Alice'),
+          createTestCharacter('char-2', 'Bob'),
+          createTestCharacter('char-3', 'Charlie'),
+        ];
+
+        const show = await hostModule.initializeShow(template, characters);
+        await hostModule.openPrivateChannel(show.id, ['char-1', 'char-2']);
+        await hostModule.closePrivateChannel(show.id);
+
+        const events = await eventJournal.getEvents(show.id);
+        expect(events[1]!.audienceIds).toHaveLength(3);
+        expect(events[1]!.audienceIds).toContain('char-1');
+        expect(events[1]!.audienceIds).toContain('char-2');
+        expect(events[1]!.audienceIds).toContain('char-3');
+      });
+
+      it('stores action:close in metadata', async () => {
+        const template = createTestTemplate();
+        const characters = [createTestCharacter('char-1', 'Alice')];
+
+        const show = await hostModule.initializeShow(template, characters);
+        await hostModule.closePrivateChannel(show.id);
+
+        const events = await eventJournal.getEvents(show.id);
+        expect(events[0]!.metadata.action).toBe('close');
+      });
+    });
+
+    describe('validatePrivateRequest', () => {
+      it('returns true when under all limits', async () => {
+        const template = createTestTemplate();
+        const characters = [
+          createTestCharacter('char-1', 'Alice'),
+          createTestCharacter('char-2', 'Bob'),
+        ];
+
+        const show = await hostModule.initializeShow(template, characters);
+        const rules: PrivateChannelRules = {
+          initiator: 'character_request_host_approves',
+          maxPrivatesPerPhase: 3,
+          maxPrivatesPerCharacterPerPhase: 2,
+          requestQueueMode: 'fifo',
+          requestFormat: 'public_ask',
+        };
+
+        const isValid = await hostModule.validatePrivateRequest(show.id, 'char-1', 'char-2', rules);
+        expect(isValid).toBe(true);
+      });
+
+      it('returns false when maxPrivatesPerPhase is reached', async () => {
+        const template = createTestTemplate();
+        const characters = [
+          createTestCharacter('char-1', 'Alice'),
+          createTestCharacter('char-2', 'Bob'),
+          createTestCharacter('char-3', 'Charlie'),
+          createTestCharacter('char-4', 'Diana'),
+        ];
+
+        const show = await hostModule.initializeShow(template, characters);
+        const rules: PrivateChannelRules = {
+          initiator: 'character_request_host_approves',
+          maxPrivatesPerPhase: 2,
+          maxPrivatesPerCharacterPerPhase: 5,
+          requestQueueMode: 'fifo',
+          requestFormat: 'public_ask',
+        };
+
+        // Open 2 private channels (reaching the limit)
+        await hostModule.openPrivateChannel(show.id, ['char-1', 'char-2']);
+        await hostModule.closePrivateChannel(show.id);
+        await hostModule.openPrivateChannel(show.id, ['char-3', 'char-4']);
+        await hostModule.closePrivateChannel(show.id);
+
+        // Third request should fail
+        const isValid = await hostModule.validatePrivateRequest(show.id, 'char-1', 'char-3', rules);
+        expect(isValid).toBe(false);
+      });
+
+      it('returns false when maxPrivatesPerCharacterPerPhase is reached for requester', async () => {
+        const template = createTestTemplate();
+        const characters = [
+          createTestCharacter('char-1', 'Alice'),
+          createTestCharacter('char-2', 'Bob'),
+          createTestCharacter('char-3', 'Charlie'),
+        ];
+
+        const show = await hostModule.initializeShow(template, characters);
+        const rules: PrivateChannelRules = {
+          initiator: 'character_request_host_approves',
+          maxPrivatesPerPhase: 10,
+          maxPrivatesPerCharacterPerPhase: 2,
+          requestQueueMode: 'fifo',
+          requestFormat: 'public_ask',
+        };
+
+        // char-1 participates in 2 private channels
+        await hostModule.openPrivateChannel(show.id, ['char-1', 'char-2']);
+        await hostModule.closePrivateChannel(show.id);
+        await hostModule.openPrivateChannel(show.id, ['char-1', 'char-3']);
+        await hostModule.closePrivateChannel(show.id);
+
+        // char-1 requesting third private should fail
+        const isValid = await hostModule.validatePrivateRequest(show.id, 'char-1', 'char-2', rules);
+        expect(isValid).toBe(false);
+      });
+
+      it('returns false when maxPrivatesPerCharacterPerPhase is reached for target', async () => {
+        const template = createTestTemplate();
+        const characters = [
+          createTestCharacter('char-1', 'Alice'),
+          createTestCharacter('char-2', 'Bob'),
+          createTestCharacter('char-3', 'Charlie'),
+        ];
+
+        const show = await hostModule.initializeShow(template, characters);
+        const rules: PrivateChannelRules = {
+          initiator: 'character_request_host_approves',
+          maxPrivatesPerPhase: 10,
+          maxPrivatesPerCharacterPerPhase: 2,
+          requestQueueMode: 'fifo',
+          requestFormat: 'public_ask',
+        };
+
+        // char-2 participates in 2 private channels (as target)
+        await hostModule.openPrivateChannel(show.id, ['char-1', 'char-2']);
+        await hostModule.closePrivateChannel(show.id);
+        await hostModule.openPrivateChannel(show.id, ['char-3', 'char-2']);
+        await hostModule.closePrivateChannel(show.id);
+
+        // char-1 requesting private with char-2 should fail (char-2 at limit)
+        const isValid = await hostModule.validatePrivateRequest(show.id, 'char-1', 'char-2', rules);
+        expect(isValid).toBe(false);
+      });
+
+      it('returns true when characters have remaining quota', async () => {
+        const template = createTestTemplate();
+        const characters = [
+          createTestCharacter('char-1', 'Alice'),
+          createTestCharacter('char-2', 'Bob'),
+          createTestCharacter('char-3', 'Charlie'),
+        ];
+
+        const show = await hostModule.initializeShow(template, characters);
+        const rules: PrivateChannelRules = {
+          initiator: 'character_request_host_approves',
+          maxPrivatesPerPhase: 10,
+          maxPrivatesPerCharacterPerPhase: 2,
+          requestQueueMode: 'fifo',
+          requestFormat: 'public_ask',
+        };
+
+        // char-1 participates in 1 private channel (has 1 remaining)
+        await hostModule.openPrivateChannel(show.id, ['char-1', 'char-2']);
+        await hostModule.closePrivateChannel(show.id);
+
+        // char-1 requesting another private with char-3 should succeed
+        const isValid = await hostModule.validatePrivateRequest(show.id, 'char-1', 'char-3', rules);
+        expect(isValid).toBe(true);
+      });
+
+      it('returns false for non-existent show', async () => {
+        const rules: PrivateChannelRules = {
+          initiator: 'character_request_host_approves',
+          maxPrivatesPerPhase: 3,
+          maxPrivatesPerCharacterPerPhase: 2,
+          requestQueueMode: 'fifo',
+          requestFormat: 'public_ask',
+        };
+
+        const isValid = await hostModule.validatePrivateRequest('non-existent-show', 'char-1', 'char-2', rules);
+        expect(isValid).toBe(false);
+      });
     });
   });
 });

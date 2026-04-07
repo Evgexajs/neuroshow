@@ -830,7 +830,7 @@
         "TASK-018",
         "TASK-029"
       ],
-      "status": "pending"
+      "status": "done"
     },
     {
       "id": "TASK-033",
@@ -1517,6 +1517,61 @@
       "dependencies": [
         "TASK-041",
         "TASK-046"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "TASK-062",
+      "category": "testing",
+      "priority": "high",
+      "description": "Интеграционные тесты: HostModule + SqliteStore + EventJournal",
+      "acceptance_criteria": [
+        "tests/integration/host-store-journal.test.ts создан",
+        "Тест инициализации шоу: HostModule создаёт шоу через реальный SqliteStore",
+        "Тест записи событий: EventJournal пишет события которые читаются из SqliteStore",
+        "Тест manageTurnQueue: возвращает персонажей созданных через SqliteStore",
+        "Тест emitTrigger: событие host_trigger сохраняется в БД и читается через getEventsByShowId",
+        "Тесты используют временную SQLite БД (in-memory или temp file)",
+        "Нет моков — все компоненты реальные"
+      ],
+      "test_steps": [
+        "Выполни: npm test tests/integration/host-store-journal.test.ts",
+        "Проверь что тесты проходят",
+        "Проверь что покрыт полный цикл: init -> characters -> events -> read",
+        "Ожидаемый результат: компоненты корректно работают вместе"
+      ],
+      "dependencies": [
+        "TASK-029",
+        "TASK-018",
+        "TASK-015"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "TASK-063",
+      "category": "testing",
+      "priority": "high",
+      "description": "Интеграционные тесты: ContextBuilder + EventJournal + MockAdapter",
+      "acceptance_criteria": [
+        "tests/integration/context-builder-flow.test.ts создан",
+        "Тест buildPromptPackage: использует реальные события из EventJournal",
+        "Тест trimToTokenBudget: обрезает реальный PromptPackage с MockAdapter.estimateTokens()",
+        "Тест приватности: события с channel='private' корректно фильтруются в контексте",
+        "Тест sliding window: старые события обрезаются при превышении бюджета",
+        "Проверка что factsList НИКОГДА не обрезается при trim",
+        "Нет моков EventJournal — события реально пишутся и читаются из памяти/БД"
+      ],
+      "test_steps": [
+        "Выполни: npm test tests/integration/context-builder-flow.test.ts",
+        "Проверь что события из журнала корректно превращаются в промпт",
+        "Проверь что приватные события не утекают другим персонажам",
+        "Ожидаемый результат: контекст собирается корректно из реальных данных"
+      ],
+      "dependencies": [
+        "TASK-027",
+        "TASK-028",
+        "TASK-018",
+        "TASK-020"
       ],
       "status": "pending"
     }
