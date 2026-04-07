@@ -2429,6 +2429,27 @@
       ],
       "dependencies": [],
       "status": "pending"
+    },
+    {
+      "id": "TASK-101",
+      "category": "bugfix",
+      "priority": "high",
+      "description": "History popup: Recent Shows показывает [Object object] вместо данных",
+      "problem": "В секции 'Recent Shows (Local)' отображается '[Object object]' — объект не сериализуется правильно",
+      "acceptance_criteria": [
+        "Recent Shows показывает читаемые данные: ID, статус, дату",
+        "Формат такой же как в Server Shows",
+        "Клик по элементу подключает к шоу",
+        "Добавить E2E тест на History popup"
+      ],
+      "test_steps": [
+        "Открой History popup",
+        "Проверь секцию Recent Shows (Local)",
+        "Должны отображаться нормальные данные, не [Object object]",
+        "Ожидаемый результат: читаемый список недавних шоу"
+      ],
+      "dependencies": [],
+      "status": "pending"
     }
   ]
 }
