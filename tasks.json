@@ -2007,6 +2007,27 @@
         "TASK-075"
       ],
       "status": "pending"
+    },
+    {
+      "id": "TASK-082",
+      "category": "bugfix",
+      "priority": "critical",
+      "description": "Исправить генерацию персонажей через OpenAI - конфликт формата",
+      "acceptance_criteria": [
+        "Промпт просит объект {characters: [...]} вместо массива [...]",
+        "response_format: json_object работает корректно",
+        "OpenAI возвращает персонажей, а не ошибку",
+        "Парсинг корректно извлекает массив из объекта",
+        "Логировать полный ответ OpenAI для отладки"
+      ],
+      "test_steps": [
+        "curl -X POST http://localhost:3000/generate/characters -H 'Content-Type: application/json' -d '{\"count\": 3}'",
+        "Проверь что вернулись 3 персонажа (не пустой массив)",
+        "Проверь логи сервера - не должно быть ошибок парсинга",
+        "Ожидаемый результат: генерация работает стабильно"
+      ],
+      "dependencies": [],
+      "status": "pending"
     }
   ]
 }
