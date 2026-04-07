@@ -1486,3 +1486,35 @@ All criteria are met by existing implementation in `web/debug-ui/app.ts`:
 - `npm run lint` — passes (warnings only)
 - `npm run typecheck` — passes
 - `npm test` — 364 tests pass
+
+## [2026-04-07] TASK-072: Debug UI - рабочие кнопки управления шоу
+**Статус:** done
+**Время:** ~15 минут
+**Изменения:**
+- web/debug-ui/app.ts - исправлен lint (let → const для selectedCharacterIds)
+
+### Acceptance Criteria Verified
+Все критерии выполнены существующей реализацией:
+
+1. **Кнопка START вызывает POST /shows/:id/control {action: 'start'}**
+   - Line 128: `startBtn.addEventListener('click', () => handleControl('start'));`
+
+2. **Кнопка PAUSE вызывает POST /shows/:id/control {action: 'pause'}**
+   - Line 129: `pauseBtn.addEventListener('click', () => handleControl('pause'));`
+
+3. **Кнопка STEP вызывает POST /shows/:id/control {action: 'step'}**
+   - Line 131: `stepBtn.addEventListener('click', () => handleControl('step'));`
+
+4. **Кнопки активны только когда подключен к шоу**
+   - Line 243: `const isConnected = currentShowId !== null;`
+
+5. **Кнопки disabled в неактуальных состояниях**
+   - Lines 246-254: правильная логика disabled для каждой кнопки
+
+6. **Показывает feedback после действия**
+   - Lines 170-177: `addSystemMessage()` показывает success/error
+
+### Verification
+- `npm run lint` — passes (warnings only)
+- `npm run typecheck` — passes
+- `npm test` — 364 tests pass

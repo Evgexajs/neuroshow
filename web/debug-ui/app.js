@@ -19,6 +19,18 @@ const currentPhaseEl = document.getElementById('current-phase');
 const turnNumberEl = document.getElementById('turn-number');
 const tokenProgressEl = document.getElementById('token-progress');
 const tokenTextEl = document.getElementById('token-text');
+// New Show Modal Elements
+const newShowBtn = document.getElementById('new-show-btn');
+const newShowModal = document.getElementById('new-show-modal');
+const modalOverlay = document.getElementById('modal-overlay');
+const modalCloseBtn = document.getElementById('modal-close-btn');
+const templateSelect = document.getElementById('template-select');
+const templateInfo = document.getElementById('template-info');
+const charactersList = document.getElementById('characters-list');
+const charactersValidation = document.getElementById('characters-validation');
+const createError = document.getElementById('create-error');
+const cancelBtn = document.getElementById('cancel-btn');
+const createShowBtn = document.getElementById('create-show-btn');
 // State
 let eventSource = null;
 let currentShowId = null;
@@ -34,6 +46,11 @@ let currentShowStatus = null;
 let statusPollInterval = null;
 const STATUS_POLL_INTERVAL_MS = 2000;
 let turnCount = 0;
+// New show modal state
+let availableTemplates = [];
+let availableCharacters = [];
+let selectedTemplate = null;
+const selectedCharacterIds = new Set();
 /**
  * Initialize the application
  */
@@ -52,6 +69,15 @@ function init() {
     resumeBtn.addEventListener('click', () => handleControl('resume'));
     stepBtn.addEventListener('click', () => handleControl('step'));
     rollbackBtn.addEventListener('click', handleRollback);
+    // New show modal listeners
+    newShowBtn.addEventListener('click', openNewShowModal);
+    modalOverlay.addEventListener('click', closeNewShowModal);
+    modalCloseBtn.addEventListener('click', closeNewShowModal);
+    cancelBtn.addEventListener('click', closeNewShowModal);
+    templateSelect.addEventListener('change', handleTemplateChange);
+    createShowBtn.addEventListener('click', () => {
+        handleCreateShow().catch(console.error);
+    });
 }
 /**
  * Handle connect button click
@@ -500,6 +526,197 @@ function escapeHtml(text) {
  */
 function scrollToBottom() {
     eventsContainer.scrollTop = eventsContainer.scrollHeight;
+}
+/**
+ * Open the new show modal and load data
+ */
+function openNewShowModal() {
+    newShowModal.classList.remove('hidden');
+    createError.classList.add('hidden');
+    loadModalData().catch(console.error);
+}
+/**
+ * Close the new show modal
+ */
+function closeNewShowModal() {
+    newShowModal.classList.add('hidden');
+    resetModalState();
+}
+/**
+ * Reset modal state
+ */
+function resetModalState() {
+    selectedTemplate = null;
+    selectedCharacterIds.clear();
+    templateSelect.value = '';
+    templateInfo.textContent = '';
+    charactersValidation.textContent = '';
+    charactersValidation.className = 'validation-message';
+    createShowBtn.disabled = true;
+    createError.classList.add('hidden');
+}
+/**
+ * Load templates and characters for the modal
+ */
+async function loadModalData() {
+    // Load templates
+    templateSelect.innerHTML = '<option value="">Loading templates...</option>';
+    charactersList.innerHTML = '<p class="loading-text">Loading characters...</p>';
+    try {
+        const [templatesResponse, charactersResponse] = await Promise.all([
+            fetch('/templates'),
+            fetch('/characters'),
+        ]);
+        if (!templatesResponse.ok) {
+            throw new Error('Failed to load templates');
+        }
+        if (!charactersResponse.ok) {
+            throw new Error('Failed to load characters');
+        }
+        availableTemplates = await templatesResponse.json();
+        availableCharacters = await charactersResponse.json();
+        renderTemplateSelect();
+        renderCharacterCheckboxes();
+    }
+    catch (err) {
+        console.error('Failed to load modal data:', err);
+        templateSelect.innerHTML = '<option value="">Failed to load templates</option>';
+        charactersList.innerHTML = '<p class="loading-text">Failed to load characters</p>';
+    }
+}
+/**
+ * Render template dropdown options
+ */
+function renderTemplateSelect() {
+    templateSelect.innerHTML = '<option value="">Select a template...</option>';
+    for (const template of availableTemplates) {
+        const option = document.createElement('option');
+        option.value = template.id;
+        option.textContent = template.name;
+        templateSelect.appendChild(option);
+    }
+}
+/**
+ * Render character checkboxes
+ */
+function renderCharacterCheckboxes() {
+    if (availableCharacters.length === 0) {
+        charactersList.innerHTML = '<p class="loading-text">No characters available</p>';
+        return;
+    }
+    charactersList.innerHTML = '';
+    for (const char of availableCharacters) {
+        const label = document.createElement('label');
+        label.className = 'character-checkbox';
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.value = char.id;
+        checkbox.addEventListener('change', handleCharacterToggle);
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'char-name';
+        nameSpan.textContent = char.name;
+        const descSpan = document.createElement('span');
+        descSpan.className = 'char-desc';
+        descSpan.textContent = `- ${char.publicCard.substring(0, 50)}${char.publicCard.length > 50 ? '...' : ''}`;
+        label.appendChild(checkbox);
+        label.appendChild(nameSpan);
+        label.appendChild(descSpan);
+        charactersList.appendChild(label);
+    }
+}
+/**
+ * Handle template selection change
+ */
+function handleTemplateChange() {
+    const templateId = templateSelect.value;
+    selectedTemplate = availableTemplates.find((t) => t.id === templateId) ?? null;
+    if (selectedTemplate) {
+        templateInfo.textContent = `${selectedTemplate.description} (${selectedTemplate.minParticipants}-${selectedTemplate.maxParticipants} participants)`;
+    }
+    else {
+        templateInfo.textContent = '';
+    }
+    validateCharacterSelection();
+}
+/**
+ * Handle character checkbox toggle
+ */
+function handleCharacterToggle(event) {
+    const checkbox = event.target;
+    const charId = checkbox.value;
+    if (checkbox.checked) {
+        selectedCharacterIds.add(charId);
+    }
+    else {
+        selectedCharacterIds.delete(charId);
+    }
+    validateCharacterSelection();
+}
+/**
+ * Validate character selection against template limits
+ */
+function validateCharacterSelection() {
+    if (!selectedTemplate) {
+        charactersValidation.textContent = '';
+        charactersValidation.className = 'validation-message';
+        createShowBtn.disabled = true;
+        return;
+    }
+    const count = selectedCharacterIds.size;
+    const { minParticipants, maxParticipants } = selectedTemplate;
+    if (count < minParticipants) {
+        charactersValidation.textContent = `Select at least ${minParticipants} characters (${count} selected)`;
+        charactersValidation.className = 'validation-message error';
+        createShowBtn.disabled = true;
+    }
+    else if (count > maxParticipants) {
+        charactersValidation.textContent = `Maximum ${maxParticipants} characters allowed (${count} selected)`;
+        charactersValidation.className = 'validation-message error';
+        createShowBtn.disabled = true;
+    }
+    else {
+        charactersValidation.textContent = `${count} characters selected (valid)`;
+        charactersValidation.className = 'validation-message valid';
+        createShowBtn.disabled = false;
+    }
+}
+/**
+ * Handle create show button click
+ */
+async function handleCreateShow() {
+    if (!selectedTemplate || selectedCharacterIds.size === 0) {
+        return;
+    }
+    createShowBtn.disabled = true;
+    createError.classList.add('hidden');
+    // Build characters array with full character data
+    const selectedChars = availableCharacters.filter((c) => selectedCharacterIds.has(c.id));
+    const requestBody = {
+        formatId: selectedTemplate,
+        characters: selectedChars,
+    };
+    try {
+        const response = await fetch('/shows', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(requestBody),
+        });
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error ?? `HTTP ${response.status}`);
+        }
+        const result = await response.json();
+        // Close modal and connect to the new show
+        closeNewShowModal();
+        showIdInput.value = result.showId;
+        await handleConnect();
+    }
+    catch (err) {
+        console.error('Failed to create show:', err);
+        createError.textContent = `Failed to create show: ${err instanceof Error ? err.message : 'Unknown error'}`;
+        createError.classList.remove('hidden');
+        createShowBtn.disabled = false;
+    }
 }
 // Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', init);

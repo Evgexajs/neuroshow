@@ -110,7 +110,7 @@ let turnCount = 0;
 let availableTemplates: ShowFormatTemplate[] = [];
 let availableCharacters: CharacterDefinition[] = [];
 let selectedTemplate: ShowFormatTemplate | null = null;
-let selectedCharacterIds: Set<string> = new Set();
+const selectedCharacterIds: Set<string> = new Set();
 
 /**
  * Initialize the application
