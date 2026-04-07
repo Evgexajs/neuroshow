@@ -694,6 +694,11 @@ function addEmptyPhaseMessage() {
 function addEventToFeed(event) {
     const eventPhaseId = event.phaseId ?? null;
     const eventType = event.type ?? '';
+    // Skip internal events that shouldn't be shown to viewers
+    // host_trigger = LLM instructions, not for humans
+    if (eventType === 'host_trigger') {
+        return;
+    }
     // Handle phase transitions
     if (eventType === 'phase_start' && eventPhaseId) {
         // Check if previous phase was empty

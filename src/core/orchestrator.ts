@@ -556,7 +556,8 @@ export class Orchestrator {
   async processCharacterTurn(
     showId: string,
     characterId: string,
-    trigger: string
+    trigger: string,
+    options: { skipSpeechEvent?: boolean } = {}
   ): Promise<CharacterResponse> {
     // Get show record from store
     const showRecord = await this.store.getShow(showId);
@@ -673,33 +674,35 @@ export class Orchestrator {
       audienceIds = allCharacterIds;
     }
 
-    // Record 'speech' event in journal
-    const speechEvent: Omit<ShowEvent, 'sequenceNumber'> = {
-      id: generateId(),
-      showId,
-      timestamp: Date.now(),
-      phaseId: showRecord.currentPhaseId ?? '',
-      type: EventType.speech,
-      channel,
-      visibility: channel,
-      senderId: characterId,
-      receiverIds: audienceIds,
-      audienceIds,
-      content: response.text,
-      metadata: {
-        intent: response.intent,
-        target: response.target,
-        decisionValue: response.decisionValue,
-      },
-      seed: showRecord.seed,
-    };
+    // Record 'speech' event in journal (skip for decision phase - runDecisionPhase creates decision event)
+    if (!options.skipSpeechEvent) {
+      const speechEvent: Omit<ShowEvent, 'sequenceNumber'> = {
+        id: generateId(),
+        showId,
+        timestamp: Date.now(),
+        phaseId: showRecord.currentPhaseId ?? '',
+        type: EventType.speech,
+        channel,
+        visibility: channel,
+        senderId: characterId,
+        receiverIds: audienceIds,
+        audienceIds,
+        content: response.text,
+        metadata: {
+          intent: response.intent,
+          target: response.target,
+          decisionValue: response.decisionValue,
+        },
+        seed: showRecord.seed,
+      };
 
-    await this.journal.append(speechEvent);
+      await this.journal.append(speechEvent);
 
-    // If this was a private message, close the channel after sending
-    if (isInPrivateChannel) {
-      await this.hostModule.closePrivateChannel(showId);
-      logger.info(`[Private Channel] Closed private channel after message from ${characterId}`);
+      // If this was a private message, close the channel after sending
+      if (isInPrivateChannel) {
+        await this.hostModule.closePrivateChannel(showId);
+        logger.info(`[Private Channel] Closed private channel after message from ${characterId}`);
+      }
     }
 
     // Update token budget (use same adapter that made the call)
@@ -1161,7 +1164,8 @@ export class Orchestrator {
           if (this.mode === 'DEBUG') {
             await this.waitForStep();
           }
-          return this.processCharacterTurn(showId, characterId, trigger);
+          // Skip speech event - runDecisionPhase creates decision event instead
+          return this.processCharacterTurn(showId, characterId, trigger, { skipSpeechEvent: true });
         };
         await this.hostModule.runDecisionPhase(showId, decisionConfig, decisionCallback);
       } else {
@@ -1332,7 +1336,8 @@ export class Orchestrator {
         trigger: string,
         _previousDecisions: Array<{ characterId: string; decision: string }>
       ) => {
-        return this.processCharacterTurn(showId, characterId, trigger);
+        // Skip speech event - runDecisionPhase creates decision event instead
+        return this.processCharacterTurn(showId, characterId, trigger, { skipSpeechEvent: true });
       };
 
       await this.hostModule.runDecisionPhase(showId, decisionConfig, decisionCallback);
@@ -1559,7 +1564,8 @@ export class Orchestrator {
           if (this.mode === 'DEBUG') {
             await this.waitForStep();
           }
-          return this.processCharacterTurn(showId, characterId, trigger);
+          // Skip speech event - runDecisionPhase creates decision event instead
+          return this.processCharacterTurn(showId, characterId, trigger, { skipSpeechEvent: true });
         };
         await this.hostModule.runDecisionPhase(showId, decisionConfig, decisionCallback);
       } else {

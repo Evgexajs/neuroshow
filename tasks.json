@@ -2610,6 +2610,33 @@
       ],
       "dependencies": ["TASK-107"],
       "status": "pending"
+    },
+    {
+      "id": "TASK-109",
+      "category": "bug",
+      "priority": "high",
+      "description": "Decision phase создаёт дублирующиеся события: speech + decision с одинаковым текстом",
+      "problem": "В decision phase каждый ход персонажа создаёт ДВА события: 1) speech (PUBLIC) через processCharacterTurn, 2) decision (PRIVATE) через runDecisionPhase. Пользователь видит одно и то же сообщение дважды: как публичное высказывание и как приватный голос.",
+      "acceptance_criteria": [
+        "В decision phase создаётся ТОЛЬКО decision event, БЕЗ speech event",
+        "Decision event содержит полный текст ответа LLM и decisionValue в metadata",
+        "UI показывает decision события с меткой 'VOTE' или 'DECISION' вместо дублей",
+        "При secret_until_reveal: audienceIds = [senderId] (голос виден только автору до reveal)"
+      ],
+      "implementation": [
+        "Добавить параметр skipSpeechEvent в callCharacterLLM (default: false)",
+        "В decisionCallback orchestrator: передавать skipSpeechEvent: true",
+        "Или: создать отдельный метод callCharacterForDecision без создания speech event",
+        "В UI: отображать decision events с иконкой голосования"
+      ],
+      "test_steps": [
+        "Запусти шоу с decision phase (coalition format)",
+        "Проверь события в БД: SELECT type, channel, content FROM show_events WHERE phase_id LIKE '%decision%'",
+        "Ожидаемый результат: только decision events, никаких speech дублей",
+        "Проверь UI: голосование не дублируется"
+      ],
+      "dependencies": [],
+      "status": "pending"
     }
   ]
 }
