@@ -16,6 +16,7 @@ import {
 import { ShowEvent } from '../types/events.js';
 import { ShowStatus, BudgetMode } from '../types/enums.js';
 import { PrivateContext } from '../types/context.js';
+import { ContextSummary } from '../types/summary.js';
 
 /**
  * SQLite-based storage implementation
@@ -27,6 +28,10 @@ export class SqliteStore implements IStore {
     this.db = new Database(dbPath);
     // Enable WAL mode for better concurrent access
     this.db.pragma('journal_mode = WAL');
+    // FULL synchronous ensures data is written to disk immediately
+    this.db.pragma('synchronous = FULL');
+    // Auto-checkpoint after 100 pages (~400KB) instead of default 1000
+    this.db.pragma('wal_autocheckpoint = 100');
   }
 
   /**
@@ -132,6 +137,19 @@ export class SqliteStore implements IStore {
         used_completion INTEGER DEFAULT 0,
         mode TEXT NOT NULL DEFAULT 'normal',
         last_updated INTEGER NOT NULL
+      )
+    `);
+
+    // Create context_summaries table for SummaryMemory
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS context_summaries (
+        show_id TEXT NOT NULL,
+        character_id TEXT NOT NULL,
+        summary_text TEXT NOT NULL DEFAULT '',
+        last_sequence_number INTEGER DEFAULT 0,
+        message_count INTEGER DEFAULT 0,
+        updated_at INTEGER NOT NULL,
+        PRIMARY KEY (show_id, character_id)
       )
     `);
   }
@@ -511,6 +529,48 @@ export class SqliteStore implements IStore {
       usedCompletion: row.used_completion as number,
       mode: row.mode as BudgetMode,
       lastUpdated: row.last_updated as number,
+    };
+  }
+
+  // ─── Context Summaries ─────────────────────────────────────────
+
+  async getContextSummary(showId: string, characterId: string): Promise<ContextSummary | null> {
+    const stmt = this.db.prepare(
+      'SELECT * FROM context_summaries WHERE show_id = ? AND character_id = ?'
+    );
+    const row = stmt.get(showId, characterId) as Record<string, unknown> | undefined;
+    if (!row) return null;
+    return this.mapContextSummaryRow(row);
+  }
+
+  async upsertContextSummary(summary: ContextSummary): Promise<void> {
+    const stmt = this.db.prepare(`
+      INSERT INTO context_summaries (show_id, character_id, summary_text, last_sequence_number, message_count, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?)
+      ON CONFLICT(show_id, character_id) DO UPDATE SET
+        summary_text = excluded.summary_text,
+        last_sequence_number = excluded.last_sequence_number,
+        message_count = excluded.message_count,
+        updated_at = excluded.updated_at
+    `);
+    stmt.run(
+      summary.showId,
+      summary.characterId,
+      summary.summaryText,
+      summary.lastSequenceNumber,
+      summary.messageCount,
+      summary.updatedAt
+    );
+  }
+
+  private mapContextSummaryRow(row: Record<string, unknown>): ContextSummary {
+    return {
+      showId: row.show_id as string,
+      characterId: row.character_id as string,
+      summaryText: row.summary_text as string,
+      lastSequenceNumber: row.last_sequence_number as number,
+      messageCount: row.message_count as number,
+      updatedAt: row.updated_at as number,
     };
   }
 
