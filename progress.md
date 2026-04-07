@@ -1460,3 +1460,29 @@ Added a modal form to create new shows from the Debug UI with template selection
 - `npm run lint` — passes (warnings only)
 - `npm run typecheck` — passes
 - `npm test` — 364 tests pass
+
+
+## 2026-04-07 — TASK-071: Debug UI — Auto-connect After Show Creation
+
+### Summary
+Verified that auto-connection to SSE after creating a new show is already implemented in TASK-070's `handleCreateShow()` function.
+
+### Acceptance Criteria Verified
+All criteria are met by existing implementation in `web/debug-ui/app.ts`:
+
+1. **После успешного POST /shows автоматически подключается к SSE**
+   - Line 868: `await handleConnect();` is called after successful POST
+
+2. **showId автоматически вставляется в поле поиска**
+   - Line 867: `showIdInput.value = result.showId;`
+
+3. **Статус меняется на 'Connected'**
+   - Line 447-448: Button text changes to "Disconnect", system message shows "Connected to event stream"
+
+4. **Загружаются персонажи шоу (GET /shows/:id/characters)**
+   - Line 438: `await fetchCharacters(showId);` is called in `connect()`
+
+### Verification
+- `npm run lint` — passes (warnings only)
+- `npm run typecheck` — passes
+- `npm test` — 364 tests pass
