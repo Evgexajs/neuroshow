@@ -2472,6 +2472,25 @@
       ],
       "dependencies": [],
       "status": "done"
+    },
+    {
+      "id": "TASK-103",
+      "category": "bugfix",
+      "priority": "critical",
+      "description": "SQLite WAL checkpoint — данные теряются при аварийном завершении",
+      "problem": "Данные в WAL файлах не записываются в основную БД. При crash/kill данные теряются.",
+      "acceptance_criteria": [
+        "WAL checkpoint после каждого завершённого шоу",
+        "Graceful shutdown делает checkpoint перед выходом",
+        "Логировать checkpoint события"
+      ],
+      "test_steps": [
+        "Запусти шоу до конца",
+        "Kill -9 процесс",
+        "Перезапусти — данные должны сохраниться"
+      ],
+      "dependencies": [],
+      "status": "pending"
     }
   ]
 }
