@@ -10,9 +10,20 @@ import { CharacterDefinition } from '../types/character.js';
 import { Show } from '../types/runtime.js';
 import { ShowEvent } from '../types/events.js';
 import { ShowStatus, BudgetMode, EventType, ChannelType } from '../types/enums.js';
-import { PrivateChannelRules } from '../types/primitives.js';
+import { PrivateChannelRules, DecisionConfig } from '../types/primitives.js';
+import { CharacterResponse } from '../types/adapter.js';
 import { generateId } from '../utils/id.js';
 import { config } from '../config.js';
+
+/**
+ * Callback type for collecting decisions from characters
+ * Used by runDecisionPhase to call the LLM for each character
+ */
+export type DecisionCallback = (
+  characterId: string,
+  trigger: string,
+  previousDecisions: Array<{ characterId: string; decision: string }>
+) => Promise<CharacterResponse>;
 
 /**
  * HostModule manages show initialization and lifecycle
@@ -436,5 +447,163 @@ export class HostModule {
     }
 
     return true;
+  }
+
+  /**
+   * Run the decision phase, collecting decisions from all characters
+   *
+   * For timing: 'simultaneous' - each character makes their decision without seeing others'
+   * For timing: 'sequential' - each character sees previous decisions before making theirs
+   *
+   * Creates 'decision' events in the journal with appropriate visibility based on decisionConfig.visibility
+   *
+   * @param showId - Show ID
+   * @param decisionConfig - Configuration for the decision phase
+   * @param callCharacter - Callback to get character's decision response
+   */
+  async runDecisionPhase(
+    showId: string,
+    decisionConfig: DecisionConfig,
+    callCharacter: DecisionCallback
+  ): Promise<void> {
+    // Get show info for phase and seed
+    const showRecord = await this.store.getShow(showId);
+    if (!showRecord) {
+      throw new Error(`Show ${showId} not found`);
+    }
+    const phaseId = showRecord.currentPhaseId ?? '';
+    const seed = showRecord.seed;
+
+    // Get all characters for this show
+    const characters = await this.store.getCharacters(showId);
+    if (characters.length === 0) {
+      return;
+    }
+
+    // Build decision trigger template
+    const triggerBase = this.buildDecisionTrigger(decisionConfig);
+
+    // Track collected decisions for sequential mode
+    const collectedDecisions: Array<{ characterId: string; decision: string }> = [];
+
+    // Determine visibility for decision events
+    const visibility =
+      decisionConfig.visibility === 'secret_until_reveal'
+        ? ChannelType.PRIVATE
+        : ChannelType.PUBLIC;
+
+    // Process each character
+    for (const character of characters) {
+      // Build trigger with previous decisions if sequential
+      let trigger = triggerBase;
+      if (decisionConfig.timing === 'sequential' && collectedDecisions.length > 0) {
+        trigger = this.buildSequentialTrigger(triggerBase, collectedDecisions);
+      }
+
+      // Emit host_trigger for this character (for tracking/debugging)
+      const triggerId = generateId();
+      const triggerEvent: Omit<ShowEvent, 'sequenceNumber'> = {
+        id: triggerId,
+        showId,
+        timestamp: Date.now(),
+        phaseId,
+        type: EventType.host_trigger,
+        channel: ChannelType.PUBLIC,
+        visibility: ChannelType.PUBLIC,
+        senderId: '',
+        receiverIds: [character.characterId],
+        audienceIds: [character.characterId],
+        content: trigger,
+        metadata: {
+          decisionPhase: true,
+          timing: decisionConfig.timing,
+        },
+        seed,
+      };
+      await this.eventJournal.append(triggerEvent);
+
+      // Call character to get their decision
+      const previousDecisions =
+        decisionConfig.timing === 'simultaneous' ? [] : collectedDecisions;
+      const response = await callCharacter(character.characterId, trigger, previousDecisions);
+
+      // Extract decision value
+      const decisionValue = response.decisionValue ?? response.text;
+
+      // Store decision for sequential mode
+      collectedDecisions.push({
+        characterId: character.characterId,
+        decision: decisionValue,
+      });
+
+      // Determine audience for this decision event
+      // For secret_until_reveal: only the deciding character sees their decision
+      // For public_immediately: all characters see the decision
+      const audienceIds =
+        decisionConfig.visibility === 'secret_until_reveal'
+          ? [character.characterId]
+          : characters.map((c) => c.characterId);
+
+      // Create decision event in journal
+      const decisionEvent: Omit<ShowEvent, 'sequenceNumber'> = {
+        id: generateId(),
+        showId,
+        timestamp: Date.now(),
+        phaseId,
+        type: EventType.decision,
+        channel: visibility,
+        visibility,
+        senderId: character.characterId,
+        receiverIds: audienceIds,
+        audienceIds,
+        content: response.text,
+        metadata: {
+          decisionValue,
+          format: decisionConfig.format,
+          options: decisionConfig.options,
+          timing: decisionConfig.timing,
+        },
+        seed,
+      };
+
+      await this.eventJournal.append(decisionEvent);
+    }
+  }
+
+  /**
+   * Build the base decision trigger based on config
+   */
+  private buildDecisionTrigger(decisionConfig: DecisionConfig): string {
+    const parts: string[] = ['It is time to make your decision.'];
+
+    if (decisionConfig.format === 'choice' && decisionConfig.options) {
+      parts.push(`Choose one of the following options: ${decisionConfig.options.join(', ')}`);
+    } else if (decisionConfig.format === 'ranking' && decisionConfig.options) {
+      parts.push(
+        `Rank the following options from most to least preferred: ${decisionConfig.options.join(', ')}`
+      );
+    } else {
+      parts.push('Please provide your decision.');
+    }
+
+    if (decisionConfig.timing === 'simultaneous') {
+      parts.push('Your decision will be kept secret until all participants have decided.');
+    }
+
+    return parts.join(' ');
+  }
+
+  /**
+   * Build trigger with previous decisions for sequential mode
+   */
+  private buildSequentialTrigger(
+    baseTrigger: string,
+    previousDecisions: Array<{ characterId: string; decision: string }>
+  ): string {
+    const decisionsText = previousDecisions
+      .map((d) => `- ${d.characterId}: ${d.decision}`)
+      .join('\n');
+
+    return `Previous decisions:\n${decisionsText}\n\n${baseTrigger}`;
   }
 }

@@ -1,12 +1,13 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { HostModule } from '../../src/core/host-module.js';
+import { HostModule, DecisionCallback } from '../../src/core/host-module.js';
 import { EventJournal } from '../../src/core/event-journal.js';
 import { SqliteStore } from '../../src/storage/sqlite-store.js';
 import { ShowFormatTemplate, Phase } from '../../src/types/template.js';
 import { CharacterDefinition } from '../../src/types/character.js';
 import { PhaseType, ChannelType, SpeakFrequency, ShowStatus, BudgetMode, EventType } from '../../src/types/enums.js';
 import { PrivateContext } from '../../src/types/context.js';
-import { PrivateChannelRules } from '../../src/types/primitives.js';
+import { PrivateChannelRules, DecisionConfig } from '../../src/types/primitives.js';
+import { CharacterResponse } from '../../src/types/adapter.js';
 import * as fs from 'fs';
 
 describe('HostModule', () => {
@@ -816,6 +817,323 @@ describe('HostModule', () => {
         const isValid = await hostModule.validatePrivateRequest('non-existent-show', 'char-1', 'char-2', rules);
         expect(isValid).toBe(false);
       });
+    });
+  });
+
+  describe('runDecisionPhase', () => {
+    // Helper to create mock decision callback
+    const createMockCallback = (responses: Map<string, CharacterResponse>): DecisionCallback => {
+      return async (characterId: string, _trigger: string, _previousDecisions: Array<{ characterId: string; decision: string }>) => {
+        const response = responses.get(characterId);
+        if (!response) {
+          return { text: 'default response', decisionValue: 'default' };
+        }
+        return response;
+      };
+    };
+
+    it('runs decision phase for 5 characters', async () => {
+      const template = createTestTemplate();
+      const characters = [
+        createTestCharacter('char-1', 'Alice'),
+        createTestCharacter('char-2', 'Bob'),
+        createTestCharacter('char-3', 'Charlie'),
+        createTestCharacter('char-4', 'Diana'),
+        createTestCharacter('char-5', 'Eve'),
+      ];
+
+      const show = await hostModule.initializeShow(template, characters);
+      const decisionConfig: DecisionConfig = {
+        timing: 'simultaneous',
+        visibility: 'secret_until_reveal',
+        revealMoment: 'after_all',
+        format: 'choice',
+        options: ['accept', 'reject'],
+      };
+
+      // Create mock responses for each character
+      const responses = new Map<string, CharacterResponse>();
+      responses.set('char-1', { text: 'I accept', decisionValue: 'accept' });
+      responses.set('char-2', { text: 'I reject', decisionValue: 'reject' });
+      responses.set('char-3', { text: 'I accept', decisionValue: 'accept' });
+      responses.set('char-4', { text: 'I accept', decisionValue: 'accept' });
+      responses.set('char-5', { text: 'I reject', decisionValue: 'reject' });
+
+      await hostModule.runDecisionPhase(show.id, decisionConfig, createMockCallback(responses));
+
+      // Get all events
+      const events = await eventJournal.getEvents(show.id);
+
+      // Should have 5 host_trigger events + 5 decision events = 10 events total
+      expect(events.length).toBe(10);
+
+      // Check that each character received a trigger
+      const triggerEvents = events.filter(e => e.type === EventType.host_trigger);
+      expect(triggerEvents).toHaveLength(5);
+
+      // Check that 5 decision events were recorded
+      const decisionEvents = events.filter(e => e.type === EventType.decision);
+      expect(decisionEvents).toHaveLength(5);
+    });
+
+    it('each character receives a trigger', async () => {
+      const template = createTestTemplate();
+      const characters = [
+        createTestCharacter('char-1', 'Alice'),
+        createTestCharacter('char-2', 'Bob'),
+        createTestCharacter('char-3', 'Charlie'),
+      ];
+
+      const show = await hostModule.initializeShow(template, characters);
+      const decisionConfig: DecisionConfig = {
+        timing: 'simultaneous',
+        visibility: 'secret_until_reveal',
+        revealMoment: 'after_all',
+        format: 'choice',
+        options: ['yes', 'no'],
+      };
+
+      const triggeredCharacters: string[] = [];
+      const mockCallback: DecisionCallback = async (characterId, _trigger, _prev) => {
+        triggeredCharacters.push(characterId);
+        return { text: 'Yes', decisionValue: 'yes' };
+      };
+
+      await hostModule.runDecisionPhase(show.id, decisionConfig, mockCallback);
+
+      expect(triggeredCharacters).toHaveLength(3);
+      expect(triggeredCharacters).toContain('char-1');
+      expect(triggeredCharacters).toContain('char-2');
+      expect(triggeredCharacters).toContain('char-3');
+    });
+
+    it('creates decision events in journal', async () => {
+      const template = createTestTemplate();
+      const characters = [
+        createTestCharacter('char-1', 'Alice'),
+        createTestCharacter('char-2', 'Bob'),
+      ];
+
+      const show = await hostModule.initializeShow(template, characters);
+      const decisionConfig: DecisionConfig = {
+        timing: 'simultaneous',
+        visibility: 'secret_until_reveal',
+        revealMoment: 'after_all',
+        format: 'choice',
+        options: ['accept', 'reject'],
+      };
+
+      const responses = new Map<string, CharacterResponse>();
+      responses.set('char-1', { text: 'I choose accept', decisionValue: 'accept' });
+      responses.set('char-2', { text: 'I choose reject', decisionValue: 'reject' });
+
+      await hostModule.runDecisionPhase(show.id, decisionConfig, createMockCallback(responses));
+
+      const events = await eventJournal.getEvents(show.id);
+      const decisionEvents = events.filter(e => e.type === EventType.decision);
+
+      expect(decisionEvents).toHaveLength(2);
+
+      // Check decision values in metadata
+      const char1Decision = decisionEvents.find(e => e.senderId === 'char-1');
+      expect(char1Decision).toBeDefined();
+      expect(char1Decision!.metadata.decisionValue).toBe('accept');
+
+      const char2Decision = decisionEvents.find(e => e.senderId === 'char-2');
+      expect(char2Decision).toBeDefined();
+      expect(char2Decision!.metadata.decisionValue).toBe('reject');
+    });
+
+    it('visibility is PRIVATE for secret_until_reveal', async () => {
+      const template = createTestTemplate();
+      const characters = [
+        createTestCharacter('char-1', 'Alice'),
+        createTestCharacter('char-2', 'Bob'),
+      ];
+
+      const show = await hostModule.initializeShow(template, characters);
+      const decisionConfig: DecisionConfig = {
+        timing: 'simultaneous',
+        visibility: 'secret_until_reveal',
+        revealMoment: 'after_all',
+        format: 'choice',
+        options: ['yes', 'no'],
+      };
+
+      const mockCallback: DecisionCallback = async () => ({ text: 'yes', decisionValue: 'yes' });
+      await hostModule.runDecisionPhase(show.id, decisionConfig, mockCallback);
+
+      const events = await eventJournal.getEvents(show.id);
+      const decisionEvents = events.filter(e => e.type === EventType.decision);
+
+      for (const event of decisionEvents) {
+        expect(event.visibility).toBe(ChannelType.PRIVATE);
+        expect(event.channel).toBe(ChannelType.PRIVATE);
+        // For secret_until_reveal, only the deciding character should see their own decision
+        expect(event.audienceIds).toHaveLength(1);
+        expect(event.audienceIds[0]).toBe(event.senderId);
+      }
+    });
+
+    it('visibility is PUBLIC for public_immediately', async () => {
+      const template = createTestTemplate();
+      const characters = [
+        createTestCharacter('char-1', 'Alice'),
+        createTestCharacter('char-2', 'Bob'),
+        createTestCharacter('char-3', 'Charlie'),
+      ];
+
+      const show = await hostModule.initializeShow(template, characters);
+      const decisionConfig: DecisionConfig = {
+        timing: 'simultaneous',
+        visibility: 'public_immediately',
+        revealMoment: 'after_each',
+        format: 'choice',
+        options: ['yes', 'no'],
+      };
+
+      const mockCallback: DecisionCallback = async () => ({ text: 'yes', decisionValue: 'yes' });
+      await hostModule.runDecisionPhase(show.id, decisionConfig, mockCallback);
+
+      const events = await eventJournal.getEvents(show.id);
+      const decisionEvents = events.filter(e => e.type === EventType.decision);
+
+      for (const event of decisionEvents) {
+        expect(event.visibility).toBe(ChannelType.PUBLIC);
+        expect(event.channel).toBe(ChannelType.PUBLIC);
+        // For public_immediately, all characters should see each decision
+        expect(event.audienceIds).toHaveLength(3);
+      }
+    });
+
+    it('simultaneous timing does not show previous decisions', async () => {
+      const template = createTestTemplate();
+      const characters = [
+        createTestCharacter('char-1', 'Alice'),
+        createTestCharacter('char-2', 'Bob'),
+        createTestCharacter('char-3', 'Charlie'),
+      ];
+
+      const show = await hostModule.initializeShow(template, characters);
+      const decisionConfig: DecisionConfig = {
+        timing: 'simultaneous',
+        visibility: 'secret_until_reveal',
+        revealMoment: 'after_all',
+        format: 'choice',
+        options: ['yes', 'no'],
+      };
+
+      const receivedPreviousDecisions: Array<Array<{ characterId: string; decision: string }>> = [];
+      const mockCallback: DecisionCallback = async (_charId, _trigger, previousDecisions) => {
+        receivedPreviousDecisions.push([...previousDecisions]);
+        return { text: 'yes', decisionValue: 'yes' };
+      };
+
+      await hostModule.runDecisionPhase(show.id, decisionConfig, mockCallback);
+
+      // In simultaneous mode, all characters should receive empty previousDecisions
+      expect(receivedPreviousDecisions).toHaveLength(3);
+      for (const prev of receivedPreviousDecisions) {
+        expect(prev).toHaveLength(0);
+      }
+    });
+
+    it('sequential timing shows previous decisions', async () => {
+      const template = createTestTemplate();
+      const characters = [
+        createTestCharacter('char-1', 'Alice'),
+        createTestCharacter('char-2', 'Bob'),
+        createTestCharacter('char-3', 'Charlie'),
+      ];
+
+      const show = await hostModule.initializeShow(template, characters);
+      const decisionConfig: DecisionConfig = {
+        timing: 'sequential',
+        visibility: 'public_immediately',
+        revealMoment: 'after_each',
+        format: 'choice',
+        options: ['yes', 'no'],
+      };
+
+      const receivedPreviousDecisions: Array<Array<{ characterId: string; decision: string }>> = [];
+      const responses = new Map<string, CharacterResponse>();
+      responses.set('char-1', { text: 'yes', decisionValue: 'yes' });
+      responses.set('char-2', { text: 'no', decisionValue: 'no' });
+      responses.set('char-3', { text: 'yes', decisionValue: 'yes' });
+
+      const mockCallback: DecisionCallback = async (charId, _trigger, previousDecisions) => {
+        receivedPreviousDecisions.push([...previousDecisions]);
+        return responses.get(charId) ?? { text: 'default', decisionValue: 'default' };
+      };
+
+      await hostModule.runDecisionPhase(show.id, decisionConfig, mockCallback);
+
+      // In sequential mode, each character should see previous decisions
+      expect(receivedPreviousDecisions).toHaveLength(3);
+
+      // First character sees no previous decisions
+      expect(receivedPreviousDecisions[0]).toHaveLength(0);
+
+      // Second character sees first character's decision
+      expect(receivedPreviousDecisions[1]).toHaveLength(1);
+      expect(receivedPreviousDecisions[1][0].characterId).toBe('char-1');
+      expect(receivedPreviousDecisions[1][0].decision).toBe('yes');
+
+      // Third character sees first two decisions
+      expect(receivedPreviousDecisions[2]).toHaveLength(2);
+      expect(receivedPreviousDecisions[2][0].characterId).toBe('char-1');
+      expect(receivedPreviousDecisions[2][1].characterId).toBe('char-2');
+      expect(receivedPreviousDecisions[2][1].decision).toBe('no');
+    });
+
+    it('stores decision metadata correctly', async () => {
+      const template = createTestTemplate();
+      const characters = [createTestCharacter('char-1', 'Alice')];
+
+      const show = await hostModule.initializeShow(template, characters);
+      const decisionConfig: DecisionConfig = {
+        timing: 'simultaneous',
+        visibility: 'secret_until_reveal',
+        revealMoment: 'after_all',
+        format: 'choice',
+        options: ['accept', 'reject', 'abstain'],
+      };
+
+      const mockCallback: DecisionCallback = async () => ({ text: 'I accept', decisionValue: 'accept' });
+      await hostModule.runDecisionPhase(show.id, decisionConfig, mockCallback);
+
+      const events = await eventJournal.getEvents(show.id);
+      const decisionEvent = events.find(e => e.type === EventType.decision);
+
+      expect(decisionEvent).toBeDefined();
+      expect(decisionEvent!.metadata.decisionValue).toBe('accept');
+      expect(decisionEvent!.metadata.format).toBe('choice');
+      expect(decisionEvent!.metadata.options).toEqual(['accept', 'reject', 'abstain']);
+      expect(decisionEvent!.metadata.timing).toBe('simultaneous');
+    });
+
+    it('uses text as decisionValue if decisionValue not provided', async () => {
+      const template = createTestTemplate();
+      const characters = [createTestCharacter('char-1', 'Alice')];
+
+      const show = await hostModule.initializeShow(template, characters);
+      const decisionConfig: DecisionConfig = {
+        timing: 'simultaneous',
+        visibility: 'secret_until_reveal',
+        revealMoment: 'after_all',
+        format: 'free_text',
+        options: null,
+      };
+
+      // Response without explicit decisionValue
+      const mockCallback: DecisionCallback = async () => ({ text: 'I think we should proceed carefully' });
+      await hostModule.runDecisionPhase(show.id, decisionConfig, mockCallback);
+
+      const events = await eventJournal.getEvents(show.id);
+      const decisionEvent = events.find(e => e.type === EventType.decision);
+
+      expect(decisionEvent).toBeDefined();
+      expect(decisionEvent!.metadata.decisionValue).toBe('I think we should proceed carefully');
     });
   });
 });

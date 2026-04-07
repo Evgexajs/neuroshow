@@ -513,3 +513,32 @@
 **Тесты:** npm run typecheck, npm test — все пройдены (148 tests passed).
 **Заметки:** Лимиты отслеживаются через подсчёт channel_change событий в текущей фазе. От этой задачи зависит TASK-038.
 
+## [2026-04-07] TASK-033: Host Module: runDecisionPhase()
+**Статус:** done
+**Время:** ~15 минут
+**Изменения:**
+- src/core/host-module.ts — добавлен метод runDecisionPhase():
+  - runDecisionPhase(showId, decisionConfig, callCharacter): Promise<void>
+  - Рассылает decision trigger каждому персонажу
+  - При timing: 'simultaneous' — не показывает чужие решения (previousDecisions = [])
+  - При timing: 'sequential' — показывает предыдущие решения в trigger
+  - Собирает decisionValue из CharacterResponse (fallback на text если нет decisionValue)
+  - Создаёт события 'decision' в журнале с корректной visibility
+- src/core/host-module.ts — добавлен экспорт типа DecisionCallback
+- src/core/host-module.ts — добавлены приватные методы:
+  - buildDecisionTrigger(decisionConfig) — строит базовый trigger
+  - buildSequentialTrigger(baseTrigger, previousDecisions) — добавляет предыдущие решения
+- tests/unit/host-module.test.ts — добавлены 9 тестов для runDecisionPhase():
+  - Запуск для 5 персонажей (5 triggers + 5 decisions)
+  - Проверка что каждый персонаж получает trigger
+  - Создание decision events в журнале с decisionValue
+  - visibility = PRIVATE для secret_until_reveal
+  - visibility = PUBLIC для public_immediately
+  - simultaneous timing не показывает предыдущие решения
+  - sequential timing показывает предыдущие решения
+  - Корректное сохранение metadata (format, options, timing)
+  - Использование text как decisionValue при отсутствии decisionValue
+
+**Тесты:** npm run typecheck, npm test — все пройдены (157 tests passed).
+**Заметки:** Метод использует DecisionCallback для получения ответов от персонажей. Orchestrator (TASK-035) будет предоставлять callback с вызовом ModelAdapter. От этой задачи зависит TASK-034.
+
