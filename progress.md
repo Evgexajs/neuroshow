@@ -929,3 +929,25 @@
 
 **Тесты:** npm run typecheck, npm test — все пройдены (237 tests passed).
 **Заметки:** Layout готов для подключения SSE и JavaScript логики в следующих задачах (TASK-050, TASK-051, TASK-052).
+
+## TASK-050: Debug UI: SSE client и Event Feed
+
+**Дата:** 2026-04-07
+
+**Статус:** Выполнено
+
+**Изменения:**
+- web/debug-ui/app.js — создан JavaScript клиент для SSE:
+  - Подключение к /shows/:id/events через EventSource
+  - Отображение событий в ленте: время, фаза, канал, sender, content
+  - Цветовая маркировка по каналу (PUBLIC=white, PRIVATE=yellow, ZONE=blue)
+  - Auto-scroll к новым событиям через scrollToBottom()
+  - Reconnection при обрыве (до 5 попыток с интервалом 2с)
+  - XSS защита через escapeHtml()
+
+- web/debug-ui/styles.css — добавлены стили:
+  - .event-meta для отображения метаданных события
+  - .system-message для системных сообщений в ленте
+
+**Тесты:** npm run typecheck, npm test — все пройдены (237 tests passed).
+**Заметки:** EventSource подключается по URL /shows/{showId}/events, поддерживает Last-Event-ID для reconnection.

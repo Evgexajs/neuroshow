@@ -155,9 +155,21 @@ body {
   font-weight: 600;
 }
 
+.event-meta {
+  flex: 1;
+  text-align: center;
+}
+
 .event-content {
   font-size: 0.9rem;
   line-height: 1.4;
+}
+
+.system-message {
+  background-color: var(--bg-light) !important;
+  color: var(--text-secondary) !important;
+  font-style: italic;
+  border-left-color: var(--accent) !important;
 }
 
 /* Character Cards (right) */
