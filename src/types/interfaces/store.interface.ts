@@ -147,6 +147,9 @@ export interface IStore {
   /** Initialize storage schema (create tables, etc.) */
   initSchema(): Promise<void>;
 
+  /** Force WAL checkpoint to persist data to main database file */
+  walCheckpoint(): Promise<void>;
+
   /** Close storage connection */
   close(): Promise<void>;
 }

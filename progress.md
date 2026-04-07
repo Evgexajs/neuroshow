@@ -2360,3 +2360,35 @@ Added a template information panel to the Debug UI that displays template name, 
 - npm run typecheck — passes
 - npm run lint — passes (0 errors, only warnings)
 - npm run build:ui — passes
+
+---
+
+## [2026-04-07] TASK-103: SQLite WAL checkpoint — данные теряются при аварийном завершении
+**Статус:** done
+**Время:** ~30 минут
+**Изменения:**
+- src/types/interfaces/store.interface.ts:
+  - Added `walCheckpoint(): Promise<void>` method to IStore interface
+- src/storage/sqlite-store.ts:
+  - Implemented `walCheckpoint()` using `PRAGMA wal_checkpoint(TRUNCATE)` to force data persistence
+  - Added console.log for checkpoint events (busy, log, checkpointed stats)
+- src/core/orchestrator.ts:
+  - Added WAL checkpoint call after show completion (3 places: normal completion, graceful finish, replay completion)
+  - Added logging for checkpoint events
+- src/api/server.ts:
+  - Added WAL checkpoint call in graceful shutdown handler before closing database
+  - Added logging for shutdown checkpoint
+- tests/unit/event-journal.test.ts:
+  - Added `walCheckpoint: vi.fn()` to mock store
+- tests/unit/openai-adapter-tiktoken.test.ts:
+  - Added `walCheckpoint: vi.fn()` to mock store
+
+**Acceptance Criteria:**
+1. WAL checkpoint после каждого завершённого шоу ✓
+2. Graceful shutdown делает checkpoint перед выходом ✓
+3. Логировать checkpoint события ✓
+
+**Тесты:**
+- npm run typecheck — passes
+- npm run lint — passes (0 errors, only warnings)
+- Verified walCheckpoint() works with in-memory database test

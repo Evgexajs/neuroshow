@@ -69,6 +69,7 @@ function createMockStore(): IStore & { _events: ShowEvent[] } {
     updateBudget: vi.fn(),
     setBudgetMode: vi.fn(),
     initSchema: vi.fn(),
+    walCheckpoint: vi.fn(),
     close: vi.fn(),
   };
 }

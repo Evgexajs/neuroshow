@@ -516,6 +516,22 @@ export class SqliteStore implements IStore {
 
   // ─── Lifecycle ─────────────────────────────────────────────────
 
+  async walCheckpoint(): Promise<void> {
+    // TRUNCATE mode: checkpoint and truncate WAL file to zero size
+    // This ensures all data is written to the main database file
+    const result = this.db.pragma('wal_checkpoint(TRUNCATE)') as Array<{
+      busy: number;
+      log: number;
+      checkpointed: number;
+    }>;
+    const info = result[0];
+    if (info) {
+      console.log(
+        `[WAL checkpoint] busy=${info.busy}, log=${info.log}, checkpointed=${info.checkpointed}`
+      );
+    }
+  }
+
   async close(): Promise<void> {
     this.db.close();
   }

@@ -811,6 +811,9 @@ export async function startServer(): Promise<void> {
 
     try {
       await app.close();
+      // WAL checkpoint before closing to ensure all data is persisted
+      await deps.store.walCheckpoint();
+      logger.info('[WAL checkpoint] Shutdown checkpoint completed');
       await deps.store.close();
       logger.info('Server shut down successfully');
       process.exit(0);

@@ -1201,6 +1201,10 @@ export class Orchestrator {
       completedAt: Date.now(),
     });
 
+    // WAL checkpoint to ensure data is persisted to main database file
+    await this.store.walCheckpoint();
+    logger.info(`[WAL checkpoint] Show ${showId} data persisted`);
+
     const showElapsedMs = Date.now() - showStartTime;
     logger.info(`Show ${showId} completed (total time: ${showElapsedMs}ms)`);
   }
@@ -1364,6 +1368,10 @@ export class Orchestrator {
       status: ShowStatus.completed,
       completedAt: Date.now(),
     });
+
+    // WAL checkpoint to ensure data is persisted to main database file
+    await this.store.walCheckpoint();
+    logger.info(`[WAL checkpoint] Show ${showId} data persisted (graceful finish)`);
 
     logger.info(`Show ${showId} gracefully finished`);
   }
@@ -1590,6 +1598,10 @@ export class Orchestrator {
       status: ShowStatus.completed,
       completedAt: Date.now(),
     });
+
+    // WAL checkpoint to ensure data is persisted to main database file
+    await this.store.walCheckpoint();
+    logger.info(`[WAL checkpoint] Show ${showId} data persisted`);
 
     const showElapsedMs = Date.now() - showStartTime;
     logger.info(`Show ${showId} completed (total time: ${showElapsedMs}ms)`);
