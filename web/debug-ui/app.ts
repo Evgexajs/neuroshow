@@ -12,6 +12,7 @@ interface ShowEvent {
   phaseId?: string;
   type?: string;
   content?: string;
+  audienceIds?: string[];
 }
 
 interface Character {
@@ -102,6 +103,26 @@ const RECONNECT_DELAY_MS = 2000;
 let characters: Character[] = [];
 const characterStatuses: Map<string, CharacterStatus> = new Map();
 let activeCharacterId: string | null = null;
+
+// Character name lookup and color assignment
+const characterNames: Map<string, string> = new Map();
+const characterColors: Map<string, string> = new Map();
+const CHARACTER_COLORS = [
+  '#e57373', // red
+  '#64b5f6', // blue
+  '#81c784', // green
+  '#ffb74d', // orange
+  '#ba68c8', // purple
+  '#4dd0e1', // cyan
+  '#fff176', // yellow
+  '#a1887f', // brown
+  '#90a4ae', // blue-grey
+  '#f06292', // pink
+];
+
+// Phase tracking
+let currentPhaseId: string | null = null;
+let phaseEventCount = 0;
 
 // Control panel state
 let currentShowStatus: ShowStatus = null;
@@ -326,12 +347,19 @@ async function fetchCharacters(showId: string): Promise<void> {
     const data = await response.json() as { characters: Character[] };
     characters = data.characters;
 
-    // Initialize statuses
+    // Initialize statuses and name/color lookup
     characterStatuses.clear();
-    for (const char of characters) {
+    characterNames.clear();
+    characterColors.clear();
+    for (let i = 0; i < characters.length; i++) {
+      const char = characters[i];
       characterStatuses.set(char.id, 'waiting');
+      characterNames.set(char.id, char.name);
+      characterColors.set(char.id, CHARACTER_COLORS[i % CHARACTER_COLORS.length]);
     }
     activeCharacterId = null;
+    currentPhaseId = null;
+    phaseEventCount = 0;
 
     renderCharacterCards();
   } catch (err) {
@@ -495,7 +523,11 @@ function disconnect(): void {
   // Clear character state
   characters = [];
   characterStatuses.clear();
+  characterNames.clear();
+  characterColors.clear();
   activeCharacterId = null;
+  currentPhaseId = null;
+  phaseEventCount = 0;
   cardsContainer.innerHTML = '<p class="placeholder">No characters loaded...</p>';
 
   // Stop status polling and reset control panel
@@ -545,6 +577,8 @@ function attemptReconnect(): void {
 function clearEvents(): void {
   eventsContainer.innerHTML = '';
   turnCount = 0;
+  currentPhaseId = null;
+  phaseEventCount = 0;
 }
 
 /**
@@ -572,9 +606,83 @@ function addSystemMessage(message: string): void {
 }
 
 /**
+ * Get character name by ID
+ */
+function getCharacterName(characterId: string | undefined): string {
+  if (!characterId) return 'System';
+  return characterNames.get(characterId) ?? characterId;
+}
+
+/**
+ * Get character color by ID
+ */
+function getCharacterColor(characterId: string | undefined): string | null {
+  if (!characterId) return null;
+  return characterColors.get(characterId) ?? null;
+}
+
+/**
+ * Get audience names from audience IDs
+ */
+function getAudienceNames(audienceIds: string[] | undefined): string {
+  if (!audienceIds || audienceIds.length === 0) return '';
+  const names = audienceIds.map(id => getCharacterName(id));
+  return names.join(', ');
+}
+
+/**
+ * Add a phase separator to the feed
+ */
+function addPhaseSeparator(phaseId: string, isStart: boolean): void {
+  const separatorEl = document.createElement('div');
+  separatorEl.className = 'phase-separator';
+
+  const label = isStart ? `Фаза: ${phaseId}` : `Конец фазы: ${phaseId}`;
+  separatorEl.innerHTML = `<span class="phase-label">${escapeHtml(label)}</span>`;
+
+  eventsContainer.appendChild(separatorEl);
+}
+
+/**
+ * Add empty phase message
+ */
+function addEmptyPhaseMessage(_phaseId: string): void {
+  const messageEl = document.createElement('div');
+  messageEl.className = 'empty-phase-message';
+  messageEl.innerHTML = `<span>Нет событий в этой фазе</span>`;
+
+  eventsContainer.appendChild(messageEl);
+}
+
+/**
  * Add an event to the feed
  */
 function addEventToFeed(event: ShowEvent): void {
+  const eventPhaseId = event.phaseId ?? null;
+  const eventType = event.type ?? '';
+
+  // Handle phase transitions
+  if (eventType === 'phase_start' && eventPhaseId) {
+    // Check if previous phase was empty
+    if (currentPhaseId && phaseEventCount === 0) {
+      addEmptyPhaseMessage(currentPhaseId);
+    }
+    addPhaseSeparator(eventPhaseId, true);
+    currentPhaseId = eventPhaseId;
+    phaseEventCount = 0;
+  } else if (eventType === 'phase_end' && eventPhaseId) {
+    if (phaseEventCount === 0) {
+      addEmptyPhaseMessage(eventPhaseId);
+    }
+    currentPhaseId = null;
+    phaseEventCount = 0;
+  }
+
+  // Track events in current phase (only speech events count)
+  if (eventType === 'speech') {
+    phaseEventCount++;
+  }
+
   const eventEl = document.createElement('div');
 
   // Get channel class for color coding
@@ -583,23 +691,33 @@ function addEventToFeed(event: ShowEvent): void {
 
   // Format event data
   const time = formatTime(event.timestamp);
-  const sender = event.senderId ?? 'System';
+  const senderName = getCharacterName(event.senderId);
+  const senderColor = getCharacterColor(event.senderId);
   const channel = event.channel ?? '';
-  const phase = event.phaseId ?? '';
-  const type = event.type ?? '';
+  const type = eventType;
 
   // Build header info
   let headerInfo = `${channel}`;
-  if (phase) {
-    headerInfo += ` | ${phase}`;
-  }
   if (type && type !== 'speech') {
     headerInfo += ` | ${type}`;
   }
 
+  // For PRIVATE events, show audience
+  let audienceInfo = '';
+  if (channel === 'PRIVATE' && event.audienceIds) {
+    const audienceNames = getAudienceNames(event.audienceIds);
+    if (audienceNames) {
+      audienceInfo = `<span class="event-audience">→ ${escapeHtml(audienceNames)}</span>`;
+    }
+  }
+
+  // Apply character color to sender name
+  const senderStyle = senderColor ? `style="color: ${senderColor}; font-weight: 700;"` : '';
+
   eventEl.innerHTML = `
     <div class="event-header">
-      <span class="event-sender">${escapeHtml(sender)}</span>
+      <span class="event-sender" ${senderStyle}>${escapeHtml(senderName)}</span>
+      ${audienceInfo}
       <span class="event-meta">${escapeHtml(headerInfo)}</span>
       <span class="event-time">${time}</span>
     </div>

@@ -1587,3 +1587,47 @@ Fixed the `/generate/characters` endpoint that was returning an empty array when
 - `npm run lint` — passes (warnings only)
 - `npm run typecheck` — passes
 - `npm test` — 364 tests pass
+
+---
+
+## 2026-04-07: TASK-075 — Debug UI: показывать имя персонажа и улучшить читаемость ленты событий
+
+### Summary
+Improved the event feed readability by showing character names instead of IDs, adding per-character color coding, displaying audience for PRIVATE events, and adding visual phase separators.
+
+### Changes
+- **web/debug-ui/app.ts**:
+  - Added characterNames and characterColors Maps for name/color lookup
+  - Added CHARACTER_COLORS array with 10 distinct colors
+  - Added phase tracking variables (currentPhaseId, phaseEventCount)
+  - Updated fetchCharacters() to populate name and color lookup maps
+  - Added getCharacterName(), getCharacterColor(), getAudienceNames() helper functions
+  - Added addPhaseSeparator() for visual phase boundaries
+  - Added addEmptyPhaseMessage() for phases with no speech events
+  - Updated addEventToFeed() to:
+    - Show character name instead of ID
+    - Apply character-specific color to sender name
+    - Display audience names for PRIVATE events (→ Name1, Name2)
+    - Insert phase separators on phase_start/phase_end events
+    - Track and handle empty phases
+  - Updated ShowEvent interface to include audienceIds
+  - Updated disconnect() and clearEvents() to reset phase tracking state
+
+- **web/debug-ui/styles.css**:
+  - Added .phase-separator styling with gradient borders and accent label
+  - Added .empty-phase-message styling with dashed border
+  - Added .event-audience styling for PRIVATE message recipients
+
+### Acceptance Criteria Verified
+1. В ленте событий показывать имя персонажа вместо characterId — DONE
+2. Имя персонажа загружается из GET /shows/:id/characters — DONE
+3. Каждое событие показывает: время, фазу, имя персонажа, канал, текст — DONE
+4. Цветовая маркировка по персонажам (каждый персонаж - свой цвет) — DONE
+5. Для PRIVATE событий показывать кому адресовано (audienceIds -> имена) — DONE
+6. Фазы визуально разделены (заголовок фазы при смене) — DONE
+7. Пустые фазы показывают сообщение 'Нет событий в этой фазе' — DONE
+
+### Verification
+- `npm run lint` — passes (warnings only)
+- `npm run typecheck` — passes
+- `npm test` — 336 tests pass (excluding flaky server.test.ts with pre-existing disk I/O error)
