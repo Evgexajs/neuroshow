@@ -1661,3 +1661,33 @@ Enhanced MockAdapter to generate unique Russian responses that consider personal
 - `npm run lint` — passes (warnings only, pre-existing in other files)
 - `npm run typecheck` — passes
 - `npm test` — mock-adapter tests (12 tests) and full-show-mock tests (5 tests) pass
+
+---
+
+## 2026-04-07: TASK-077 — Исправить пустые фазы и логирование прогресса шоу
+
+### Summary
+Fixed critical bug where runPhase() in AUTO mode never called processCharacterTurn() - it only incremented turn counter. Added comprehensive logging for phase and turn progress.
+
+### Changes
+- **src/core/orchestrator.ts**:
+  - Fixed runPhase() to actually call processCharacterTurn() for each character (was missing!)
+  - Added phase start/end logging: `[Phase X/Y] "PhaseName" started (N turns expected)`
+  - Added turn logging: `[Phase X] Turn Y/N: CharacterName responds`
+  - Added empty phase warning: logs reason if turnQueue is empty
+  - Added progress metadata to phase_start/phase_end events (phaseIndex, totalPhases, totalTurns)
+  - Updated runPhaseWithDebug() with same logging improvements
+  - Added phaseIndex/totalPhases parameters to runPhase() and runPhaseWithDebug()
+  - Updated runShow() and executeShowRun() to pass phase indices
+
+### Acceptance Criteria Verified
+1. Каждая фаза генерирует события согласно durationValue — DONE (fixed processCharacterTurn call)
+2. Логировать начало и конец каждой фазы в консоль — DONE (`[Phase 1/3] "Знакомство" started/ended`)
+3. Логировать каждый ход: '[Phase X] Turn Y: CharacterName responds' — DONE
+4. Если фаза пустая - логировать причину — DONE (warning with turnOrder info)
+5. UI показывает прогресс: 'Фаза 1/3: Знакомство - ход 5/15' — DONE (metadata in phase_start events)
+
+### Verification
+- `npm run lint` — passes (warnings only)
+- `npm run typecheck` — passes
+- `npm test` — orchestrator tests (51 tests) pass, full-show-mock tests (5 tests) pass

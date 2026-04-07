@@ -175,20 +175,43 @@ export class Orchestrator {
    * @param showId - Show ID
    * @param phase - Phase configuration to run
    */
-  async runPhase(showId: string, phase: Phase): Promise<void> {
+  async runPhase(showId: string, phase: Phase, phaseIndex?: number, totalPhases?: number): Promise<void> {
     // Update internal state
     this.showId = showId;
     this.turnIndex = 0;
 
-    // Get show record for seed
+    // Get show record for seed and character names
     const showRecord = await this.store.getShow(showId);
     const seed = showRecord?.seed ?? '0';
+    const configSnapshot = showRecord ? JSON.parse(showRecord.configSnapshot) as Record<string, unknown> : {};
+    const characterDefinitions = (configSnapshot.characterDefinitions ?? []) as Array<{ id: string; name: string }>;
+    const charNameMap = new Map(characterDefinitions.map((c) => [c.id, c.name]));
 
     // Get all characters for audienceIds
     const characters = await this.store.getCharacters(showId);
     const allCharacterIds = characters.map((c) => c.characterId);
 
-    // Create phase_start event
+    // Get turn order for this phase
+    const turnQueue = await this.hostModule.manageTurnQueue(showId, phase);
+
+    // Execute turns based on durationMode
+    const turnsPerCharacter =
+      phase.durationMode === 'turns' && typeof phase.durationValue === 'number'
+        ? phase.durationValue
+        : 1;
+    const totalTurns = turnQueue.length * turnsPerCharacter;
+
+    // Log phase start
+    const phaseNum = phaseIndex !== undefined ? phaseIndex + 1 : '?';
+    const phasesTotal = totalPhases ?? '?';
+    logger.info(`[Phase ${phaseNum}/${phasesTotal}] "${phase.name}" started (${totalTurns} turns expected)`);
+
+    // Check for empty phase
+    if (turnQueue.length === 0) {
+      logger.warn(`[Phase ${phaseNum}/${phasesTotal}] "${phase.name}" is empty: no characters in turn queue (turnOrder: ${phase.turnOrder})`);
+    }
+
+    // Create phase_start event with progress metadata
     const phaseStartEvent: Omit<ShowEvent, 'sequenceNumber'> = {
       id: generateId(),
       showId,
@@ -206,37 +229,43 @@ export class Orchestrator {
         durationMode: phase.durationMode,
         durationValue: phase.durationValue,
         turnOrder: phase.turnOrder,
+        phaseIndex: phaseIndex ?? 0,
+        totalPhases: totalPhases ?? 1,
+        totalTurns,
       },
       seed,
     };
     await this.journal.append(phaseStartEvent);
 
-    // Get turn order for this phase
-    const turnQueue = await this.hostModule.manageTurnQueue(showId, phase);
-
-    // Execute turns based on durationMode
-    const turnsPerCharacter =
-      phase.durationMode === 'turns' && typeof phase.durationValue === 'number'
-        ? phase.durationValue
-        : 1;
-
     // Run turns until completion
     for (let round = 0; round < turnsPerCharacter; round++) {
-      for (let i = 0; i < turnQueue.length; i++) {
+      for (const characterId of turnQueue) {
         // Check completion condition
-        if (this.isPhaseComplete(phase, this.turnIndex, turnQueue.length * turnsPerCharacter)) {
+        if (this.isPhaseComplete(phase, this.turnIndex, totalTurns)) {
           break;
         }
 
-        // Increment turn index (actual character turn processing will be in processCharacterTurn)
+        // Get character name for logging
+        const charName = charNameMap.get(characterId) ?? characterId;
+
+        // Log turn progress
+        logger.info(`[Phase ${phaseNum}] Turn ${this.turnIndex + 1}/${totalTurns}: ${charName} responds`);
+
+        // Process character turn (this was missing!)
+        await this.processCharacterTurn(showId, characterId, phase.triggerTemplate ?? '');
+
+        // Increment turn index
         this.turnIndex++;
       }
 
       // Check completion condition after each round
-      if (this.isPhaseComplete(phase, this.turnIndex, turnQueue.length * turnsPerCharacter)) {
+      if (this.isPhaseComplete(phase, this.turnIndex, totalTurns)) {
         break;
       }
     }
+
+    // Log phase end
+    logger.info(`[Phase ${phaseNum}/${phasesTotal}] "${phase.name}" ended (${this.turnIndex} turns completed)`);
 
     // Create phase_end event
     const phaseEndEvent: Omit<ShowEvent, 'sequenceNumber'> = {
@@ -254,6 +283,8 @@ export class Orchestrator {
       metadata: {
         totalTurns: this.turnIndex,
         completionCondition: phase.completionCondition,
+        phaseIndex: phaseIndex ?? 0,
+        totalPhases: totalPhases ?? 1,
       },
       seed,
     };
@@ -288,21 +319,46 @@ export class Orchestrator {
    *
    * @param showId - Show ID
    * @param phase - Phase configuration to run
+   * @param phaseIndex - Index of current phase (for progress logging)
+   * @param totalPhases - Total number of phases (for progress logging)
    */
-  private async runPhaseWithDebug(showId: string, phase: Phase): Promise<void> {
+  private async runPhaseWithDebug(showId: string, phase: Phase, phaseIndex?: number, totalPhases?: number): Promise<void> {
     // Update internal state
     this.showId = showId;
     this.turnIndex = 0;
 
-    // Get show record for seed
+    // Get show record for seed and character names
     const showRecord = await this.store.getShow(showId);
     const seed = showRecord?.seed ?? '0';
+    const configSnapshot = showRecord ? JSON.parse(showRecord.configSnapshot) as Record<string, unknown> : {};
+    const characterDefinitions = (configSnapshot.characterDefinitions ?? []) as Array<{ id: string; name: string }>;
+    const charNameMap = new Map(characterDefinitions.map((c) => [c.id, c.name]));
 
     // Get all characters for audienceIds
     const characters = await this.store.getCharacters(showId);
     const allCharacterIds = characters.map((c) => c.characterId);
 
-    // Create phase_start event
+    // Get turn order for this phase
+    const turnQueue = await this.hostModule.manageTurnQueue(showId, phase);
+
+    // Execute turns based on durationMode
+    const turnsPerCharacter =
+      phase.durationMode === 'turns' && typeof phase.durationValue === 'number'
+        ? phase.durationValue
+        : 1;
+    const totalTurns = turnQueue.length * turnsPerCharacter;
+
+    // Log phase start
+    const phaseNum = phaseIndex !== undefined ? phaseIndex + 1 : '?';
+    const phasesTotal = totalPhases ?? '?';
+    logger.info(`[Phase ${phaseNum}/${phasesTotal}] "${phase.name}" started (${totalTurns} turns expected, DEBUG mode)`);
+
+    // Check for empty phase
+    if (turnQueue.length === 0) {
+      logger.warn(`[Phase ${phaseNum}/${phasesTotal}] "${phase.name}" is empty: no characters in turn queue (turnOrder: ${phase.turnOrder})`);
+    }
+
+    // Create phase_start event with progress metadata
     const phaseStartEvent: Omit<ShowEvent, 'sequenceNumber'> = {
       id: generateId(),
       showId,
@@ -320,30 +376,30 @@ export class Orchestrator {
         durationMode: phase.durationMode,
         durationValue: phase.durationValue,
         turnOrder: phase.turnOrder,
+        phaseIndex: phaseIndex ?? 0,
+        totalPhases: totalPhases ?? 1,
+        totalTurns,
       },
       seed,
     };
     await this.journal.append(phaseStartEvent);
 
-    // Get turn order for this phase
-    const turnQueue = await this.hostModule.manageTurnQueue(showId, phase);
-
-    // Execute turns based on durationMode
-    const turnsPerCharacter =
-      phase.durationMode === 'turns' && typeof phase.durationValue === 'number'
-        ? phase.durationValue
-        : 1;
-
     // Run turns until completion
     for (let round = 0; round < turnsPerCharacter; round++) {
       for (const characterId of turnQueue) {
         // Check completion condition
-        if (this.isPhaseComplete(phase, this.turnIndex, turnQueue.length * turnsPerCharacter)) {
+        if (this.isPhaseComplete(phase, this.turnIndex, totalTurns)) {
           break;
         }
 
         // In DEBUG mode, wait for step() before each turn
         await this.waitForStep();
+
+        // Get character name for logging
+        const charName = charNameMap.get(characterId) ?? characterId;
+
+        // Log turn progress
+        logger.info(`[Phase ${phaseNum}] Turn ${this.turnIndex + 1}/${totalTurns}: ${charName} responds`);
 
         // Process character turn
         await this.processCharacterTurn(showId, characterId, phase.triggerTemplate ?? '');
@@ -353,10 +409,13 @@ export class Orchestrator {
       }
 
       // Check completion condition after each round
-      if (this.isPhaseComplete(phase, this.turnIndex, turnQueue.length * turnsPerCharacter)) {
+      if (this.isPhaseComplete(phase, this.turnIndex, totalTurns)) {
         break;
       }
     }
+
+    // Log phase end
+    logger.info(`[Phase ${phaseNum}/${phasesTotal}] "${phase.name}" ended (${this.turnIndex} turns completed)`);
 
     // Create phase_end event
     const phaseEndEvent: Omit<ShowEvent, 'sequenceNumber'> = {
@@ -374,6 +433,8 @@ export class Orchestrator {
       metadata: {
         totalTurns: this.turnIndex,
         completionCondition: phase.completionCondition,
+        phaseIndex: phaseIndex ?? 0,
+        totalPhases: totalPhases ?? 1,
       },
       seed,
     };
@@ -854,9 +915,9 @@ export class Orchestrator {
       } else {
         // Regular phases use runPhase (or runPhaseWithDebug in DEBUG mode)
         if (this.mode === 'DEBUG') {
-          await this.runPhaseWithDebug(showId, phase);
+          await this.runPhaseWithDebug(showId, phase, i, phases.length);
         } else {
-          await this.runPhase(showId, phase);
+          await this.runPhase(showId, phase, i, phases.length);
         }
       }
     }
@@ -1177,9 +1238,9 @@ export class Orchestrator {
       } else {
         // Regular phases use runPhase (or runPhaseWithDebug in DEBUG mode)
         if (this.mode === 'DEBUG') {
-          await this.runPhaseWithDebug(showId, phase);
+          await this.runPhaseWithDebug(showId, phase, i, phases.length);
         } else {
-          await this.runPhase(showId, phase);
+          await this.runPhase(showId, phase, i, phases.length);
         }
       }
     }
