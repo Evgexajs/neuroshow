@@ -35,8 +35,8 @@ export interface Show {
   /** ID of the currently active phase */
   currentPhaseId: string | null;
 
-  /** Timestamp when the show started */
-  startedAt: Date;
+  /** Timestamp when the show started (null if not yet started) */
+  startedAt: Date | null;
 
   /** Timestamp when the show completed (null if still running) */
   completedAt: Date | null;

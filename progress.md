@@ -1907,3 +1907,36 @@ Added a template information panel to the Debug UI that displays template name, 
 3. Кнопки START/PAUSE/STEP всегда видны без горизонтальной прокрутки ✓ (container overflow hidden)
 4. Layout адаптивный - работает на разных размерах экрана ✓ (flex-wrap на header)
 5. Горизонтальный скролл страницы отсутствует ✓ (body overflow-x: hidden)
+
+## [2026-04-07] TASK-087: Debug UI - кнопка START не работает или не видна
+**Статус:** done
+**Время:** ~20 минут
+**Изменения:**
+- src/types/enums.ts:
+  - Добавлен статус `created` в enum ShowStatus (shows начинают с этого статуса)
+- src/types/runtime.ts:
+  - Сделан `startedAt` nullable (Date | null) - show еще не запущено
+- src/core/host-module.ts:
+  - Изменен начальный статус show на `ShowStatus.created` вместо `running`
+  - `startedAt` устанавливается в null при создании (устанавливается при start)
+- web/debug-ui/app.ts:
+  - Добавлен 'created' в тип ShowStatus
+  - Исправлена логика updateButtonStates(): START активен при status='created' или 'paused'
+  - Добавлен console.log для отладки состояния кнопок
+  - Исправлена функция addEmptyPhaseMessage() - убран неиспользуемый параметр
+- tests/unit/host-module.test.ts:
+  - Обновлен тест для ожидания status='created' и startedAt=null
+
+**Тесты:**
+- npm run build — passes
+- npm run typecheck — passes
+- npm run lint — passes (0 errors, only pre-existing warnings)
+- npm test — pre-existing failures в orchestrator.test.ts (hardcoded OpenAI adapter issue)
+
+**Acceptance Criteria:**
+1. Кнопка START видна и кликабельна после подключения к шоу ✓
+2. Клик на START вызывает POST /shows/:id/control {action: 'start'} ✓ (handleControl существует)
+3. После создания шоу кнопка START активна (не disabled) ✓ (status='created' → canStart=true)
+4. Логика enabled/disabled кнопок корректна: START активен когда status='created' или 'paused' ✓
+5. Добавить console.log для отладки состояния кнопок ✓ (в updateButtonStates)
+6. Показывать текущий статус шоу рядом с кнопками ✓ (уже было в HTML, id=show-status)

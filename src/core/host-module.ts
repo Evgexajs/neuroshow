@@ -82,14 +82,14 @@ export class HostModule {
       })),
     };
 
-    // Create show record
+    // Create show record with 'created' status (will change to 'running' when started)
     const showRecord: ShowRecord = {
       id: showId,
       formatId: template.id,
       seed: showSeed.toString(),
-      status: ShowStatus.running,
+      status: ShowStatus.created,
       currentPhaseId: template.phases.length > 0 ? template.phases[0]!.id : null,
-      startedAt: startedAt.getTime(),
+      startedAt: null,
       completedAt: null,
       configSnapshot: JSON.stringify(configSnapshot),
       replayAvailable: false,
@@ -126,9 +126,9 @@ export class HostModule {
       id: showId,
       formatId: template.id,
       seed: showSeed,
-      status: ShowStatus.running,
+      status: ShowStatus.created,
       currentPhaseId: template.phases.length > 0 ? template.phases[0]!.id : null,
-      startedAt,
+      startedAt: null,
       completedAt: null,
       configSnapshot,
     };

@@ -126,16 +126,16 @@ describe('HostModule', () => {
       // Verify show returned
       expect(show.id).toBeDefined();
       expect(show.formatId).toBe(template.id);
-      expect(show.status).toBe(ShowStatus.running);
+      expect(show.status).toBe(ShowStatus.created);
       expect(show.currentPhaseId).toBe('phase-discussion-1');
-      expect(show.startedAt).toBeInstanceOf(Date);
+      expect(show.startedAt).toBeNull();
       expect(show.completedAt).toBeNull();
 
       // Verify show in DB
       const dbShow = await store.getShow(show.id);
       expect(dbShow).not.toBeNull();
       expect(dbShow!.formatId).toBe(template.id);
-      expect(dbShow!.status).toBe(ShowStatus.running);
+      expect(dbShow!.status).toBe(ShowStatus.created);
     });
 
     it('creates 5 characters in show_characters', async () => {

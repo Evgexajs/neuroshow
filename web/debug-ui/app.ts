@@ -59,7 +59,7 @@ interface ShowConfig {
 
 type CharacterStatus = 'waiting' | 'speaking' | 'in-private';
 
-type ShowStatus = 'running' | 'paused' | 'completed' | 'aborted' | null;
+type ShowStatus = 'created' | 'running' | 'paused' | 'completed' | 'aborted' | null;
 
 interface StatusResponse {
   status: ShowStatus;
@@ -328,8 +328,16 @@ function updateButtonStates(): void {
   const isConnected = currentShowId !== null;
   const status = currentShowStatus;
 
-  // START: enabled when connected and show is not yet running/paused (or completed/aborted for restart)
-  startBtn.disabled = !isConnected || status === 'running' || status === 'paused';
+  // Debug logging for button state
+  console.log('[Debug UI] updateButtonStates:', {
+    isConnected,
+    status,
+    showId: currentShowId,
+  });
+
+  // START: enabled when connected and show is 'created' or 'paused'
+  const canStart = isConnected && (status === 'created' || status === 'paused');
+  startBtn.disabled = !canStart;
 
   // PAUSE: enabled only when running
   pauseBtn.disabled = !isConnected || status !== 'running';
@@ -342,6 +350,14 @@ function updateButtonStates(): void {
 
   // ROLLBACK: enabled when paused or running
   rollbackBtn.disabled = !isConnected || (status !== 'paused' && status !== 'running');
+
+  console.log('[Debug UI] Button states:', {
+    startBtn: !startBtn.disabled,
+    pauseBtn: !pauseBtn.disabled,
+    resumeBtn: !resumeBtn.disabled,
+    stepBtn: !stepBtn.disabled,
+    rollbackBtn: !rollbackBtn.disabled,
+  });
 }
 
 /**
@@ -793,7 +809,7 @@ function addPhaseSeparator(phaseId: string, isStart: boolean): void {
 /**
  * Add empty phase message
  */
-function addEmptyPhaseMessage(_phaseId: string): void {
+function addEmptyPhaseMessage(): void {
   const messageEl = document.createElement('div');
   messageEl.className = 'empty-phase-message';
   messageEl.innerHTML = `<span>Нет событий в этой фазе</span>`;
@@ -812,14 +828,14 @@ function addEventToFeed(event: ShowEvent): void {
   if (eventType === 'phase_start' && eventPhaseId) {
     // Check if previous phase was empty
     if (currentPhaseId && phaseEventCount === 0) {
-      addEmptyPhaseMessage(currentPhaseId);
+      addEmptyPhaseMessage();
     }
     addPhaseSeparator(eventPhaseId, true);
     currentPhaseId = eventPhaseId;
     phaseEventCount = 0;
   } else if (eventType === 'phase_end' && eventPhaseId) {
     if (phaseEventCount === 0) {
-      addEmptyPhaseMessage(eventPhaseId);
+      addEmptyPhaseMessage();
     }
     currentPhaseId = null;
     phaseEventCount = 0;

@@ -54,6 +54,7 @@ export enum PhaseType {
  * Show runtime status
  */
 export enum ShowStatus {
+  created = 'created',
   running = 'running',
   paused = 'paused',
   completed = 'completed',
