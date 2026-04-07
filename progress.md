@@ -1177,3 +1177,41 @@ Wildcard: Максим имеет компромат на Виктора (фин
 5. ✅ Кнопки disabled в неактуальных состояниях
 
 **Тесты:** npm run typecheck, npm run build, npm test — все пройдены (310 tests passed).
+
+## [2026-04-07] TASK-059: Replay механизм: воспроизведение выпуска из llm_calls
+**Статус:** done
+**Время:** ~25 минут
+**Изменения:**
+- src/types/interfaces/store.interface.ts — добавлено поле replayAvailable: boolean в ShowRecord
+- src/storage/sqlite-store.ts — добавлена поддержка replayAvailable:
+  - Добавлена колонка replay_available INTEGER DEFAULT 0 в таблицу shows
+  - Миграция для существующих БД через ALTER TABLE
+  - Обновлены createShow, updateShow, mapShowRow методы
+- src/adapters/replay-adapter.ts — создан новый адаптер для воспроизведения:
+  - ReplayAdapter implements ModelAdapter
+  - providerId: 'replay', modelId: 'replay-v1'
+  - initialize() — загружает llm_calls из store
+  - call() — возвращает сохранённый raw_response последовательно
+  - estimateTokens() — возвращает сохранённые значения токенов
+  - Вспомогательные методы: getTotalCalls(), getCurrentIndex(), reset()
+- src/core/orchestrator.ts — добавлен replay функционал:
+  - Импорт ReplayAdapter
+  - Приватное поле _replayAdapter для временного адаптера
+  - Геттер activeAdapter — возвращает replay или обычный адаптер
+  - replayShow(showId): Promise<void> — основной метод replay:
+    - Проверяет что шоу завершено и есть llm_calls
+    - Создаёт и инициализирует ReplayAdapter
+    - Очищает события (rollback к началу)
+    - Сбрасывает token budget
+    - Перезапускает шоу с replay адаптером
+    - Устанавливает replayAvailable: true после успеха
+  - executeShowRun() — выделенный метод выполнения шоу для переиспользования
+- src/core/host-module.ts — добавлено replayAvailable: false при создании шоу
+
+**Acceptance Criteria:**
+1. ✅ Метод replayShow(showId): Promise<void>
+2. ✅ Использует сохранённые raw_response из llm_calls вместо новых LLM вызовов
+3. ✅ Результат идентичен оригинальному выпуску (те же LLM ответы = те же события)
+4. ✅ Флаг replayAvailable в таблице shows
+
+**Тесты:** npm run typecheck, npm test — все пройдены (310 tests passed).

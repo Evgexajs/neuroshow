@@ -22,6 +22,7 @@ export interface ShowRecord {
   startedAt: number | null;
   completedAt: number | null;
   configSnapshot: string; // JSON
+  replayAvailable: boolean;
 }
 
 /**

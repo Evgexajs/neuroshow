@@ -16,6 +16,7 @@ import { CharacterDefinition } from '../types/character.js';
 import { Show } from '../types/runtime.js';
 import { ResponseConstraints, PrivateChannelRules, DecisionConfig } from '../types/primitives.js';
 import { logger } from '../utils/logger.js';
+import { ReplayAdapter } from '../adapters/replay-adapter.js';
 
 /**
  * Orchestrator execution mode
@@ -65,6 +66,9 @@ export class Orchestrator {
   /** Promise that runShow waits on in DEBUG mode */
   private stepPromise: Promise<void> | null = null;
 
+  /** Replay adapter used during replay mode */
+  private _replayAdapter: ReplayAdapter | null = null;
+
   constructor(
     readonly store: IStore,
     readonly adapter: ModelAdapter,
@@ -72,6 +76,13 @@ export class Orchestrator {
     readonly hostModule: HostModule,
     readonly contextBuilder: ContextBuilder
   ) {}
+
+  /**
+   * Get the active adapter (replay adapter if in replay mode, otherwise normal adapter)
+   */
+  private get activeAdapter(): ModelAdapter {
+    return this._replayAdapter ?? this.adapter;
+  }
 
   /**
    * Get current orchestrator state
@@ -452,7 +463,7 @@ export class Orchestrator {
     );
 
     // Call the adapter to get response
-    const response = await this.adapter.call(promptPackage);
+    const response = await this.activeAdapter.call(promptPackage);
 
     // Get all characters for audienceIds (speech is public)
     const characters = await this.store.getCharacters(showId);
@@ -482,7 +493,7 @@ export class Orchestrator {
     await this.journal.append(speechEvent);
 
     // Update token budget
-    const tokenEstimate = this.adapter.estimateTokens(promptPackage);
+    const tokenEstimate = this.activeAdapter.estimateTokens(promptPackage);
     await this.store.updateBudget(
       showId,
       tokenEstimate.prompt,
@@ -1012,5 +1023,176 @@ export class Orchestrator {
     });
 
     logger.info(`Show ${showId} gracefully finished`);
+  }
+
+  /**
+   * Replay a completed show using stored LLM responses.
+   *
+   * Uses saved raw_response from llm_calls table instead of making
+   * new LLM API calls. The result is identical to the original show run.
+   *
+   * Prerequisites:
+   * - Show must exist and be in 'completed' status
+   * - Show must have replayAvailable = true (or have llm_calls recorded)
+   *
+   * @param showId - Show ID to replay
+   * @throws Error if show not found, not completed, or replay not available
+   */
+  async replayShow(showId: string): Promise<void> {
+    // Get show record
+    const showRecord = await this.store.getShow(showId);
+    if (!showRecord) {
+      throw new Error(`Show ${showId} not found`);
+    }
+
+    // Check if show is completed
+    if (showRecord.status !== ShowStatus.completed) {
+      throw new Error(`Show ${showId} is not completed (status: ${showRecord.status}). Only completed shows can be replayed.`);
+    }
+
+    // Check if llm_calls are available for replay
+    const llmCalls = await this.store.getLLMCalls(showId);
+    if (llmCalls.length === 0) {
+      throw new Error(`Show ${showId} has no recorded LLM calls. Replay is not available.`);
+    }
+
+    logger.info(`Starting replay for show ${showId} with ${llmCalls.length} recorded LLM calls`);
+
+    // Create and initialize ReplayAdapter
+    const replayAdapter = new ReplayAdapter(this.store, showId);
+    await replayAdapter.initialize();
+
+    // Set the replay adapter
+    this._replayAdapter = replayAdapter;
+
+    try {
+      // Clear all events for the show (rollback to beginning)
+      await this.store.deleteEventsAfter(showId, 0);
+
+      // Reset token budget to initial state
+      const budget = await this.store.getBudget(showId);
+      if (budget) {
+        // Reset used tokens but keep the same total limit
+        await this.store.updateBudget(showId, -budget.usedPrompt, -budget.usedCompletion);
+        await this.store.setBudgetMode(showId, BudgetMode.normal);
+      }
+
+      // Reset show status to running
+      await this.store.updateShow(showId, {
+        status: ShowStatus.running,
+        currentPhaseId: null,
+        completedAt: null,
+      });
+
+      // Run the show (will use replay adapter via activeAdapter getter)
+      // Note: We call the internal run logic directly since runShow expects
+      // a non-running show. We've already reset the status.
+      await this.executeShowRun(showId);
+
+      // Mark show as replayAvailable (confirmed working replay)
+      await this.store.updateShow(showId, {
+        replayAvailable: true,
+      });
+
+      logger.info(`Replay completed for show ${showId}`);
+    } finally {
+      // Clear the replay adapter
+      this._replayAdapter = null;
+    }
+  }
+
+  /**
+   * Internal method to execute show run logic.
+   * Shared between runShow and replayShow.
+   */
+  private async executeShowRun(showId: string): Promise<void> {
+    // Get show record
+    const showRecord = await this.store.getShow(showId);
+    if (!showRecord) {
+      throw new Error(`Show ${showId} not found`);
+    }
+
+    // Update internal state
+    this.showId = showId;
+    this.currentPhaseIndex = 0;
+
+    // In DEBUG mode, start paused and wait for first step()
+    if (this.mode === 'DEBUG') {
+      this.paused = true;
+      logger.debug(`Show ${showId} starting in DEBUG mode, waiting for step()`);
+    }
+
+    // Update show status to running
+    await this.store.updateShow(showId, {
+      status: ShowStatus.running,
+      startedAt: Date.now(),
+    });
+
+    logger.info(`Show ${showId} started`);
+
+    // Parse configSnapshot to get phases and decisionConfig
+    const configSnapshot = JSON.parse(showRecord.configSnapshot) as Record<string, unknown>;
+    const phases = configSnapshot.phases as Phase[];
+    const decisionConfig = configSnapshot.decisionConfig as DecisionConfig;
+
+    if (!phases || phases.length === 0) {
+      throw new Error(`No phases found in show ${showId} configSnapshot`);
+    }
+
+    // Run all phases sequentially
+    for (const [i, phase] of phases.entries()) {
+      this.currentPhaseIndex = i;
+
+      // In DEBUG mode, wait for step() or resume() before each phase
+      await this.waitForStep();
+
+      // Update currentPhaseId in show record
+      await this.store.updateShow(showId, {
+        currentPhaseId: phase.id,
+      });
+
+      // Check budget before running phase
+      const budgetMode = await this.checkBudget(showId);
+      if (budgetMode === BudgetMode.graceful_finish) {
+        logger.info(`Budget exhausted for show ${showId}, triggering graceful finish`);
+        await this.gracefulFinish(showId);
+        return;
+      }
+
+      // Run the phase based on its type
+      if (phase.type === PhaseType.decision) {
+        // Decision phase uses special runDecisionPhase flow
+        const decisionCallback = async (
+          characterId: string,
+          trigger: string,
+          _previousDecisions: Array<{ characterId: string; decision: string }>
+        ) => {
+          // In DEBUG mode, wait for step() before each character turn
+          if (this.mode === 'DEBUG') {
+            await this.waitForStep();
+          }
+          return this.processCharacterTurn(showId, characterId, trigger);
+        };
+        await this.hostModule.runDecisionPhase(showId, decisionConfig, decisionCallback);
+      } else {
+        // Regular phases use runPhase (or runPhaseWithDebug in DEBUG mode)
+        if (this.mode === 'DEBUG') {
+          await this.runPhaseWithDebug(showId, phase);
+        } else {
+          await this.runPhase(showId, phase);
+        }
+      }
+    }
+
+    // Run revelation at the end
+    await this.hostModule.runRevelation(showId, decisionConfig);
+
+    // Update show status to completed
+    await this.store.updateShow(showId, {
+      status: ShowStatus.completed,
+      completedAt: Date.now(),
+    });
+
+    logger.info(`Show ${showId} completed`);
   }
 }

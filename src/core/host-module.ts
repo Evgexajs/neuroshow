@@ -89,6 +89,7 @@ export class HostModule {
       startedAt: startedAt.getTime(),
       completedAt: null,
       configSnapshot: JSON.stringify(configSnapshot),
+      replayAvailable: false,
     };
 
     await this.store.createShow(showRecord);

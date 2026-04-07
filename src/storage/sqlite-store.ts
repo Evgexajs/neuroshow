@@ -44,9 +44,17 @@ export class SqliteStore implements IStore {
         current_phase_id TEXT,
         started_at INTEGER,
         completed_at INTEGER,
-        config_snapshot TEXT NOT NULL
+        config_snapshot TEXT NOT NULL,
+        replay_available INTEGER DEFAULT 0
       )
     `);
+
+    // Add replay_available column if it doesn't exist (migration for existing DBs)
+    try {
+      this.db.exec('ALTER TABLE shows ADD COLUMN replay_available INTEGER DEFAULT 0');
+    } catch {
+      // Column already exists, ignore error
+    }
 
     // Create show_characters table
     this.db.exec(`
@@ -132,8 +140,8 @@ export class SqliteStore implements IStore {
 
   async createShow(show: ShowRecord): Promise<string> {
     const stmt = this.db.prepare(`
-      INSERT INTO shows (id, format_id, seed, status, current_phase_id, started_at, completed_at, config_snapshot)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO shows (id, format_id, seed, status, current_phase_id, started_at, completed_at, config_snapshot, replay_available)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     stmt.run(
       show.id,
@@ -143,7 +151,8 @@ export class SqliteStore implements IStore {
       show.currentPhaseId,
       show.startedAt,
       show.completedAt,
-      show.configSnapshot
+      show.configSnapshot,
+      show.replayAvailable ? 1 : 0
     );
     return show.id;
   }
@@ -187,6 +196,10 @@ export class SqliteStore implements IStore {
       fields.push('config_snapshot = ?');
       values.push(updates.configSnapshot);
     }
+    if (updates.replayAvailable !== undefined) {
+      fields.push('replay_available = ?');
+      values.push(updates.replayAvailable ? 1 : 0);
+    }
 
     if (fields.length === 0) return;
 
@@ -220,6 +233,7 @@ export class SqliteStore implements IStore {
       startedAt: row.started_at as number | null,
       completedAt: row.completed_at as number | null,
       configSnapshot: row.config_snapshot as string,
+      replayAvailable: (row.replay_available as number) === 1,
     };
   }
 
