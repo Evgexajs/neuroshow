@@ -155,6 +155,90 @@ export async function createServer(): Promise<{
     });
   });
 
+  // POST /shows/:id/control - Control show execution
+  app.post('/shows/:id/control', async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id } = request.params as { id: string };
+    const body = request.body as {
+      action: 'start' | 'pause' | 'resume' | 'step' | 'rollback';
+      phaseId?: string;
+    } | null;
+
+    // Validate request body exists
+    if (!body) {
+      return reply.status(400).send({
+        error: 'Request body is required',
+      });
+    }
+
+    const { action, phaseId } = body;
+
+    // Validate action
+    const validActions = ['start', 'pause', 'resume', 'step', 'rollback'];
+    if (!action || !validActions.includes(action)) {
+      return reply.status(400).send({
+        error: `action is required and must be one of: ${validActions.join(', ')}`,
+      });
+    }
+
+    // Check if show exists
+    const show = await deps.store.getShow(id);
+    if (!show) {
+      return reply.status(404).send({ error: 'Show not found' });
+    }
+
+    try {
+      switch (action) {
+        case 'start':
+          // Run show in background (don't await)
+          deps.orchestrator.runShow(id).catch((err) => {
+            logger.error(`Show ${id} execution error:`, err);
+          });
+          return reply.send({
+            status: 'started',
+            message: 'Show started in background',
+          });
+
+        case 'pause':
+          deps.orchestrator.pause();
+          return reply.send({
+            status: 'paused',
+            message: 'Show paused',
+          });
+
+        case 'resume':
+          deps.orchestrator.resume();
+          return reply.send({
+            status: 'resumed',
+            message: 'Show resumed',
+          });
+
+        case 'step':
+          await deps.orchestrator.step();
+          return reply.send({
+            status: 'stepped',
+            message: 'One step executed',
+          });
+
+        case 'rollback':
+          if (!phaseId) {
+            return reply.status(400).send({
+              error: 'phaseId is required for rollback action',
+            });
+          }
+          await deps.orchestrator.rollbackToPhase(id, phaseId);
+          return reply.send({
+            status: 'rolled_back',
+            message: `Rolled back to phase ${phaseId}`,
+          });
+      }
+    } catch (err) {
+      logger.error(`Control action ${action} failed for show ${id}:`, err);
+      return reply.status(500).send({
+        error: `Control action failed: ${err instanceof Error ? err.message : 'Unknown error'}`,
+      });
+    }
+  });
+
   // POST /shows - Create a new show
   app.post('/shows', async (request: FastifyRequest, reply: FastifyReply) => {
     const body = request.body as {

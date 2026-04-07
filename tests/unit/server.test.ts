@@ -367,6 +367,259 @@ describe('API Server', () => {
     });
   });
 
+  describe('POST /shows/:id/control', () => {
+    it('should return 404 for non-existent show', async () => {
+      const response = await app.inject({
+        method: 'POST',
+        url: '/shows/non-existent-id/control',
+        payload: {
+          action: 'start',
+        },
+      });
+
+      expect(response.statusCode).toBe(404);
+      expect(response.json().error).toBe('Show not found');
+    });
+
+    it('should return 400 when body is missing', async () => {
+      const template = createTestTemplate();
+      const characters = [
+        createTestCharacter('char-1', 'Alice'),
+        createTestCharacter('char-2', 'Bob'),
+      ];
+
+      const createResponse = await app.inject({
+        method: 'POST',
+        url: '/shows',
+        payload: {
+          formatId: template,
+          characters,
+        },
+      });
+      const showId = createResponse.json().showId;
+
+      const response = await app.inject({
+        method: 'POST',
+        url: `/shows/${showId}/control`,
+      });
+
+      expect(response.statusCode).toBe(400);
+      expect(response.json().error).toBeDefined();
+    });
+
+    it('should return 400 when action is invalid', async () => {
+      const template = createTestTemplate();
+      const characters = [
+        createTestCharacter('char-1', 'Alice'),
+        createTestCharacter('char-2', 'Bob'),
+      ];
+
+      const createResponse = await app.inject({
+        method: 'POST',
+        url: '/shows',
+        payload: {
+          formatId: template,
+          characters,
+        },
+      });
+      const showId = createResponse.json().showId;
+
+      const response = await app.inject({
+        method: 'POST',
+        url: `/shows/${showId}/control`,
+        payload: {
+          action: 'invalid-action',
+        },
+      });
+
+      expect(response.statusCode).toBe(400);
+      expect(response.json().error).toContain('action');
+    });
+
+    it('should start show in background', async () => {
+      const template = createTestTemplate();
+      const characters = [
+        createTestCharacter('char-1', 'Alice'),
+        createTestCharacter('char-2', 'Bob'),
+      ];
+
+      const createResponse = await app.inject({
+        method: 'POST',
+        url: '/shows',
+        payload: {
+          formatId: template,
+          characters,
+        },
+      });
+      const showId = createResponse.json().showId;
+
+      const response = await app.inject({
+        method: 'POST',
+        url: `/shows/${showId}/control`,
+        payload: {
+          action: 'start',
+        },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json().status).toBe('started');
+
+      // Give time for show to start and complete (MockAdapter is fast)
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      // Verify show ran (status should be running or completed since MockAdapter is fast)
+      const show = await deps.store.getShow(showId);
+      expect(['running', 'completed']).toContain(show?.status);
+    });
+
+    it('should pause show', async () => {
+      const template = createTestTemplate();
+      const characters = [
+        createTestCharacter('char-1', 'Alice'),
+        createTestCharacter('char-2', 'Bob'),
+      ];
+
+      const createResponse = await app.inject({
+        method: 'POST',
+        url: '/shows',
+        payload: {
+          formatId: template,
+          characters,
+        },
+      });
+      const showId = createResponse.json().showId;
+
+      const response = await app.inject({
+        method: 'POST',
+        url: `/shows/${showId}/control`,
+        payload: {
+          action: 'pause',
+        },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json().status).toBe('paused');
+    });
+
+    it('should resume show', async () => {
+      const template = createTestTemplate();
+      const characters = [
+        createTestCharacter('char-1', 'Alice'),
+        createTestCharacter('char-2', 'Bob'),
+      ];
+
+      const createResponse = await app.inject({
+        method: 'POST',
+        url: '/shows',
+        payload: {
+          formatId: template,
+          characters,
+        },
+      });
+      const showId = createResponse.json().showId;
+
+      const response = await app.inject({
+        method: 'POST',
+        url: `/shows/${showId}/control`,
+        payload: {
+          action: 'resume',
+        },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json().status).toBe('resumed');
+    });
+
+    it('should step show', async () => {
+      const template = createTestTemplate();
+      const characters = [
+        createTestCharacter('char-1', 'Alice'),
+        createTestCharacter('char-2', 'Bob'),
+      ];
+
+      const createResponse = await app.inject({
+        method: 'POST',
+        url: '/shows',
+        payload: {
+          formatId: template,
+          characters,
+        },
+      });
+      const showId = createResponse.json().showId;
+
+      const response = await app.inject({
+        method: 'POST',
+        url: `/shows/${showId}/control`,
+        payload: {
+          action: 'step',
+        },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json().status).toBe('stepped');
+    });
+
+    it('should return 400 for rollback without phaseId', async () => {
+      const template = createTestTemplate();
+      const characters = [
+        createTestCharacter('char-1', 'Alice'),
+        createTestCharacter('char-2', 'Bob'),
+      ];
+
+      const createResponse = await app.inject({
+        method: 'POST',
+        url: '/shows',
+        payload: {
+          formatId: template,
+          characters,
+        },
+      });
+      const showId = createResponse.json().showId;
+
+      const response = await app.inject({
+        method: 'POST',
+        url: `/shows/${showId}/control`,
+        payload: {
+          action: 'rollback',
+        },
+      });
+
+      expect(response.statusCode).toBe(400);
+      expect(response.json().error).toContain('phaseId');
+    });
+
+    it('should rollback to phase', async () => {
+      const template = createTestTemplate();
+      const characters = [
+        createTestCharacter('char-1', 'Alice'),
+        createTestCharacter('char-2', 'Bob'),
+      ];
+
+      const createResponse = await app.inject({
+        method: 'POST',
+        url: '/shows',
+        payload: {
+          formatId: template,
+          characters,
+        },
+      });
+      const showId = createResponse.json().showId;
+
+      const response = await app.inject({
+        method: 'POST',
+        url: `/shows/${showId}/control`,
+        payload: {
+          action: 'rollback',
+          phaseId: 'phase-1',
+        },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json().status).toBe('rolled_back');
+      expect(response.json().message).toContain('phase-1');
+    });
+  });
+
   describe('GET /shows/:id/events (SSE)', () => {
     it('should return 404 for non-existent show', async () => {
       const response = await app.inject({

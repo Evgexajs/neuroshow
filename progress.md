@@ -864,3 +864,31 @@
 
 **Тесты:** npm run typecheck, npm test — все пройдены (228 tests passed).
 **Заметки:** Используется reply.hijack() для управления raw response в Fastify. Snapshot mode добавлен для тестирования с inject().
+
+## TASK-047: API: POST /shows/:id/control - управление шоу
+
+**Дата:** 2026-04-07
+
+**Статус:** Выполнено
+
+**Изменения:**
+- src/api/server.ts — добавлен POST /shows/:id/control endpoint:
+  - Принимает { action: 'start' | 'pause' | 'resume' | 'step' | 'rollback', phaseId?: string }
+  - action: 'start' — запускает runShow() в фоне (не ожидая завершения)
+  - action: 'pause' — вызывает orchestrator.pause()
+  - action: 'resume' — вызывает orchestrator.resume()
+  - action: 'step' — вызывает orchestrator.step()
+  - action: 'rollback' + phaseId — вызывает rollbackToPhase()
+  - Валидация action, проверка существования шоу, обработка ошибок
+
+- tests/unit/server.test.ts — добавлены тесты для POST /shows/:id/control:
+  - Возврат 404 для несуществующего шоу
+  - Возврат 400 для отсутствующего body
+  - Возврат 400 для невалидного action
+  - Успешный start (проверка статуса running/completed)
+  - Успешный pause, resume, step
+  - Возврат 400 для rollback без phaseId
+  - Успешный rollback с phaseId
+
+**Тесты:** npm run typecheck, npm test — все пройдены (237 tests passed).
+**Заметки:** runShow() запускается без await для non-blocking execution. MockAdapter выполняет шоу очень быстро, поэтому тест проверяет ['running', 'completed'] статусы.
