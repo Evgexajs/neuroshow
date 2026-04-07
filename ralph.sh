@@ -118,7 +118,7 @@ EOF
     # Проверяем на rate limit
     if [[ "$result" == *"hit your limit"* ]] || [[ "$result" == *"rate limit"* ]] || [[ "$result" == *"resets"* ]]; then
         echo "⚠️  Rate limit! Останавливаюсь."
-        say -v Milena "Лимит исчерпан. Жду сброса."
+        say -v Milena "[[volm 0.3]] Лимит исчерпан. Жду сброса."
         exit 1
     fi
 
@@ -128,15 +128,15 @@ EOF
         remaining=$(grep -c '"status": "pending"' "$TASKS_FILE" 2>/dev/null || echo "0")
         if [ "$remaining" -eq 0 ]; then
             echo "🎉 Все задачи выполнены!"
-            say -v Milena "Хозяин, я всё сделалъ!"
+            say -v Milena "[[volm 0.3]] Хозяин, я всё сделал!"
             exit 0
         fi
         echo "Осталось задач: $remaining. Продолжаю..."
-        say -v Milena "Задача готова. Продолжаю работу."
+        say -v Milena "[[volm 0.3]] Задача готова. Продолжаю работу."
     fi
 
     ((iteration++))
 done
 
 echo "Все задачи выполнены! Итераций: $((iteration-1))"
-say -v Milena "Хозяин, я сделалъ!"
+say -v Milena "[[volm 0.3]] Хозяин, я сделал!"
