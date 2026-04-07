@@ -1677,6 +1677,31 @@
       ],
       "dependencies": [],
       "status": "done"
+    },
+    {
+      "id": "TASK-068",
+      "category": "infrastructure",
+      "priority": "critical",
+      "description": "Включить тесты в typecheck и исправить все ошибки типизации",
+      "acceptance_criteria": [
+        "tsconfig.json: убрать 'tests' из exclude",
+        "Создать tsconfig для тестов если нужно (наследует от основного)",
+        "npm run typecheck проверяет И src/ И tests/",
+        "Все ошибки типизации в тестах исправлены",
+        "format: 'json' заменён на валидное значение ('free' | 'structured' | 'choice')",
+        "npm run typecheck проходит БЕЗ ошибок",
+        "npm test проходит БЕЗ ошибок"
+      ],
+      "test_steps": [
+        "Выполни: npm run typecheck",
+        "Убедись что тесты тоже проверяются (не исключены)",
+        "Выполни: npm test",
+        "Ожидаем��й результат: типы и тесты проходят, ошибок нет"
+      ],
+      "dependencies": [
+        "TASK-067"
+      ],
+      "status": "pending"
     }
   ]
 }
