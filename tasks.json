@@ -14,7 +14,8 @@
       "Работай только над выбранной задачей",
       "Делай коммиты после каждого логического изменения",
       "Не трогай код, не связанный с текущей задачей",
-      "Следуй структуре проекта из PRD.md раздел 6"
+      "Следуй структуре проекта из PRD.md раздел 6",
+      "ВСЕГДА используй TypeScript (.ts), НИКОГДА vanilla JavaScript (.js)"
     ],
     "before_finish": [
       "Выполни ВСЕ test_steps из задачи",
@@ -1624,6 +1625,32 @@
       "dependencies": [
         "TASK-062",
         "TASK-017"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "TASK-066",
+      "category": "refactoring",
+      "priority": "high",
+      "description": "Переписать web/debug-ui/app.js на TypeScript",
+      "acceptance_criteria": [
+        "web/debug-ui/app.js удалён",
+        "web/debug-ui/app.ts создан с тем же функционалом",
+        "Типизация: EventSource, DOM элементы, события",
+        "index.html обновлён для загрузки скомпилированного JS",
+        "npm run build компилирует app.ts без ошибок",
+        "npm run typecheck проходит без ошибок",
+        "Функционал SSE и Event Feed работает как раньше"
+      ],
+      "test_steps": [
+        "Выполни: npm run typecheck",
+        "Выполни: npm run build",
+        "Открой debug-ui в браузере",
+        "Проверь что SSE подключается и события отображаются",
+        "Ожидаемый результат: всё работает, код на TypeScript"
+      ],
+      "dependencies": [
+        "TASK-050"
       ],
       "status": "pending"
     }
