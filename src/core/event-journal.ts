@@ -3,6 +3,7 @@
  * Based on PRD.md - Event Journal pattern
  */
 
+import { EventEmitter } from 'events';
 import { ShowEvent } from '../types/events.js';
 import { IStore } from '../types/interfaces/store.interface.js';
 
@@ -14,10 +15,13 @@ export interface GetEventsOptions {
 
 /**
  * EventJournal wraps IStore to provide event logging functionality
- * with automatic sequence number assignment and filtering
+ * with automatic sequence number assignment and filtering.
+ * Extends EventEmitter to notify subscribers of new events in real-time.
  */
-export class EventJournal {
-  constructor(private readonly store: IStore) {}
+export class EventJournal extends EventEmitter {
+  constructor(private readonly store: IStore) {
+    super();
+  }
 
   /**
    * Append an event to the journal
@@ -34,6 +38,10 @@ export class EventJournal {
     };
 
     await this.store.appendEvent(fullEvent);
+
+    // Emit event for real-time subscribers (SSE)
+    this.emit('event', fullEvent);
+
     return fullEvent;
   }
 

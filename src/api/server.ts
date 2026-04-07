@@ -91,6 +91,70 @@ export async function createServer(): Promise<{
     return { status: 'ok' };
   });
 
+  // GET /shows/:id/events - SSE endpoint for real-time events
+  app.get('/shows/:id/events', async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id } = request.params as { id: string };
+    const { snapshot } = request.query as { snapshot?: string };
+
+    // Check if show exists
+    const show = await deps.store.getShow(id);
+    if (!show) {
+      return reply.status(404).send({ error: 'Show not found' });
+    }
+
+    // Tell Fastify we're taking over the response
+    reply.hijack();
+
+    // Set SSE headers
+    reply.raw.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+      'X-Accel-Buffering': 'no', // Disable nginx buffering
+    });
+
+    // Get Last-Event-ID for reconnection support
+    // Last-Event-ID contains the sequence number of the last received event
+    // We want events AFTER that, so we use lastEventId + 1 as cursor (which is inclusive)
+    const lastEventIdHeader = request.headers['last-event-id'];
+    const lastEventId = lastEventIdHeader
+      ? parseInt(lastEventIdHeader as string, 10)
+      : 0;
+
+    // Send all existing events from the cursor position
+    // cursor is inclusive (events >= cursor), so we add 1 to get events after lastEventId
+    const existingEvents = await deps.journal.getEvents(id, {
+      cursor: lastEventId > 0 ? lastEventId + 1 : undefined,
+    });
+
+    for (const event of existingEvents) {
+      const sseData = `id: ${event.sequenceNumber}\ndata: ${JSON.stringify(event)}\n\n`;
+      reply.raw.write(sseData);
+    }
+
+    // If snapshot mode, close connection after sending existing events
+    // This is useful for testing and one-time fetches
+    if (snapshot === 'true') {
+      reply.raw.end();
+      return;
+    }
+
+    // Subscribe to new events
+    const eventHandler = (event: import('../types/events.js').ShowEvent) => {
+      if (event.showId === id) {
+        const sseData = `id: ${event.sequenceNumber}\ndata: ${JSON.stringify(event)}\n\n`;
+        reply.raw.write(sseData);
+      }
+    };
+
+    deps.journal.on('event', eventHandler);
+
+    // Handle client disconnect
+    request.raw.on('close', () => {
+      deps.journal.off('event', eventHandler);
+    });
+  });
+
   // POST /shows - Create a new show
   app.post('/shows', async (request: FastifyRequest, reply: FastifyReply) => {
     const body = request.body as {

@@ -832,3 +832,35 @@
 
 **Тесты:** npm run typecheck, npm test — все пройдены (223 tests passed).
 **Заметки:** formatId принимает полный ShowFormatTemplate объект, т.к. хранилище шаблонов ещё не реализовано. В будущем можно добавить lookup по ID.
+
+---
+
+## TASK-046: API: GET /shows/:id/events - SSE endpoint
+
+**Дата:** 2026-04-07
+
+**Статус:** Выполнено
+
+**Изменения:**
+- src/core/event-journal.ts — расширен для поддержки real-time уведомлений:
+  - EventJournal теперь extends EventEmitter
+  - При append() эмитит событие 'event' с полным ShowEvent
+
+- src/api/server.ts — добавлен GET /shows/:id/events endpoint:
+  - Content-Type: text/event-stream (SSE)
+  - Отправляет все существующие события при подключении
+  - Подписывается на journal.on('event') для real-time обновлений
+  - Поддержка Last-Event-ID для reconnection (events AFTER lastId)
+  - Каждое событие отправляется в формате: `id: {seqNum}\ndata: {JSON}\n\n`
+  - Параметр ?snapshot=true для закрытия соединения после отправки существующих событий (полезно для тестирования)
+  - Cleanup listener при disconnect клиента
+
+- tests/unit/server.test.ts — добавлены тесты SSE endpoint:
+  - Возврат 404 для несуществующего шоу
+  - Проверка Content-Type: text/event-stream и Cache-Control: no-cache
+  - Отправка существующих событий при подключении
+  - Поддержка Last-Event-ID для reconnection
+  - Проверка формата SSE (id: и data: строки)
+
+**Тесты:** npm run typecheck, npm test — все пройдены (228 tests passed).
+**Заметки:** Используется reply.hijack() для управления raw response в Fastify. Snapshot mode добавлен для тестирования с inject().
