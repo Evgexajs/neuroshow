@@ -3,7 +3,7 @@
  * Based on TASK-044 - API Server setup
  */
 
-import Fastify, { FastifyInstance } from 'fastify';
+import Fastify, { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { config } from '../config.js';
 import { SqliteStore } from '../storage/sqlite-store.js';
 import { EventJournal } from '../core/event-journal.js';
@@ -13,6 +13,8 @@ import { MockAdapter } from '../adapters/mock-adapter.js';
 import { Orchestrator } from '../core/orchestrator.js';
 import { ModelAdapter } from '../types/adapter.js';
 import { logger } from '../utils/logger.js';
+import { ShowFormatTemplate } from '../types/template.js';
+import { CharacterDefinition } from '../types/character.js';
 
 /**
  * Application dependencies container
@@ -87,6 +89,118 @@ export async function createServer(): Promise<{
   // Health check endpoint
   app.get('/health', async () => {
     return { status: 'ok' };
+  });
+
+  // POST /shows - Create a new show
+  app.post('/shows', async (request: FastifyRequest, reply: FastifyReply) => {
+    const body = request.body as {
+      formatId?: ShowFormatTemplate;
+      characters?: Array<CharacterDefinition & { modelAdapterId?: string }>;
+      seed?: number;
+    } | null;
+
+    // Validate request body exists
+    if (!body) {
+      return reply.status(400).send({
+        error: 'Request body is required',
+      });
+    }
+
+    const { formatId, characters, seed } = body;
+
+    // Validate formatId (ShowFormatTemplate)
+    if (!formatId || typeof formatId !== 'object') {
+      return reply.status(400).send({
+        error: 'formatId is required and must be a valid ShowFormatTemplate object',
+      });
+    }
+
+    // Validate required ShowFormatTemplate fields
+    if (!formatId.id || typeof formatId.id !== 'string') {
+      return reply.status(400).send({
+        error: 'formatId.id is required',
+      });
+    }
+
+    if (!formatId.name || typeof formatId.name !== 'string') {
+      return reply.status(400).send({
+        error: 'formatId.name is required',
+      });
+    }
+
+    if (!Array.isArray(formatId.phases)) {
+      return reply.status(400).send({
+        error: 'formatId.phases must be an array',
+      });
+    }
+
+    // Validate characters
+    if (!characters || !Array.isArray(characters)) {
+      return reply.status(400).send({
+        error: 'characters is required and must be an array',
+      });
+    }
+
+    if (characters.length === 0) {
+      return reply.status(400).send({
+        error: 'At least one character is required',
+      });
+    }
+
+    // Validate character count against template limits
+    if (formatId.minParticipants && characters.length < formatId.minParticipants) {
+      return reply.status(400).send({
+        error: `Minimum ${formatId.minParticipants} participants required, got ${characters.length}`,
+      });
+    }
+
+    if (formatId.maxParticipants && characters.length > formatId.maxParticipants) {
+      return reply.status(400).send({
+        error: `Maximum ${formatId.maxParticipants} participants allowed, got ${characters.length}`,
+      });
+    }
+
+    // Validate each character has required fields
+    for (let i = 0; i < characters.length; i++) {
+      const char = characters[i];
+      if (!char || !char.id || typeof char.id !== 'string') {
+        return reply.status(400).send({
+          error: `characters[${i}].id is required`,
+        });
+      }
+      if (!char.name || typeof char.name !== 'string') {
+        return reply.status(400).send({
+          error: `characters[${i}].name is required`,
+        });
+      }
+    }
+
+    // Validate seed if provided
+    if (seed !== undefined && typeof seed !== 'number') {
+      return reply.status(400).send({
+        error: 'seed must be a number',
+      });
+    }
+
+    try {
+      // Call HostModule.initializeShow()
+      const show = await deps.hostModule.initializeShow(
+        formatId,
+        characters,
+        seed
+      );
+
+      // Return response
+      return reply.status(201).send({
+        showId: show.id,
+        status: 'created',
+      });
+    } catch (err) {
+      logger.error('Failed to create show:', err);
+      return reply.status(500).send({
+        error: 'Failed to create show',
+      });
+    }
   });
 
   return { app, deps };

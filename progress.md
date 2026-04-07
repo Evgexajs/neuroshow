@@ -797,3 +797,38 @@
 
 **Тесты:** npm run typecheck, npm test — все пройдены (209 tests passed).
 **Заметки:** Composition root создаёт все зависимости при старте сервера. MockAdapter используется по умолчанию, т.к. OpenAI adapter требует per-show контекст (showId, characterId). От этой задачи зависят TASK-045, TASK-046, TASK-047, TASK-048, TASK-049.
+
+---
+
+## 2026-04-07: TASK-045 — API: POST /shows - создание шоу
+
+**Статус:** Выполнено
+
+**Изменения:**
+- src/api/server.ts — добавлен POST /shows endpoint:
+  - Принимает: { formatId: ShowFormatTemplate, characters: CharacterDefinition[], seed?: number }
+  - Вызывает HostModule.initializeShow()
+  - Возвращает: { showId, status: 'created' } с кодом 201
+  - Валидация входных данных:
+    - Проверка наличия и типа formatId
+    - Проверка обязательных полей formatId (id, name, phases)
+    - Проверка наличия и типа characters (должен быть непустой массив)
+    - Проверка min/maxParticipants из шаблона
+    - Проверка обязательных полей у каждого персонажа (id, name)
+    - Проверка типа seed (если указан)
+  - Обработка ошибок с возвратом 400/500
+
+- tests/unit/server.test.ts — создан файл с тестами API:
+  - GET /health — проверка работоспособности
+  - POST /shows — 14 тестов:
+    - Создание шоу с валидными данными
+    - Создание шоу без seed
+    - Проверка сохранения в БД
+    - Валидация отсутствующих полей (body, formatId, characters)
+    - Валидация пустого массива characters
+    - Валидация min/maxParticipants
+    - Валидация обязательных полей персонажей
+    - Валидация типа seed
+
+**Тесты:** npm run typecheck, npm test — все пройдены (223 tests passed).
+**Заметки:** formatId принимает полный ShowFormatTemplate объект, т.к. хранилище шаблонов ещё не реализовано. В будущем можно добавить lookup по ID.
