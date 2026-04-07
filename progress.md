@@ -1864,3 +1864,24 @@ Added a template information panel to the Debug UI that displays template name, 
 4. Mock шоу корректно отслеживает бюджет ✓ (реалистичные оценки, completion не завышен)
 
 **Заметки:** Старый коэффициент 1.3 токена/слово был для английского текста. Русский текст использует ~3.5 токенов/слово в GPT tokenizers из-за кодировки кириллицы. Оценка completion снижена с maxTokens (200) до реалистичных 25-110 токенов на основе фактической длины mock-ответов.
+
+## [2026-04-07] TASK-085: Исправить баг в ralph.sh - integer expression expected
+**Статус:** done
+**Время:** ~10 минут
+**Изменения:**
+- ralph.sh:
+  - Исправлен баг "integer expression expected" в функции `has_pending_tasks()` и других местах
+  - Заменён паттерн `$(cmd || echo "0")` на `$(cmd) || var=0` для корректной обработки пустого вывода grep
+  - Добавлено `local` для переменных внутри функций
+  - Заменены `[ ]` на `[[ ]]` для более безопасного сравнения
+
+**Тесты:**
+- bash -n ralph.sh — syntax OK
+- npm run typecheck — passes
+- npm run lint — passes (только pre-existing warnings)
+- npm test — pre-existing failures (не связаны с изменениями)
+
+**Acceptance Criteria:**
+1. ralph.sh не выдаёт ошибку 'integer expression expected' ✓ (исправлена обработка grep)
+2. Корректная проверка количества pending/done задач ✓ (безопасный fallback на 0)
+3. Скрипт корректно завершается когда все задачи done ✓ (проверка remaining работает)

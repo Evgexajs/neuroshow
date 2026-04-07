@@ -69,8 +69,9 @@ run_agent() {
 
 # Функция проверки наличия pending задач
 has_pending_tasks() {
-    pending_count=$(grep -c '"status": "pending"' "$TASKS_FILE" 2>/dev/null || echo "0")
-    [ "$pending_count" -gt 0 ]
+    local pending_count
+    pending_count=$(grep -c '"status": "pending"' "$TASKS_FILE" 2>/dev/null) || pending_count=0
+    [[ "$pending_count" -gt 0 ]]
 }
 
 iteration=1
@@ -80,8 +81,8 @@ while has_pending_tasks; do
     echo "-----------------------------------"
 
     # Показываем текущий статус задач
-    pending=$(grep -c '"status": "pending"' "$TASKS_FILE" 2>/dev/null || echo "0")
-    done_count=$(grep -c '"status": "done"' "$TASKS_FILE" 2>/dev/null || echo "0")
+    pending=$(grep -c '"status": "pending"' "$TASKS_FILE" 2>/dev/null) || pending=0
+    done_count=$(grep -c '"status": "done"' "$TASKS_FILE" 2>/dev/null) || done_count=0
     echo "Задач pending: $pending, done: $done_count"
     echo "-----------------------------------"
 
@@ -126,8 +127,8 @@ EOF
     if [[ "$result" == *"<promise>COMPLETE</promise>"* ]]; then
         echo "✓ TASK выполнен!"
         # Проверяем, остались ли ещё pending задачи
-        remaining=$(grep -c '"status": "pending"' "$TASKS_FILE" 2>/dev/null || echo "0")
-        if [ "$remaining" -eq 0 ]; then
+        remaining=$(grep -c '"status": "pending"' "$TASKS_FILE" 2>/dev/null) || remaining=0
+        if [[ "$remaining" -eq 0 ]]; then
             echo "🎉 Все задачи выполнены!"
             say -v Milena "[[volm 0.3]] Хозяин, я всё сделал!"
             exit 0
