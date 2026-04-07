@@ -2408,6 +2408,27 @@
       ],
       "dependencies": [],
       "status": "done"
+    },
+    {
+      "id": "TASK-100",
+      "category": "dx",
+      "priority": "medium",
+      "description": "Автоматически собирать debug-ui JS при коммите",
+      "problem": "ralph забыл пересобрать app.js после изменений app.ts — History не работала",
+      "acceptance_criteria": [
+        "Pre-commit hook проверяет что app.js актуален относительно app.ts",
+        "Или lint-staged автоматически пересобирает при изменении app.ts",
+        "Коммит блокируется если JS устарел относительно TS",
+        "Добавить в CLAUDE.md напоминание про сборку debug-ui"
+      ],
+      "test_steps": [
+        "Измени app.ts без npm run build",
+        "Попробуй закоммитить",
+        "Коммит должен заблокироваться или автоматически пересобрать",
+        "Ожидаемый результат: невозможно закоммитить устаревший app.js"
+      ],
+      "dependencies": [],
+      "status": "pending"
     }
   ]
 }
