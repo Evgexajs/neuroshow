@@ -1298,7 +1298,7 @@
         "Ожидаемый результат: статусы персонажей актуальны"
       ],
       "dependencies": [
-        "TASK-050"
+        "TASK-066"
       ],
       "status": "pending"
     },
@@ -1323,7 +1323,7 @@
       ],
       "dependencies": [
         "TASK-047",
-        "TASK-050"
+        "TASK-066"
       ],
       "status": "pending"
     },
