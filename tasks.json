@@ -2028,6 +2028,66 @@
       ],
       "dependencies": [],
       "status": "pending"
+    },
+    {
+      "id": "TASK-083",
+      "category": "config",
+      "priority": "high",
+      "description": "Увеличить дефолтный TOKEN_BUDGET_PER_SHOW и сделать настраиваемым при создании шоу",
+      "acceptance_criteria": [
+        "TOKEN_BUDGET_PER_SHOW в .env.example увеличен до 500000",
+        "POST /shows принимает опциональный параметр tokenBudget",
+        "Если tokenBudget не передан - используется значение из .env",
+        "UI форма создания шоу имеет поле для указания бюджета токенов",
+        "Шоу с 5 персонажами и 3 фазами (45 ходов) не должно превышать бюджет"
+      ],
+      "test_steps": [
+        "Создай шоу без указания tokenBudget - проверь что используется дефолт из .env",
+        "Создай шоу с tokenBudget: 1000000 - проверь что бюджет установлен",
+        "Запусти полное шоу - проверь что все 3 фазы выполнились",
+        "Ожидаемый результат: бюджета хватает на полное шоу"
+      ],
+      "dependencies": [],
+      "status": "pending"
+    },
+    {
+      "id": "TASK-084",
+      "category": "bugfix",
+      "priority": "medium",
+      "description": "Проверить и исправить расчёт токенов в MockAdapter",
+      "acceptance_criteria": [
+        "MockAdapter.estimateTokens() возвращает реалистичные значения",
+        "Mock ответы не должны потреблять слишком много токенов",
+        "Логировать estimated vs actual токены для отладки",
+        "Mock шоу с 75 ходами не должно превышать 100k токенов"
+      ],
+      "test_steps": [
+        "Запусти mock шоу и посмотри логи токенов",
+        "Проверь что estimateTokens возвращает разумные значения",
+        "Сравни с реальным потреблением OpenAI для того же промпта",
+        "Ожидаемый результат: mock не переоценивает токены"
+      ],
+      "dependencies": [],
+      "status": "pending"
+    },
+    {
+      "id": "TASK-085",
+      "category": "bugfix",
+      "priority": "low",
+      "description": "Исправить баг в ralph.sh - integer expression expected",
+      "acceptance_criteria": [
+        "ralph.sh не выдаёт ошибку 'integer expression expected'",
+        "Корректная проверка количества pending/done задач",
+        "Скрипт корректно завершается когда все задачи done"
+      ],
+      "test_steps": [
+        "Запусти ralph.sh когда есть pending задачи",
+        "Дождись завершения всех задач",
+        "Проверь что скрипт завершился без ошибок",
+        "Ожидаемый результат: нет ошибок в консоли"
+      ],
+      "dependencies": [],
+      "status": "pending"
     }
   ]
 }
