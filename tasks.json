@@ -2110,6 +2110,29 @@
       ],
       "dependencies": [],
       "status": "pending"
+    },
+    {
+      "id": "TASK-087",
+      "category": "bugfix",
+      "priority": "critical",
+      "description": "Debug UI: кнопка START не работает или не видна",
+      "acceptance_criteria": [
+        "Кнопка START видна и кликабельна после подключения к шоу",
+        "Клик на START вызывает POST /shows/:id/control {action: 'start'}",
+        "После создания шоу кнопка START активна (не disabled)",
+        "Логика enabled/disabled кнопок корректна: START активен когда status='created' или 'paused'",
+        "Добавить console.log для отладки состояния кнопок",
+        "Показывать текущий статус шоу рядом с кнопками"
+      ],
+      "test_steps": [
+        "Создай новое шоу через UI",
+        "Проверь что кнопка START видна и активна",
+        "Нажми START - проверь что шоу запустилось",
+        "Проверь консоль браузера на ошибки",
+        "Ожидаемый результат: управление работает из UI без curl"
+      ],
+      "dependencies": [],
+      "status": "pending"
     }
   ]
 }
