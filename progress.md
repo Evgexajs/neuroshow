@@ -1422,3 +1422,41 @@ Added two API endpoints to retrieve available show templates and character defin
 - `npm run lint` — passes (warnings only)
 - `npm run typecheck` — passes
 - `npm test` — 364 tests pass
+
+
+## 2026-04-07 — TASK-070: Debug UI — New Show Creation Form
+
+### Summary
+Added a modal form to create new shows from the Debug UI with template selection, character checkboxes, validation, and error handling.
+
+### Changes Made
+1. **web/debug-ui/index.html**:
+   - Added "New Show" button in header
+   - Added modal with template dropdown, character checkboxes, and create button
+
+2. **web/debug-ui/styles.css**:
+   - Added modal styles (overlay, content, header, body, footer)
+   - Added form styles (select, checkboxes, validation messages)
+   - Added button styles (primary, secondary, disabled states)
+
+3. **web/debug-ui/app.ts**:
+   - Added types: CharacterDefinition, ShowFormatTemplate
+   - Added modal state: availableTemplates, availableCharacters, selectedTemplate, selectedCharacterIds
+   - Added functions: openNewShowModal, closeNewShowModal, loadModalData, renderTemplateSelect, renderCharacterCheckboxes
+   - Added functions: handleTemplateChange, handleCharacterToggle, validateCharacterSelection, handleCreateShow
+   - Modal loads templates from GET /templates and characters from GET /characters
+   - Validates min/max participants based on selected template
+   - Creates show via POST /shows and auto-connects to it
+
+### Acceptance Criteria Met
+- ✅ "New Show" button opens modal
+- ✅ Template dropdown loads from GET /templates
+- ✅ Character checkboxes load from GET /characters
+- ✅ Validation: min/max participants from template
+- ✅ "Create" button calls POST /shows
+- ✅ Shows error if creation fails
+
+### Verification
+- `npm run lint` — passes (warnings only)
+- `npm run typecheck` — passes
+- `npm test` — 364 tests pass

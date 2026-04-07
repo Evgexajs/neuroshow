@@ -10,12 +10,47 @@
   <div class="container">
     <header class="header">
       <h1>Neuroshow Debug UI</h1>
-      <div class="show-selector">
-        <label for="show-id">Show ID:</label>
-        <input type="text" id="show-id" placeholder="Enter show ID">
-        <button id="connect-btn">Connect</button>
+      <div class="header-controls">
+        <button id="new-show-btn" class="new-show-btn">New Show</button>
+        <div class="show-selector">
+          <label for="show-id">Show ID:</label>
+          <input type="text" id="show-id" placeholder="Enter show ID">
+          <button id="connect-btn">Connect</button>
+        </div>
       </div>
     </header>
+
+    <!-- New Show Modal -->
+    <div id="new-show-modal" class="modal hidden">
+      <div class="modal-overlay" id="modal-overlay"></div>
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>Create New Show</h2>
+          <button id="modal-close-btn" class="modal-close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="template-select">Template:</label>
+            <select id="template-select">
+              <option value="">Loading templates...</option>
+            </select>
+            <div id="template-info" class="template-info"></div>
+          </div>
+          <div class="form-group">
+            <label>Characters:</label>
+            <div id="characters-list" class="characters-list">
+              <p class="loading-text">Loading characters...</p>
+            </div>
+            <div id="characters-validation" class="validation-message"></div>
+          </div>
+          <div id="create-error" class="error-message hidden"></div>
+        </div>
+        <div class="modal-footer">
+          <button id="cancel-btn" class="btn btn-secondary">Cancel</button>
+          <button id="create-show-btn" class="btn btn-primary" disabled>Create</button>
+        </div>
+      </div>
+    </div>
 
     <main class="main-content">
       <section class="event-feed" id="event-feed">
