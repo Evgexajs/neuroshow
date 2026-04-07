@@ -2466,3 +2466,34 @@ Added a template information panel to the Debug UI that displays template name, 
 - npm run typecheck — passes
 - npm run lint — passes (0 errors, only warnings)
 - Core tests pass (sqlite-store, context-builder-flow)
+
+---
+
+## TASK-106: UI: заголовок 3-й фазы не отображается в списке фаз
+
+**Статус:** Done
+**Дата:** 2026-04-08
+**Время:** ~20 минут
+
+**Проблема:**
+При подключении к шоу, если шоу уже находится в 3-й фазе, фаза не подсвечивалась как текущая.
+
+**Причина:**
+В `fetchShowConfig()` API возвращает `currentPhaseId`, но это значение не использовалось — локальная переменная `currentPhaseId` оставалась `null` до прихода нового `phase_start` события.
+
+**Изменения:**
+- web/debug-ui/app.ts:
+  - В `fetchShowConfig()` добавлена инициализация `currentPhaseId` из `showConfig.currentPhaseId`
+  - Теперь при подключении к работающему шоу текущая фаза сразу подсвечивается
+
+**Acceptance Criteria:**
+1. Все фазы отображаются в списке ✓
+2. Текущая фаза подсвечена (класс 'current') ✓
+3. При смене фазы UI обновляется ✓
+4. Прогресс-бар показывает ходы текущей фазы ✓
+
+**Тесты:**
+- npm run build:ui — passes
+- npm run typecheck — passes
+- npm run lint — passes (0 errors)
+- Unit tests — pass

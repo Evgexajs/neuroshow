@@ -362,6 +362,10 @@ async function fetchShowConfig(showId) {
             throw new Error(`HTTP ${response.status}`);
         }
         showConfig = await response.json();
+        // Initialize current phase from config (for reconnecting to running shows)
+        if (showConfig.currentPhaseId) {
+            currentPhaseId = showConfig.currentPhaseId;
+        }
         // Initialize turn counts for each phase
         phaseTurnCounts.clear();
         for (const phase of showConfig.phases) {
