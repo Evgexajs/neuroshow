@@ -3,6 +3,8 @@
  * Main entry point
  */
 
+import { startServer } from './api/server.js';
+
 export const VERSION = '1.0.0';
 
-console.log(`Neuroshow v${VERSION}`);
+startServer();
