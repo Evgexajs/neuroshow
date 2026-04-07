@@ -36,17 +36,7 @@ const createShowBtn = document.getElementById('create-show-btn');
 const themeInput = document.getElementById('theme-input');
 const generateBtn = document.getElementById('generate-btn');
 const generateStatus = document.getElementById('generate-status');
-// Show History Modal Elements
-const showHistoryBtn = document.getElementById('show-history-btn');
-const showHistoryModal = document.getElementById('show-history-modal');
-const historyModalOverlay = document.getElementById('history-modal-overlay');
-const historyModalCloseBtn = document.getElementById('history-modal-close-btn');
-const historyCloseBtn = document.getElementById('history-close-btn');
-const recentShowsList = document.getElementById('recent-shows-list');
-const allShowsList = document.getElementById('all-shows-list');
-// LocalStorage key for recent shows
-const RECENT_SHOWS_KEY = 'neuroshow_recent_shows';
-const MAX_RECENT_SHOWS = 10;
+const tokenBudgetInput = document.getElementById('token-budget-input');
 // State
 let eventSource = null;
 let currentShowId = null;
@@ -117,173 +107,6 @@ function init() {
     });
     generateBtn.addEventListener('click', () => {
         handleGenerateCharacters().catch(console.error);
-    });
-    // Show history modal listeners
-    showHistoryBtn.addEventListener('click', openShowHistoryModal);
-    historyModalOverlay.addEventListener('click', closeShowHistoryModal);
-    historyModalCloseBtn.addEventListener('click', closeShowHistoryModal);
-    historyCloseBtn.addEventListener('click', closeShowHistoryModal);
-}
-/**
- * Get recent shows from LocalStorage
- */
-function getRecentShows() {
-    try {
-        const stored = localStorage.getItem(RECENT_SHOWS_KEY);
-        if (stored) {
-            return JSON.parse(stored);
-        }
-    }
-    catch (err) {
-        console.error('Failed to load recent shows:', err);
-    }
-    return [];
-}
-/**
- * Save a show to recent shows in LocalStorage
- */
-function saveRecentShow(showId, templateName) {
-    const recent = getRecentShows();
-    // Remove if already exists (will re-add at top)
-    const filtered = recent.filter((s) => s.showId !== showId);
-    // Add to beginning
-    filtered.unshift({
-        showId,
-        templateName: templateName ?? 'Unknown',
-        accessedAt: new Date().toISOString(),
-    });
-    // Keep only last MAX_RECENT_SHOWS
-    const trimmed = filtered.slice(0, MAX_RECENT_SHOWS);
-    try {
-        localStorage.setItem(RECENT_SHOWS_KEY, JSON.stringify(trimmed));
-    }
-    catch (err) {
-        console.error('Failed to save recent shows:', err);
-    }
-}
-/**
- * Open the show history modal
- */
-function openShowHistoryModal() {
-    showHistoryModal.classList.remove('hidden');
-    loadShowHistory().catch(console.error);
-}
-/**
- * Close the show history modal
- */
-function closeShowHistoryModal() {
-    showHistoryModal.classList.add('hidden');
-}
-/**
- * Load and render show history
- */
-async function loadShowHistory() {
-    // Render recent shows from LocalStorage
-    renderRecentShows();
-    // Load all shows from server
-    allShowsList.innerHTML = '<p class="placeholder">Loading...</p>';
-    try {
-        const response = await fetch('/shows');
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
-        }
-        const data = await response.json();
-        renderAllShows(data.shows);
-    }
-    catch (err) {
-        console.error('Failed to load shows:', err);
-        allShowsList.innerHTML = '<p class="placeholder">Failed to load shows</p>';
-    }
-}
-/**
- * Render recent shows from LocalStorage
- */
-function renderRecentShows() {
-    const recent = getRecentShows();
-    if (recent.length === 0) {
-        recentShowsList.innerHTML = '<p class="placeholder">No recent shows...</p>';
-        return;
-    }
-    recentShowsList.innerHTML = '';
-    for (const show of recent) {
-        const itemEl = document.createElement('div');
-        itemEl.className = 'history-item';
-        itemEl.innerHTML = `
-      <div class="history-item-info">
-        <span class="history-show-id">${escapeHtml(show.showId)}</span>
-        <span class="history-template">${escapeHtml(show.templateName)}</span>
-        <span class="history-date">${formatDateTime(show.accessedAt)}</span>
-      </div>
-      <button class="btn btn-small btn-connect" data-show-id="${escapeHtml(show.showId)}">Connect</button>
-    `;
-        const connectButton = itemEl.querySelector('.btn-connect');
-        connectButton.addEventListener('click', () => {
-            closeShowHistoryModal();
-            showIdInput.value = show.showId;
-            handleConnect().catch(console.error);
-        });
-        recentShowsList.appendChild(itemEl);
-    }
-}
-/**
- * Render all shows from server
- */
-function renderAllShows(shows) {
-    if (!shows || shows.length === 0) {
-        allShowsList.innerHTML = '<p class="placeholder">No shows found</p>';
-        return;
-    }
-    allShowsList.innerHTML = '';
-    for (const show of shows) {
-        const itemEl = document.createElement('div');
-        itemEl.className = 'history-item';
-        const statusClass = getStatusClass(show.status);
-        itemEl.innerHTML = `
-      <div class="history-item-info">
-        <span class="history-show-id">${escapeHtml(show.showId)}</span>
-        <span class="history-status ${statusClass}">${escapeHtml(show.status)}</span>
-        <span class="history-template">${escapeHtml(show.templateName)}</span>
-        <span class="history-date">${formatDateTime(show.createdAt)}</span>
-      </div>
-      <button class="btn btn-small btn-connect" data-show-id="${escapeHtml(show.showId)}">Connect</button>
-    `;
-        const connectButton = itemEl.querySelector('.btn-connect');
-        connectButton.addEventListener('click', () => {
-            closeShowHistoryModal();
-            showIdInput.value = show.showId;
-            handleConnect().catch(console.error);
-        });
-        allShowsList.appendChild(itemEl);
-    }
-}
-/**
- * Get CSS class for status
- */
-function getStatusClass(status) {
-    switch (status) {
-        case 'running':
-            return 'status-running';
-        case 'completed':
-            return 'status-completed';
-        case 'paused':
-            return 'status-paused';
-        default:
-            return '';
-    }
-}
-/**
- * Format date/time for display
- */
-function formatDateTime(isoString) {
-    if (!isoString)
-        return '--';
-    const date = new Date(isoString);
-    return date.toLocaleString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false,
     });
 }
 /**
@@ -645,9 +468,6 @@ async function connect(showId) {
     // Fetch characters, config, and start status polling
     await fetchCharacters(showId);
     await fetchShowConfig(showId);
-    // Save to recent shows for quick access
-    const templateName = showConfig?.templateName ?? 'Unknown';
-    saveRecentShow(showId, templateName);
     startStatusPolling(showId);
     const url = `/shows/${showId}/events`;
     eventSource = new EventSource(url);
@@ -961,6 +781,7 @@ function resetModalState() {
     createShowBtn.disabled = true;
     createError.classList.add('hidden');
     themeInput.value = '';
+    tokenBudgetInput.value = '';
     generateStatus.classList.add('hidden');
     generateStatus.classList.remove('error');
 }
@@ -1155,10 +976,18 @@ async function handleCreateShow() {
     createError.classList.add('hidden');
     // Build characters array with full character data
     const selectedChars = availableCharacters.filter((c) => selectedCharacterIds.has(c.id));
+    // Build request body with optional tokenBudget
+    const tokenBudgetValue = tokenBudgetInput.value.trim();
     const requestBody = {
         formatId: selectedTemplate,
         characters: selectedChars,
     };
+    if (tokenBudgetValue) {
+        const parsedBudget = parseInt(tokenBudgetValue, 10);
+        if (!isNaN(parsedBudget) && parsedBudget > 0) {
+            requestBody.tokenBudget = parsedBudget;
+        }
+    }
     try {
         const response = await fetch('/shows', {
             method: 'POST',
