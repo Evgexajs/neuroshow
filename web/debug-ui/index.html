@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Neuroshow Debug UI</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <h1>Neuroshow Debug UI</h1>
+      <div class="show-selector">
+        <label for="show-id">Show ID:</label>
+        <input type="text" id="show-id" placeholder="Enter show ID">
+        <button id="connect-btn">Connect</button>
+      </div>
+    </header>
+
+    <main class="main-content">
+      <section class="event-feed" id="event-feed">
+        <h2>Event Feed</h2>
+        <div class="events-container" id="events-container">
+          <p class="placeholder">Connect to a show to see events...</p>
+        </div>
+      </section>
+
+      <section class="character-cards" id="character-cards">
+        <h2>Character Cards</h2>
+        <div class="cards-container" id="cards-container">
+          <p class="placeholder">No characters loaded...</p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="control-panel" id="control-panel">
+      <h2>Control Panel</h2>
+      <div class="controls">
+        <div class="control-buttons">
+          <button id="start-btn" class="control-btn" disabled>Start</button>
+          <button id="pause-btn" class="control-btn" disabled>Pause</button>
+          <button id="resume-btn" class="control-btn" disabled>Resume</button>
+          <button id="step-btn" class="control-btn" disabled>Step</button>
+        </div>
+        <div class="status-display">
+          <div class="status-item">
+            <span class="label">Status:</span>
+            <span id="show-status" class="value">--</span>
+          </div>
+          <div class="status-item">
+            <span class="label">Phase:</span>
+            <span id="current-phase" class="value">--</span>
+          </div>
+          <div class="status-item">
+            <span class="label">Turn:</span>
+            <span id="turn-number" class="value">--</span>
+          </div>
+        </div>
+        <div class="token-counter">
+          <span class="label">Tokens:</span>
+          <div class="progress-bar">
+            <div id="token-progress" class="progress-fill"></div>
+          </div>
+          <span id="token-text" class="token-text">0 / 0</span>
+        </div>
+      </div>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

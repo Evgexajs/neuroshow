@@ -908,3 +908,24 @@
 
 **Тесты:** npm run typecheck, npm test — все пройдены (237 tests passed).
 **Заметки:** eventsCount получается через store.getLatestSequence(), percentUsed вычисляется как (used / total) * 100.
+
+## TASK-049: Debug UI: HTML layout
+
+**Дата:** 2026-04-07
+
+**Статус:** Выполнено
+
+**Изменения:**
+- web/debug-ui/index.html — создан HTML layout с тремя секциями:
+  - Event Feed (слева) — лента событий с контейнером для динамического добавления
+  - Character Cards (справа) — карточки персонажей с placeholder
+  - Control Panel (внизу) — кнопки Start/Pause/Resume/Step, статусы, token counter
+
+- web/debug-ui/styles.css — создан CSS со стилями:
+  - Цветовая схема для каналов: PUBLIC=white, PRIVATE=yellow (#fff9c4), ZONE=blue (#bbdefb)
+  - Темная тема с акцентным цветом #00d9ff
+  - Responsive layout с breakpoints для 1024px, 768px, 480px
+  - Стили для событий, карточек персонажей, контрольной панели
+
+**Тесты:** npm run typecheck, npm test — все пройдены (237 tests passed).
+**Заметки:** Layout готов для подключения SSE и JavaScript логики в следующих задачах (TASK-050, TASK-051, TASK-052).
