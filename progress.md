@@ -1023,3 +1023,30 @@ Wildcard: Максим имеет компромат на Виктора (фин
 
 **Тесты:** npm run typecheck, npm test — все пройдены (262 tests passed).
 **Заметки:** Тест подтверждает корректную интеграцию всех компонентов: Orchestrator, HostModule, EventJournal, ContextBuilder, MockAdapter.
+
+## TASK-056: E2E тест: полный выпуск с OpenAI Adapter
+
+**Дата:** 2026-04-07
+
+**Статус:** Выполнено
+
+**Изменения:**
+- tests/integration/full-show-openai.test.ts — создан E2E тест для полного выпуска с реальным OpenAI API:
+  - Тесты пропускаются по умолчанию если нет OPENAI_API_KEY (it.skipIf)
+  - Загружает coalition.json шаблон и все 5 персонажей
+  - Использует OpenAIAdapter с реальным API
+  - Проверяет: show status = completed
+  - Проверяет: персонажи отвечают осмысленно (content.length > 10)
+  - Проверяет: приватность соблюдается (private events имеют ограниченные audienceIds)
+  - Проверяет: LLM calls логируются в БД с raw_request/raw_response
+  - Проверяет: token budget отслеживается корректно
+  - Проверяет: JSON structure ответов валидна
+  - Таймауты 120 секунд для учета API latency
+
+- package.json — добавлен скрипт "test:e2e-openai" для запуска теста
+
+Дополнительный unit-тест:
+  - Проверка базового вызова OpenAI API и получения CharacterResponse
+
+**Тесты:** npm run typecheck, npm test — все пройдены (268 tests passed).
+**Заметки:** При наличии OPENAI_API_KEY тесты выполняются с реальным API (~45 секунд). Документация по запуску включена в комментарии теста.
