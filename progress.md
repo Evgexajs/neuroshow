@@ -578,3 +578,27 @@
 **Тесты:** npm run typecheck, npm test — все пройдены (163 tests passed).
 **Заметки:** Базовый класс для оркестрации шоу. От этой задачи зависят TASK-036, TASK-037, TASK-038, TASK-039, TASK-040.
 
+## [2026-04-07] TASK-036: Orchestrator: runPhase()
+**Статус:** done
+**Время:** ~15 минут
+**Изменения:**
+- src/core/orchestrator.ts — добавлен метод runPhase():
+  - runPhase(showId, phase): Promise<void>
+  - Создаёт событие phase_start с metadata (phaseType, durationMode, durationValue, turnOrder)
+  - Получает turnQueue через hostModule.manageTurnQueue()
+  - Выполняет ходы по turnOrder: для durationMode 'turns' делает durationValue ходов на персонажа
+  - Проверяет completionCondition (turns_complete)
+  - Создаёт событие phase_end с metadata (totalTurns, completionCondition)
+  - Обновляет внутреннее состояние: showId, turnIndex
+  - Добавлен приватный метод isPhaseComplete() для проверки условия завершения
+- tests/unit/orchestrator.test.ts — создан новый файл с 6 тестами:
+  - getState возвращает начальное состояние
+  - runPhase создаёт phase_start событие
+  - runPhase создаёт phase_end событие
+  - Выполняет все ходы согласно durationValue (3 персонажа x 3 хода = 9)
+  - phase_start имеет меньший sequenceNumber чем phase_end
+  - audienceIds содержит всех персонажей
+
+**Тесты:** npm run typecheck, npm test — все пройдены (169 tests passed).
+**Заметки:** Метод управляет жизненным циклом фазы. Фактическая обработка хода персонажа будет в processCharacterTurn() (TASK-037).
+
