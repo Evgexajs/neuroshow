@@ -1960,6 +1960,27 @@
       ],
       "dependencies": [],
       "status": "pending"
+    },
+    {
+      "id": "TASK-080",
+      "category": "bugfix",
+      "priority": "critical",
+      "description": "ContextBuilder: использовать language из responseConstraints в системном промпте",
+      "acceptance_criteria": [
+        "buildSystemPrompt принимает responseConstraints",
+        "Если language='ru', добавить инструкцию: 'ВАЖНО: Отвечай ТОЛЬКО на русском языке'",
+        "Или перевести весь системный промпт на русский если language='ru'",
+        "Заголовки секций на языке из language (## Личность вместо ## Personality)",
+        "OpenAI отвечает на русском когда language='ru'"
+      ],
+      "test_steps": [
+        "Запусти шоу с персонажами где language='ru'",
+        "Проверь что LLM отвечает на русском",
+        "Проверь системный промпт в логах/llm_calls",
+        "Ожидаемый результат: ответы на указанном языке"
+      ],
+      "dependencies": [],
+      "status": "pending"
     }
   ]
 }
