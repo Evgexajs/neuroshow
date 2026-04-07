@@ -441,3 +441,20 @@
 **Тесты:** npm run typecheck, npm test — все пройдены (113 tests passed).
 **Заметки:** Метод позволяет контролировать размер контекста для LLM-вызовов. Приоритет отдаётся сохранению factsList (секреты, цели, альянсы), slidingWindow сокращается при необходимости.
 
+## [2026-04-07] TASK-029: Host Module: initializeShow()
+**Статус:** done
+**Время:** ~15 минут
+**Изменения:**
+- src/core/host-module.ts — создан класс HostModule:
+  - Конструктор принимает IStore и EventJournal
+  - initializeShow(template, characters, seed?): Promise<Show>
+  - Создаёт запись в shows с config_snapshot (templateId, templateName, contextWindowSize, decisionConfig, privateChannelRules)
+  - Создаёт записи в show_characters для каждого персонажа с privateContext
+  - Создаёт token_budget для шоу с mode=normal
+  - Генерирует seed если не передан (Math.random)
+  - Устанавливает currentPhaseId на первую фазу из template
+- tests/unit/host-module.test.ts — добавлены 9 тестов для HostModule
+
+**Тесты:** npm run typecheck, npm test — все пройдены (122 tests passed).
+**Заметки:** HostModule — основа для управления жизненным циклом шоу. От этой задачи зависят TASK-030, TASK-031, TASK-032, TASK-033.
+
