@@ -31,6 +31,9 @@ const charactersValidation = document.getElementById('characters-validation');
 const createError = document.getElementById('create-error');
 const cancelBtn = document.getElementById('cancel-btn');
 const createShowBtn = document.getElementById('create-show-btn');
+const themeInput = document.getElementById('theme-input');
+const generateBtn = document.getElementById('generate-btn');
+const generateStatus = document.getElementById('generate-status');
 // State
 let eventSource = null;
 let currentShowId = null;
@@ -77,6 +80,9 @@ function init() {
     templateSelect.addEventListener('change', handleTemplateChange);
     createShowBtn.addEventListener('click', () => {
         handleCreateShow().catch(console.error);
+    });
+    generateBtn.addEventListener('click', () => {
+        handleGenerateCharacters().catch(console.error);
     });
 }
 /**
@@ -554,6 +560,9 @@ function resetModalState() {
     charactersValidation.className = 'validation-message';
     createShowBtn.disabled = true;
     createError.classList.add('hidden');
+    themeInput.value = '';
+    generateStatus.classList.add('hidden');
+    generateStatus.classList.remove('error');
 }
 /**
  * Load templates and characters for the modal
@@ -678,6 +687,61 @@ function validateCharacterSelection() {
         charactersValidation.textContent = `${count} characters selected (valid)`;
         charactersValidation.className = 'validation-message valid';
         createShowBtn.disabled = false;
+    }
+}
+/**
+ * Handle generate characters button click
+ */
+async function handleGenerateCharacters() {
+    const theme = themeInput.value.trim();
+    const count = selectedTemplate
+        ? Math.min(selectedTemplate.maxParticipants, 5)
+        : 5;
+    generateBtn.disabled = true;
+    generateStatus.textContent = 'Generating characters...';
+    generateStatus.classList.remove('hidden', 'error');
+    try {
+        const response = await fetch('/generate/characters', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ count, theme: theme || undefined }),
+        });
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error ?? `HTTP ${response.status}`);
+        }
+        const generatedCharacters = await response.json();
+        // Add generated characters to available characters
+        // Replace any previously generated characters (those without a file source)
+        const existingFileCharacters = availableCharacters.filter((c) => !c.id.includes('-') || c.id.length < 30);
+        availableCharacters = [...existingFileCharacters, ...generatedCharacters];
+        // Re-render checkboxes
+        renderCharacterCheckboxes();
+        // Auto-select generated characters
+        selectedCharacterIds.clear();
+        for (const char of generatedCharacters) {
+            selectedCharacterIds.add(char.id);
+        }
+        // Check all generated character checkboxes
+        const checkboxes = charactersList.querySelectorAll('input[type="checkbox"]');
+        checkboxes.forEach((checkbox) => {
+            const input = checkbox;
+            input.checked = selectedCharacterIds.has(input.value);
+        });
+        // Validate selection
+        validateCharacterSelection();
+        generateStatus.textContent = `Generated ${generatedCharacters.length} characters`;
+        setTimeout(() => {
+            generateStatus.classList.add('hidden');
+        }, 3000);
+    }
+    catch (err) {
+        console.error('Failed to generate characters:', err);
+        generateStatus.textContent = `Generation failed: ${err instanceof Error ? err.message : 'Unknown error'}`;
+        generateStatus.classList.add('error');
+    }
+    finally {
+        generateBtn.disabled = false;
     }
 }
 /**
