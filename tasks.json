@@ -2471,7 +2471,7 @@
         "Ожидаемый результат: просмотр истории как replay/лог"
       ],
       "dependencies": [],
-      "status": "pending"
+      "status": "done"
     }
   ]
 }

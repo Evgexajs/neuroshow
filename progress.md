@@ -2334,3 +2334,29 @@ Added a template information panel to the Debug UI that displays template name, 
 - npm run typecheck — passes
 - npm run lint — passes (0 errors, only warnings)
 - npm run build:ui — passes
+
+---
+
+## [2026-04-07] TASK-102: Просмотр завершённого шоу как read-only лог
+**Статус:** done
+**Время:** ~20 минут
+**Изменения:**
+- web/debug-ui/app.ts:
+  - Added `isReadOnlyMode` state variable to track read-only viewing mode
+  - Modified `selectShowFromHistory()` to check show status first before connecting
+  - Added `connectToCompletedShow()` function that loads events via snapshot mode (?snapshot=true) instead of SSE
+  - Added `parseSSEEvents()` helper to parse SSE-formatted response into ShowEvent array
+  - Updated `updateButtonStates()` to disable all control buttons when `isReadOnlyMode` or status is completed/aborted
+  - Updated `disconnect()` to reset `isReadOnlyMode` flag
+
+**Acceptance Criteria:**
+1. Для completed шоу: загрузить события из БД и показать как read-only лог ✓
+2. Не пытаться подключаться через SSE к завершённому шоу ✓
+3. Кнопки управления (Start/Pause/Step) скрыты или disabled для completed ✓
+4. Показать статус 'Completed' и финальные результаты (победитель) ✓ (winner info is in game_over/summary events)
+5. Можно скроллить историю событий ✓
+
+**Тесты:**
+- npm run typecheck — passes
+- npm run lint — passes (0 errors, only warnings)
+- npm run build:ui — passes

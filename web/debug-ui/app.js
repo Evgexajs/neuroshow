@@ -78,6 +78,7 @@ let currentShowStatus = null;
 let statusPollInterval = null;
 const STATUS_POLL_INTERVAL_MS = 2000;
 let turnCount = 0;
+let isReadOnlyMode = false; // True when viewing a completed show
 // New show modal state
 let availableTemplates = [];
 let availableCharacters = [];
@@ -246,7 +247,18 @@ function updateButtonStates() {
         isConnected,
         status,
         showId: currentShowId,
+        isReadOnlyMode,
     });
+    // All buttons disabled for completed/aborted shows (read-only mode)
+    if (isReadOnlyMode || status === 'completed' || status === 'aborted') {
+        startBtn.disabled = true;
+        pauseBtn.disabled = true;
+        resumeBtn.disabled = true;
+        stepBtn.disabled = true;
+        rollbackBtn.disabled = true;
+        console.log('[Debug UI] All buttons disabled (read-only mode)');
+        return;
+    }
     // START: enabled when connected and show is 'created' or 'paused'
     const canStart = isConnected && (status === 'created' || status === 'paused');
     startBtn.disabled = !canStart;
@@ -550,6 +562,7 @@ function disconnect() {
     }
     currentShowId = null;
     reconnectAttempts = 0;
+    isReadOnlyMode = false; // Reset read-only mode
     connectBtn.textContent = 'Connect';
     addSystemMessage('Disconnected');
     // Clear character state
@@ -890,7 +903,7 @@ function loadRecentShows() {
         item.addEventListener('click', () => {
             const showId = item.dataset.showId;
             if (showId) {
-                selectShowFromHistory(showId);
+                selectShowFromHistory(showId).catch(console.error);
             }
         });
     });
@@ -989,18 +1002,114 @@ function renderShowHistory(shows) {
         item.addEventListener('click', () => {
             const showId = item.dataset.showId;
             if (showId) {
-                selectShowFromHistory(showId);
+                selectShowFromHistory(showId).catch(console.error);
             }
         });
     });
 }
 /**
  * Select a show from history and connect to it
+ * For completed shows, loads events as read-only log instead of SSE connection
  */
-function selectShowFromHistory(showId) {
+async function selectShowFromHistory(showId) {
     closeHistoryModal();
     showIdInput.value = showId;
-    handleConnect().catch(console.error);
+    // First, check the show status to determine connection mode
+    try {
+        const response = await fetch(`/shows/${showId}/status`);
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        const status = await response.json();
+        if (status.status === 'completed' || status.status === 'aborted') {
+            // Load completed show as read-only log
+            await connectToCompletedShow(showId, status);
+        }
+        else {
+            // Connect via SSE for active shows
+            await handleConnect();
+        }
+    }
+    catch (err) {
+        console.error('Failed to check show status:', err);
+        // Fallback to normal connect on error
+        await handleConnect();
+    }
+}
+/**
+ * Connect to a completed show in read-only mode
+ * Loads all events from DB and displays as a log without SSE
+ */
+async function connectToCompletedShow(showId, status) {
+    if (eventSource) {
+        disconnect();
+    }
+    clearEvents();
+    isReadOnlyMode = true;
+    currentShowId = showId;
+    currentShowStatus = status.status;
+    addSystemMessage(`Loading completed show (${status.status})...`);
+    // Fetch characters, config, and status
+    await fetchCharacters(showId);
+    await fetchShowConfig(showId);
+    // Update UI with status
+    updateControlPanelUI(status);
+    // Load all events via snapshot mode (not SSE)
+    try {
+        const response = await fetch(`/shows/${showId}/events?snapshot=true`);
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        // Read SSE-formatted response and parse events
+        const text = await response.text();
+        const events = parseSSEEvents(text);
+        addSystemMessage(`Loaded ${events.length} events from history`);
+        // Display all events
+        for (const event of events) {
+            addEventToFeed(event);
+            updateCharacterStatus(event);
+            if (event.type === 'speech') {
+                turnCount++;
+                if (event.phaseId) {
+                    const count = (phaseTurnCounts.get(event.phaseId) ?? 0) + 1;
+                    phaseTurnCounts.set(event.phaseId, count);
+                }
+            }
+            if (event.type === 'phase_start' && event.phaseId) {
+                currentPhaseId = event.phaseId;
+            }
+        }
+        // Update turn number and phase info
+        turnNumberEl.textContent = turnCount > 0 ? String(turnCount) : '--';
+        renderTemplateInfo();
+        addSystemMessage('Read-only mode: viewing completed show history');
+        connectBtn.textContent = 'Disconnect';
+        saveToRecentShows(showId);
+    }
+    catch (err) {
+        console.error('Failed to load show events:', err);
+        addSystemMessage(`Failed to load events: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    }
+}
+/**
+ * Parse SSE-formatted text into ShowEvent array
+ */
+function parseSSEEvents(sseText) {
+    const events = [];
+    const lines = sseText.split('\n');
+    for (const line of lines) {
+        if (line.startsWith('data: ')) {
+            try {
+                const jsonStr = line.slice(6); // Remove 'data: ' prefix
+                const event = JSON.parse(jsonStr);
+                events.push(event);
+            }
+            catch {
+                // Skip invalid JSON lines
+            }
+        }
+    }
+    return events;
 }
 /**
  * Load templates and characters for the modal
