@@ -1653,6 +1653,30 @@
         "TASK-050"
       ],
       "status": "done"
+    },
+    {
+      "id": "TASK-067",
+      "category": "infrastructure",
+      "priority": "high",
+      "description": "Настройка ESLint + исправление всех ошибок линтера",
+      "acceptance_criteria": [
+        "eslint и @typescript-eslint установлены как devDependencies",
+        "eslint.config.js создан с правилами для TypeScript",
+        "Правила: strict типизация, no-any, no-unused-vars, consistent-return",
+        "npm run lint скрипт добавлен в package.json",
+        "npm run lint проходит БЕЗ ошибок на всём коде (src/, tests/, web/)",
+        "Все найденные ошибки линтера исправлены",
+        "ralph.sh обновлён: добавить npm run lint в проверки перед коммитом"
+      ],
+      "test_steps": [
+        "Выполни: npm run lint",
+        "Проверь что ошибок нет",
+        "Выполни: npm run typecheck",
+        "Выполни: npm test",
+        "Ожидаемый результат: линтер, типы и тесты проходят"
+      ],
+      "dependencies": [],
+      "status": "pending"
     }
   ]
 }
