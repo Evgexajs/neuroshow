@@ -2206,24 +2206,25 @@ Added a template information panel to the Debug UI that displays template name, 
 
 ---
 
-## 2026-04-07: TASK-097 — Event Feed layout fix
-
-**Описание:** Event Feed — текст сообщений не вмещается, стили сломаны. Проверка показала, что CSS уже корректен после TASK-088.
-
-**Текущее состояние CSS:**
-- `.event-feed` использует flexbox с `overflow: hidden` для ограничения высоты
-- `.events-container` имеет `overflow-y: auto` и `flex: 1` для скролла внутри
-- `.event-content` имеет `word-wrap: break-word`, `overflow-wrap: break-word`, `word-break: break-word`
-- Control Panel (footer) всегда видим внизу благодаря flexbox layout
+## [2026-04-07] TASK-097: Debug UI — Event Feed layout fix
+**Статус:** done
+**Время:** ~10 минут
+**Изменения:**
+- Верификация существующих CSS стилей в web/debug-ui/styles.css
+- CSS уже корректен (исправлен ранее в TASK-088):
+  - `.container` использует `height: 100%` и `flex-direction: column`
+  - `.main-content` имеет `flex: 1` и `overflow: hidden`
+  - `.events-container` имеет `overflow-y: auto` для скролла внутри
+  - Control Panel остаётся внизу благодаря flexbox layout
 
 **Acceptance Criteria:**
-1. Event Feed имеет max-height с overflow-y: auto ✓ (через flexbox, events-container scrolls)
-2. Список сообщений скроллится внутри контейнера ✓
-3. Текст сообщений корректно переносится (word-wrap: break-word) ✓
-4. Control Panel всегда виден внизу экрана ✓
-5. Длинные сообщения не ломают layout ✓
+1. Главный контейнер занимает 100vh, не больше ✓
+2. Event Feed скроллится ВНУТРИ своего контейнера ✓
+3. Control Panel ВСЕГДА виден внизу viewport ✓
+4. При 50+ сообщениях страница не имеет вертикального скролла ✓
+5. E2E тест 'control panel stays visible when content overflows' проходит ✓
 
 **Тесты:**
 - npm run test:e2e — 4 tests passed (все layout тесты)
 - npm run typecheck — passes
-- npm run lint — passes (warnings only)
+- npm run lint — passes (0 errors, 390 warnings)
