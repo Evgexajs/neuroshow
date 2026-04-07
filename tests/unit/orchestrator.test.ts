@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { Orchestrator } from '../../src/core/orchestrator.js';
 import { HostModule } from '../../src/core/host-module.js';
 import { EventJournal } from '../../src/core/event-journal.js';
@@ -6,9 +6,9 @@ import { ContextBuilder } from '../../src/core/context-builder.js';
 import { SqliteStore } from '../../src/storage/sqlite-store.js';
 import { ShowFormatTemplate, Phase } from '../../src/types/template.js';
 import { CharacterDefinition } from '../../src/types/character.js';
-import { PhaseType, ChannelType, SpeakFrequency, EventType } from '../../src/types/enums.js';
+import { PhaseType, ChannelType, SpeakFrequency, EventType, CharacterIntent } from '../../src/types/enums.js';
 import { PrivateContext } from '../../src/types/context.js';
-import { ModelAdapter, PromptPackage, CharacterResponse } from '../../src/types/adapter.js';
+import { ModelAdapter, PromptPackage, CharacterResponse, TokenEstimate } from '../../src/types/adapter.js';
 import * as fs from 'fs';
 
 describe('Orchestrator', () => {
@@ -21,11 +21,15 @@ describe('Orchestrator', () => {
 
   // Mock adapter for tests
   const mockAdapter: ModelAdapter = {
+    providerId: 'mock',
+    modelId: 'mock-model',
     call: async (_pkg: PromptPackage): Promise<CharacterResponse> => ({
       text: 'Mock response',
-      intent: 'speak',
-      mentions: [],
-      tokensUsed: { prompt: 100, completion: 50 },
+      intent: CharacterIntent.speak,
+    }),
+    estimateTokens: (_pkg: PromptPackage): TokenEstimate => ({
+      prompt: 100,
+      estimatedCompletion: 50,
     }),
   };
 
@@ -108,7 +112,7 @@ describe('Orchestrator', () => {
     await store.initSchema();
     eventJournal = new EventJournal(store);
     hostModule = new HostModule(store, eventJournal);
-    contextBuilder = new ContextBuilder(store, eventJournal);
+    contextBuilder = new ContextBuilder(eventJournal, store);
     orchestrator = new Orchestrator(store, mockAdapter, eventJournal, hostModule, contextBuilder);
   });
 
@@ -235,6 +239,142 @@ describe('Orchestrator', () => {
       expect(phaseStart!.audienceIds).toContain('char-1');
       expect(phaseStart!.audienceIds).toContain('char-2');
       expect(phaseStart!.audienceIds.length).toBe(2);
+    });
+  });
+
+  describe('processCharacterTurn', () => {
+    it('should return CharacterResponse from adapter.call()', async () => {
+      const template = createTestTemplate();
+      const characters = [
+        createTestCharacter('char-1', 'Alice'),
+        createTestCharacter('char-2', 'Bob'),
+      ];
+
+      const show = await hostModule.initializeShow(template, characters, 12345);
+
+      const response = await orchestrator.processCharacterTurn(
+        show.id,
+        'char-1',
+        'What do you think?'
+      );
+
+      expect(response).toBeDefined();
+      expect(response.text).toBe('Mock response');
+      expect(response.intent).toBe(CharacterIntent.speak);
+    });
+
+    it('should record speech event with content from response.text', async () => {
+      const template = createTestTemplate();
+      const characters = [
+        createTestCharacter('char-1', 'Alice'),
+        createTestCharacter('char-2', 'Bob'),
+      ];
+
+      const show = await hostModule.initializeShow(template, characters, 12345);
+
+      await orchestrator.processCharacterTurn(show.id, 'char-1', 'What do you think?');
+
+      const events = await eventJournal.getEvents(show.id);
+      const speechEvents = events.filter((e) => e.type === EventType.speech);
+
+      expect(speechEvents.length).toBe(1);
+      expect(speechEvents[0]!.content).toBe('Mock response');
+      expect(speechEvents[0]!.senderId).toBe('char-1');
+    });
+
+    it('should update token budget after processing turn', async () => {
+      const template = createTestTemplate();
+      const characters = [createTestCharacter('char-1', 'Alice')];
+
+      const show = await hostModule.initializeShow(template, characters, 12345);
+
+      // Budget should start at 0
+      const budgetBefore = await store.getBudget(show.id);
+      expect(budgetBefore!.usedPrompt).toBe(0);
+      expect(budgetBefore!.usedCompletion).toBe(0);
+
+      await orchestrator.processCharacterTurn(show.id, 'char-1', 'Test trigger');
+
+      // Budget should be updated after the turn
+      const budgetAfter = await store.getBudget(show.id);
+      expect(budgetAfter!.usedPrompt).toBe(100);
+      expect(budgetAfter!.usedCompletion).toBe(50);
+    });
+
+    it('should throw error if show not found', async () => {
+      await expect(
+        orchestrator.processCharacterTurn('non-existent-show', 'char-1', 'Test')
+      ).rejects.toThrow('Show non-existent-show not found');
+    });
+
+    it('should throw error if character not found', async () => {
+      const template = createTestTemplate();
+      const characters = [createTestCharacter('char-1', 'Alice')];
+
+      const show = await hostModule.initializeShow(template, characters, 12345);
+
+      await expect(
+        orchestrator.processCharacterTurn(show.id, 'non-existent-char', 'Test')
+      ).rejects.toThrow('Character definition for non-existent-char not found');
+    });
+
+    it('should set correct audienceIds on speech event', async () => {
+      const template = createTestTemplate();
+      const characters = [
+        createTestCharacter('char-1', 'Alice'),
+        createTestCharacter('char-2', 'Bob'),
+        createTestCharacter('char-3', 'Carol'),
+      ];
+
+      const show = await hostModule.initializeShow(template, characters, 12345);
+
+      await orchestrator.processCharacterTurn(show.id, 'char-1', 'Hello everyone');
+
+      const events = await eventJournal.getEvents(show.id);
+      const speechEvent = events.find((e) => e.type === EventType.speech);
+
+      expect(speechEvent!.audienceIds).toContain('char-1');
+      expect(speechEvent!.audienceIds).toContain('char-2');
+      expect(speechEvent!.audienceIds).toContain('char-3');
+      expect(speechEvent!.audienceIds.length).toBe(3);
+    });
+
+    it('should call adapter with PromptPackage from ContextBuilder', async () => {
+      // Create a spy adapter to verify the call
+      let capturedPrompt: PromptPackage | null = null;
+      const spyAdapter: ModelAdapter = {
+        providerId: 'spy',
+        modelId: 'spy-model',
+        call: async (pkg: PromptPackage): Promise<CharacterResponse> => {
+          capturedPrompt = pkg;
+          return { text: 'Spy response', intent: CharacterIntent.speak };
+        },
+        estimateTokens: (_pkg: PromptPackage): TokenEstimate => ({
+          prompt: 50,
+          estimatedCompletion: 25,
+        }),
+      };
+
+      const spyOrchestrator = new Orchestrator(
+        store,
+        spyAdapter,
+        eventJournal,
+        hostModule,
+        contextBuilder
+      );
+
+      const template = createTestTemplate();
+      const characters = [createTestCharacter('char-1', 'Alice')];
+
+      const show = await hostModule.initializeShow(template, characters, 12345);
+
+      await spyOrchestrator.processCharacterTurn(show.id, 'char-1', 'Custom trigger');
+
+      expect(capturedPrompt).not.toBeNull();
+      expect(capturedPrompt!.trigger).toBe('Custom trigger');
+      expect(capturedPrompt!.systemPrompt).toContain('Alice');
+      expect(capturedPrompt!.contextLayers).toBeDefined();
+      expect(capturedPrompt!.responseConstraints).toBeDefined();
     });
   });
 });

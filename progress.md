@@ -602,3 +602,28 @@
 **Тесты:** npm run typecheck, npm test — все пройдены (169 tests passed).
 **Заметки:** Метод управляет жизненным циклом фазы. Фактическая обработка хода персонажа будет в processCharacterTurn() (TASK-037).
 
+
+## [2026-04-07] TASK-037: Orchestrator.processCharacterTurn()
+**Статус:** done
+**Время:** ~20 минут
+**Изменения:**
+- src/core/host-module.ts — добавлено сохранение characterDefinitions в configSnapshot:
+  - При initializeShow() теперь сохраняются все CharacterDefinition (id, name, publicCard, personalityPrompt, motivationPrompt, boundaryRules, speakFrequency, responseConstraints)
+- src/core/orchestrator.ts — добавлен метод processCharacterTurn():
+  - processCharacterTurn(showId, characterId, trigger): Promise<CharacterResponse>
+  - Собирает PromptPackage через ContextBuilder.buildPromptPackage()
+  - Вызывает adapter.call() для получения ответа от LLM
+  - Записывает событие 'speech' в журнал с content из response.text
+  - Обновляет token budget через store.updateBudget()
+  - Возвращает CharacterResponse для дальнейшей обработки
+- tests/unit/orchestrator.test.ts — добавлены 7 тестов для processCharacterTurn:
+  - Возвращает CharacterResponse от adapter.call()
+  - Записывает speech событие с правильным content
+  - Обновляет token budget после хода
+  - Выбрасывает ошибку если show не найден
+  - Выбрасывает ошибку если character не найден
+  - Устанавливает правильные audienceIds на speech событие
+  - Вызывает adapter с PromptPackage от ContextBuilder
+
+**Тесты:** npm run typecheck, npm test — все пройдены (176 tests passed).
+**Заметки:** Метод реализует полный цикл обработки хода персонажа: сборка контекста -> вызов LLM -> запись в журнал -> обновление бюджета.

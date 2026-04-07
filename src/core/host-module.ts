@@ -64,6 +64,17 @@ export class HostModule {
       decisionConfig: template.decisionConfig,
       privateChannelRules: template.privateChannelRules,
       allowCharacterInitiative: template.allowCharacterInitiative ?? false,
+      // Store character definitions for processCharacterTurn
+      characterDefinitions: characters.map((c) => ({
+        id: c.id,
+        name: c.name,
+        publicCard: c.publicCard,
+        personalityPrompt: c.personalityPrompt,
+        motivationPrompt: c.motivationPrompt,
+        boundaryRules: c.boundaryRules,
+        speakFrequency: c.speakFrequency,
+        responseConstraints: c.responseConstraints,
+      })),
     };
 
     // Create show record

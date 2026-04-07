@@ -4,14 +4,17 @@
  */
 
 import { IStore } from '../types/interfaces/store.interface.js';
-import { ModelAdapter } from '../types/adapter.js';
+import { ModelAdapter, CharacterResponse } from '../types/adapter.js';
 import { EventJournal } from './event-journal.js';
 import { HostModule } from './host-module.js';
 import { ContextBuilder } from './context-builder.js';
 import { Phase } from '../types/template.js';
 import { ShowEvent } from '../types/events.js';
-import { EventType, ChannelType } from '../types/enums.js';
+import { EventType, ChannelType, SpeakFrequency, ShowStatus } from '../types/enums.js';
 import { generateId } from '../utils/id.js';
+import { CharacterDefinition } from '../types/character.js';
+import { Show } from '../types/runtime.js';
+import { ResponseConstraints } from '../types/primitives.js';
 
 /**
  * Orchestrator execution mode
@@ -187,5 +190,128 @@ export class Orchestrator {
 
     // Default: complete when turns are done
     return currentTurn >= totalTurns;
+  }
+
+  /**
+   * Process a single character's turn
+   *
+   * - Collects PromptPackage via ContextBuilder
+   * - Calls adapter.call()
+   * - Records 'speech' event in journal
+   * - Updates token budget
+   * - Returns CharacterResponse for further processing
+   *
+   * @param showId - Show ID
+   * @param characterId - Character ID
+   * @param trigger - The trigger/prompt for this turn
+   * @returns CharacterResponse from the LLM
+   */
+  async processCharacterTurn(
+    showId: string,
+    characterId: string,
+    trigger: string
+  ): Promise<CharacterResponse> {
+    // Get show record from store
+    const showRecord = await this.store.getShow(showId);
+    if (!showRecord) {
+      throw new Error(`Show ${showId} not found`);
+    }
+
+    // Parse configSnapshot to get character definition
+    const configSnapshot = JSON.parse(showRecord.configSnapshot) as Record<string, unknown>;
+    const characterDefinitions = configSnapshot.characterDefinitions as Array<{
+      id: string;
+      name: string;
+      publicCard: string;
+      personalityPrompt: string;
+      motivationPrompt: string;
+      boundaryRules: string[];
+      speakFrequency: string;
+      responseConstraints: { maxTokens: number; format: string; language: string };
+    }>;
+
+    // Find the character definition
+    const charDefData = characterDefinitions?.find((c) => c.id === characterId);
+    if (!charDefData) {
+      throw new Error(`Character definition for ${characterId} not found in configSnapshot`);
+    }
+
+    // Get character's current private context from store
+    const showCharacter = await this.store.getCharacter(showId, characterId);
+    if (!showCharacter) {
+      throw new Error(`Character ${characterId} not found in show ${showId}`);
+    }
+
+    // Build CharacterDefinition with current private context
+    const characterDefinition: CharacterDefinition = {
+      id: charDefData.id,
+      name: charDefData.name,
+      publicCard: charDefData.publicCard,
+      personalityPrompt: charDefData.personalityPrompt,
+      motivationPrompt: charDefData.motivationPrompt,
+      boundaryRules: charDefData.boundaryRules,
+      startingPrivateContext: showCharacter.privateContext,
+      speakFrequency: charDefData.speakFrequency as SpeakFrequency,
+      responseConstraints: charDefData.responseConstraints as ResponseConstraints,
+    };
+
+    // Build Show object from record
+    const show: Show = {
+      id: showRecord.id,
+      formatId: showRecord.formatId,
+      seed: parseInt(showRecord.seed, 10),
+      status: showRecord.status as ShowStatus,
+      currentPhaseId: showRecord.currentPhaseId,
+      startedAt: new Date(showRecord.startedAt ?? Date.now()),
+      completedAt: showRecord.completedAt ? new Date(showRecord.completedAt) : null,
+      configSnapshot: configSnapshot as Record<string, unknown>,
+    };
+
+    // Build PromptPackage via ContextBuilder
+    const promptPackage = await this.contextBuilder.buildPromptPackage(
+      characterDefinition,
+      show,
+      trigger
+    );
+
+    // Call the adapter to get response
+    const response = await this.adapter.call(promptPackage);
+
+    // Get all characters for audienceIds (speech is public)
+    const characters = await this.store.getCharacters(showId);
+    const allCharacterIds = characters.map((c) => c.characterId);
+
+    // Record 'speech' event in journal
+    const speechEvent: Omit<ShowEvent, 'sequenceNumber'> = {
+      id: generateId(),
+      showId,
+      timestamp: Date.now(),
+      phaseId: showRecord.currentPhaseId ?? '',
+      type: EventType.speech,
+      channel: ChannelType.PUBLIC,
+      visibility: ChannelType.PUBLIC,
+      senderId: characterId,
+      receiverIds: allCharacterIds,
+      audienceIds: allCharacterIds,
+      content: response.text,
+      metadata: {
+        intent: response.intent,
+        target: response.target,
+        decisionValue: response.decisionValue,
+      },
+      seed: showRecord.seed,
+    };
+
+    await this.journal.append(speechEvent);
+
+    // Update token budget
+    const tokenEstimate = this.adapter.estimateTokens(promptPackage);
+    await this.store.updateBudget(
+      showId,
+      tokenEstimate.prompt,
+      tokenEstimate.estimatedCompletion
+    );
+
+    return response;
   }
 }
