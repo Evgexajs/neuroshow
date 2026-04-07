@@ -747,3 +747,26 @@
 
 **Тесты:** npm run typecheck, npm test — все пройдены (204 tests passed).
 **Заметки:** DEBUG режим позволяет пошагово выполнять шоу, что полезно для отладки и тестирования. В AUTO режиме runShow() работает как раньше без пауз.
+
+---
+
+## 2026-04-07: TASK-043 — Orchestrator: rollback в DEBUG режиме
+
+**Статус:** Выполнено
+
+**Изменения:**
+- src/core/orchestrator.ts — добавлен метод rollbackToPhase():
+  - rollbackToPhase(showId, phaseId): Promise<void> — откатывает состояние к началу фазы
+  - Использует EventJournal.rollbackToPhase() для удаления событий
+  - Сбрасывает currentPhaseIndex и turnIndex к началу указанной фазы
+  - Создаёт событие 'system' с metadata.rollback: true
+  - Документировано: в Rerun режиме rollback создаёт новую ветку событий
+- tests/unit/orchestrator.test.ts — добавлены 5 тестов для rollbackToPhase():
+  - Использует EventJournal.rollbackToPhase для удаления событий
+  - Сбрасывает состояние оркестратора к началу фазы
+  - Создаёт system event с metadata.rollback: true
+  - Выбрасывает ошибку если шоу не найдено
+  - Выбрасывает ошибку если фаза не найдена
+
+**Тесты:** npm run typecheck, npm test — все пройдены (209 tests passed).
+**Заметки:** Rollback позволяет вернуться к началу фазы в DEBUG режиме, удаляя все события от этой фазы и далее. Полезно для отладки и тестирования альтернативных сценариев.

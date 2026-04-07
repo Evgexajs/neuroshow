@@ -863,6 +863,83 @@ export class Orchestrator {
   }
 
   /**
+   * Rollback the orchestrator to the beginning of a specific phase (DEBUG mode).
+   *
+   * - Uses EventJournal.rollbackToPhase() to delete events from that phase onwards
+   * - Resets orchestrator state (currentPhaseIndex, turnIndex) to the phase start
+   * - Creates a 'system' event with metadata.rollback: true
+   *
+   * Note on Rerun mode: In Rerun scenarios, rollback creates a new branch of events.
+   * The original events are deleted, and new events from the replayed phase onwards
+   * form a divergent timeline from the rollback point.
+   *
+   * @param showId - Show ID
+   * @param phaseId - Phase ID to rollback to
+   */
+  async rollbackToPhase(showId: string, phaseId: string): Promise<void> {
+    // Get show record
+    const showRecord = await this.store.getShow(showId);
+    if (!showRecord) {
+      throw new Error(`Show ${showId} not found`);
+    }
+
+    // Parse configSnapshot to find phase index
+    const configSnapshot = JSON.parse(showRecord.configSnapshot) as Record<string, unknown>;
+    const phases = configSnapshot.phases as Phase[];
+
+    if (!phases) {
+      throw new Error(`No phases found in show ${showId} configSnapshot`);
+    }
+
+    const phaseIndex = phases.findIndex((p) => p.id === phaseId);
+    if (phaseIndex === -1) {
+      throw new Error(`Phase ${phaseId} not found in show ${showId}`);
+    }
+
+    // Rollback events in journal (deletes events from the phase onwards)
+    await this.journal.rollbackToPhase(showId, phaseId);
+
+    // Reset orchestrator state to the beginning of the phase
+    this.showId = showId;
+    this.currentPhaseIndex = phaseIndex;
+    this.turnIndex = 0;
+
+    // Update show's currentPhaseId to the rollback target
+    await this.store.updateShow(showId, {
+      currentPhaseId: phaseId,
+    });
+
+    // Get all characters for the system event
+    const characters = await this.store.getCharacters(showId);
+    const allCharacterIds = characters.map((c) => c.characterId);
+    const seed = showRecord.seed;
+
+    // Create 'system' event with metadata.rollback: true
+    const systemEvent: Omit<ShowEvent, 'sequenceNumber'> = {
+      id: generateId(),
+      showId,
+      timestamp: Date.now(),
+      phaseId,
+      type: EventType.system,
+      channel: ChannelType.PUBLIC,
+      visibility: ChannelType.PUBLIC,
+      senderId: '',
+      receiverIds: allCharacterIds,
+      audienceIds: allCharacterIds,
+      content: `Rollback to phase "${phases[phaseIndex]!.name}"`,
+      metadata: {
+        rollback: true,
+        targetPhaseId: phaseId,
+        targetPhaseIndex: phaseIndex,
+      },
+      seed,
+    };
+
+    await this.journal.append(systemEvent);
+    logger.info(`Show ${showId} rolled back to phase ${phaseId} (index ${phaseIndex})`);
+  }
+
+  /**
    * Gracefully finish a show.
    *
    * - Completes the current turn

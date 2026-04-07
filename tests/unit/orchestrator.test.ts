@@ -976,4 +976,166 @@ describe('Orchestrator', () => {
       expect(runRevelationSpy).toHaveBeenCalledWith(show.id, template.decisionConfig);
     });
   });
+
+  describe('rollbackToPhase', () => {
+    it('should use EventJournal.rollbackToPhase to delete events', async () => {
+      // Create template with 2 phases
+      const template: ShowFormatTemplate = {
+        ...createTestTemplate(),
+        phases: [
+          {
+            id: 'phase-1',
+            name: 'Phase 1',
+            type: PhaseType.discussion,
+            durationMode: 'turns',
+            durationValue: 2,
+            turnOrder: 'sequential',
+            allowedChannels: [ChannelType.PUBLIC],
+            triggerTemplate: 'Start phase 1',
+            completionCondition: 'turns_complete',
+          },
+          {
+            id: 'phase-2',
+            name: 'Phase 2',
+            type: PhaseType.discussion,
+            durationMode: 'turns',
+            durationValue: 2,
+            turnOrder: 'sequential',
+            allowedChannels: [ChannelType.PUBLIC],
+            triggerTemplate: 'Start phase 2',
+            completionCondition: 'turns_complete',
+          },
+        ],
+      };
+
+      const characters = [
+        createTestCharacter('char-1', 'Alice'),
+        createTestCharacter('char-2', 'Bob'),
+      ];
+
+      const show = await hostModule.initializeShow(template, characters, 12345);
+
+      // Run both phases
+      await orchestrator.runPhase(show.id, template.phases[0]!);
+      await orchestrator.runPhase(show.id, template.phases[1]!);
+
+      // Get events before rollback
+      const eventsBefore = await eventJournal.getEvents(show.id);
+      const phase2EventsBefore = eventsBefore.filter((e) => e.phaseId === 'phase-2');
+      expect(phase2EventsBefore.length).toBeGreaterThan(0);
+
+      // Rollback to phase-2 (this deletes events from phase-2 onwards)
+      await orchestrator.rollbackToPhase(show.id, 'phase-2');
+
+      // Get events after rollback - phase-2 events should be deleted
+      // Only the system rollback event for phase-2 should exist
+      const eventsAfter = await eventJournal.getEvents(show.id);
+      const phase2EventsAfter = eventsAfter.filter(
+        (e) => e.phaseId === 'phase-2' && e.type !== EventType.system
+      );
+      expect(phase2EventsAfter.length).toBe(0);
+    });
+
+    it('should reset orchestrator state to phase beginning', async () => {
+      const template: ShowFormatTemplate = {
+        ...createTestTemplate(),
+        phases: [
+          {
+            id: 'phase-1',
+            name: 'Phase 1',
+            type: PhaseType.discussion,
+            durationMode: 'turns',
+            durationValue: 1,
+            turnOrder: 'sequential',
+            allowedChannels: [ChannelType.PUBLIC],
+            triggerTemplate: 'Start phase 1',
+            completionCondition: 'turns_complete',
+          },
+          {
+            id: 'phase-2',
+            name: 'Phase 2',
+            type: PhaseType.discussion,
+            durationMode: 'turns',
+            durationValue: 1,
+            turnOrder: 'sequential',
+            allowedChannels: [ChannelType.PUBLIC],
+            triggerTemplate: 'Start phase 2',
+            completionCondition: 'turns_complete',
+          },
+        ],
+      };
+
+      const characters = [createTestCharacter('char-1', 'Alice')];
+
+      const show = await hostModule.initializeShow(template, characters, 12345);
+
+      // Run first phase
+      await orchestrator.runPhase(show.id, template.phases[0]!);
+
+      // Rollback to phase-1 (index 0)
+      await orchestrator.rollbackToPhase(show.id, 'phase-1');
+
+      // Check orchestrator state is reset
+      const state = orchestrator.getState();
+      expect(state.currentPhaseIndex).toBe(0);
+      expect(state.turnIndex).toBe(0);
+    });
+
+    it('should create system event with metadata.rollback: true', async () => {
+      const template: ShowFormatTemplate = {
+        ...createTestTemplate(),
+        phases: [
+          {
+            id: 'phase-1',
+            name: 'Phase 1',
+            type: PhaseType.discussion,
+            durationMode: 'turns',
+            durationValue: 1,
+            turnOrder: 'sequential',
+            allowedChannels: [ChannelType.PUBLIC],
+            triggerTemplate: 'Start',
+            completionCondition: 'turns_complete',
+          },
+        ],
+      };
+
+      const characters = [createTestCharacter('char-1', 'Alice')];
+
+      const show = await hostModule.initializeShow(template, characters, 12345);
+
+      // Run the phase first
+      await orchestrator.runPhase(show.id, template.phases[0]!);
+
+      // Rollback
+      await orchestrator.rollbackToPhase(show.id, 'phase-1');
+
+      // Find the rollback system event
+      const events = await eventJournal.getEvents(show.id);
+      const rollbackEvent = events.find(
+        (e) => e.type === EventType.system && e.metadata?.rollback === true
+      );
+
+      expect(rollbackEvent).toBeDefined();
+      expect(rollbackEvent!.metadata?.rollback).toBe(true);
+      expect(rollbackEvent!.metadata?.targetPhaseId).toBe('phase-1');
+      expect(rollbackEvent!.content).toContain('Rollback');
+    });
+
+    it('should throw error if show not found', async () => {
+      await expect(
+        orchestrator.rollbackToPhase('non-existent-show', 'phase-1')
+      ).rejects.toThrow('Show non-existent-show not found');
+    });
+
+    it('should throw error if phase not found', async () => {
+      const template = createTestTemplate();
+      const characters = [createTestCharacter('char-1', 'Alice')];
+
+      const show = await hostModule.initializeShow(template, characters, 12345);
+
+      await expect(
+        orchestrator.rollbackToPhase(show.id, 'non-existent-phase')
+      ).rejects.toThrow('Phase non-existent-phase not found');
+    });
+  });
 });
