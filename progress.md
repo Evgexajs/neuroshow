@@ -2577,3 +2577,34 @@ Added a template information panel to the Debug UI that displays template name, 
 - npm run typecheck — passes
 - npm run lint — passes (warnings only)
 - npm run test — context-builder tests pass (32 tests)
+
+## TASK-111: PRD для LLM-ведущего (Host AI Agent)
+
+**Date:** 2026-04-08
+
+**Summary:** Создан отдельный PRD документ для LLM-ведущего — генеративного AI-агента, который работает поверх детерминированного HostModule и добавляет развлекательный контент: комментарии, вопросы, объявления и приватные директивы.
+
+**Changes:**
+
+- docs/PRD-llm-host.md — новый PRD документ (12 секций):
+  1. Обзор и цели
+  2. Роль и ограничения (что МОЖЕТ и НЕ МОЖЕТ делать)
+  3. Триггеры активации (mandatory, conditional, periodic)
+  4. Типы интервенций (comment, question, announcement, private_directive)
+  5. Контроль токен-бюджета (thresholds: normal, saving, minimal, exhausted)
+  6. Промпты и персона (preset personas: classic_host, drama_queen, provocateur, friendly_guide)
+  7. Отображение в UI (визуальное отличие от system events)
+  8. Конфигурация (LLMHostConfig interface)
+  9. Модель данных (SQL schemas, TypeScript interfaces)
+  10. Техническая архитектура (LLMHostAgent class)
+  11. Acceptance Criteria
+  12. Out of Scope / Future
+
+**Acceptance Criteria:**
+1. Роль и ограничения: что LLM-ведущий МОЖЕТ и НЕ МОЖЕТ делать ✓
+2. Триггеры активации: когда ведущий вмешивается ✓
+3. Типы интервенций: комментарий, вопрос, объявление, приватная вводная ✓
+4. Контроль бюджета: отдельный лимит токенов для ведущего ✓
+5. Промпты и persona: стиль ведущего, tone of voice ✓
+6. UI: отображение реплик ведущего, отличие от system events ✓
+7. Конфиг: hostEnabled, hostPersona, hostBudget, interventionRules ✓
