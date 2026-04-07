@@ -64,6 +64,8 @@ export class HostModule {
       decisionConfig: template.decisionConfig,
       privateChannelRules: template.privateChannelRules,
       allowCharacterInitiative: template.allowCharacterInitiative ?? false,
+      // Store phases for runShow
+      phases: template.phases,
       // Store character definitions for processCharacterTurn
       characterDefinitions: characters.map((c) => ({
         id: c.id,

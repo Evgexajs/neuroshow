@@ -10,7 +10,7 @@ import { HostModule } from './host-module.js';
 import { ContextBuilder } from './context-builder.js';
 import { Phase } from '../types/template.js';
 import { ShowEvent } from '../types/events.js';
-import { EventType, ChannelType, SpeakFrequency, ShowStatus, CharacterIntent, BudgetMode } from '../types/enums.js';
+import { EventType, ChannelType, SpeakFrequency, ShowStatus, CharacterIntent, BudgetMode, PhaseType } from '../types/enums.js';
 import { generateId } from '../utils/id.js';
 import { CharacterDefinition } from '../types/character.js';
 import { Show } from '../types/runtime.js';
@@ -580,6 +580,93 @@ export class Orchestrator {
   async shouldLimitPrivates(showId: string): Promise<boolean> {
     const mode = await this.checkBudget(showId);
     return mode === BudgetMode.budget_saving || mode === BudgetMode.graceful_finish;
+  }
+
+  /**
+   * Run a complete show from start to finish.
+   *
+   * - Updates show status to 'running'
+   * - Iterates through all phases from the template sequentially
+   * - Calls runPhase() for regular phases
+   * - Calls runDecisionPhase() for 'decision' type phases
+   * - Checks budget before each turn (triggers gracefulFinish if needed)
+   * - Runs revelation at the end
+   * - Updates show status to 'completed'
+   *
+   * @param showId - Show ID to run
+   */
+  async runShow(showId: string): Promise<void> {
+    // Get show record
+    const showRecord = await this.store.getShow(showId);
+    if (!showRecord) {
+      throw new Error(`Show ${showId} not found`);
+    }
+
+    // Update internal state
+    this.showId = showId;
+    this.currentPhaseIndex = 0;
+
+    // Update show status to running
+    await this.store.updateShow(showId, {
+      status: ShowStatus.running,
+      startedAt: Date.now(),
+    });
+
+    logger.info(`Show ${showId} started`);
+
+    // Parse configSnapshot to get phases and decisionConfig
+    const configSnapshot = JSON.parse(showRecord.configSnapshot) as Record<string, unknown>;
+    const phases = configSnapshot.phases as Phase[];
+    const decisionConfig = configSnapshot.decisionConfig as DecisionConfig;
+
+    if (!phases || phases.length === 0) {
+      throw new Error(`No phases found in show ${showId} configSnapshot`);
+    }
+
+    // Run all phases sequentially
+    for (const [i, phase] of phases.entries()) {
+      this.currentPhaseIndex = i;
+
+      // Update currentPhaseId in show record
+      await this.store.updateShow(showId, {
+        currentPhaseId: phase.id,
+      });
+
+      // Check budget before running phase
+      const budgetMode = await this.checkBudget(showId);
+      if (budgetMode === BudgetMode.graceful_finish) {
+        logger.info(`Budget exhausted for show ${showId}, triggering graceful finish`);
+        await this.gracefulFinish(showId);
+        return;
+      }
+
+      // Run the phase based on its type
+      if (phase.type === PhaseType.decision) {
+        // Decision phase uses special runDecisionPhase flow
+        const decisionCallback = async (
+          characterId: string,
+          trigger: string,
+          _previousDecisions: Array<{ characterId: string; decision: string }>
+        ) => {
+          return this.processCharacterTurn(showId, characterId, trigger);
+        };
+        await this.hostModule.runDecisionPhase(showId, decisionConfig, decisionCallback);
+      } else {
+        // Regular phases use runPhase
+        await this.runPhase(showId, phase);
+      }
+    }
+
+    // Run revelation at the end
+    await this.hostModule.runRevelation(showId, decisionConfig);
+
+    // Update show status to completed
+    await this.store.updateShow(showId, {
+      status: ShowStatus.completed,
+      completedAt: Date.now(),
+    });
+
+    logger.info(`Show ${showId} completed`);
   }
 
   /**

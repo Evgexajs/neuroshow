@@ -699,3 +699,31 @@
 
 **Тесты:** npm run typecheck, npm test — все пройдены (197 tests passed).
 **Заметки:** Метод позволяет корректно завершить шоу досрочно, выполнив все необходимые финальные действия (решения, revelation, закрытие каналов).
+
+## [2026-04-07] TASK-041: Orchestrator.runShow()
+**Статус:** done
+**Время:** ~20 минут
+**Изменения:**
+- src/core/orchestrator.ts — добавлен метод runShow(showId):
+  - runShow(showId): Promise<void> — полный цикл выполнения шоу
+    - Обновляет статус шоу на 'running' при старте
+    - Проходит все фазы из шаблона последовательно
+    - Для обычных фаз вызывает runPhase()
+    - Для фаз типа 'decision' вызывает hostModule.runDecisionPhase()
+    - Проверяет бюджет перед каждой фазой через checkBudget()
+    - При исчерпании бюджета (graceful_finish mode) вызывает gracefulFinish()
+    - В конце вызывает hostModule.runRevelation()
+    - Обновляет статус шоу на 'completed' по завершении
+  - Добавлен импорт PhaseType из enums
+- src/core/host-module.ts — добавлено сохранение phases в configSnapshot для runShow
+- tests/unit/orchestrator.test.ts — добавлены 7 тестов для runShow:
+  - Запускает все фазы последовательно и завершает шоу
+  - Обновляет статус на 'running' в начале
+  - Проверяет бюджет перед каждой фазой
+  - Вызывает gracefulFinish при исчерпании бюджета
+  - Выбрасывает ошибку если шоу не найдено
+  - Вызывает runDecisionPhase для фаз типа 'decision'
+  - Вызывает runRevelation в конце
+
+**Тесты:** npm run typecheck, npm test — все пройдены (204 tests passed).
+**Заметки:** Метод runShow является главной точкой входа для запуска полного цикла шоу, координирует все фазы и обеспечивает корректное завершение.

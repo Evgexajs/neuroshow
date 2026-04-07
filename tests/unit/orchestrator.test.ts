@@ -807,4 +807,173 @@ describe('Orchestrator', () => {
       expect(shouldLimit).toBe(true);
     });
   });
+
+  describe('runShow', () => {
+    it('should run all phases sequentially and complete the show', async () => {
+      // Create template with 3 phases
+      const template: ShowFormatTemplate = {
+        ...createTestTemplate(),
+        phases: [
+          {
+            id: 'phase-1',
+            name: 'Discussion 1',
+            type: PhaseType.discussion,
+            durationMode: 'turns',
+            durationValue: 1,
+            turnOrder: 'sequential',
+            allowedChannels: [ChannelType.PUBLIC],
+            triggerTemplate: 'Start discussion 1',
+            completionCondition: 'turns_complete',
+          },
+          {
+            id: 'phase-2',
+            name: 'Discussion 2',
+            type: PhaseType.discussion,
+            durationMode: 'turns',
+            durationValue: 1,
+            turnOrder: 'sequential',
+            allowedChannels: [ChannelType.PUBLIC],
+            triggerTemplate: 'Start discussion 2',
+            completionCondition: 'turns_complete',
+          },
+          {
+            id: 'phase-3',
+            name: 'Discussion 3',
+            type: PhaseType.discussion,
+            durationMode: 'turns',
+            durationValue: 1,
+            turnOrder: 'sequential',
+            allowedChannels: [ChannelType.PUBLIC],
+            triggerTemplate: 'Start discussion 3',
+            completionCondition: 'turns_complete',
+          },
+        ],
+      };
+
+      const characters = [
+        createTestCharacter('char-1', 'Alice'),
+        createTestCharacter('char-2', 'Bob'),
+      ];
+
+      const show = await hostModule.initializeShow(template, characters, 12345);
+
+      // Run the show
+      await orchestrator.runShow(show.id);
+
+      // Check that all phases ran (phase_start and phase_end for each)
+      const events = await eventJournal.getEvents(show.id);
+      const phaseStartEvents = events.filter((e) => e.type === EventType.phase_start);
+      const phaseEndEvents = events.filter((e) => e.type === EventType.phase_end);
+
+      expect(phaseStartEvents.length).toBe(3);
+      expect(phaseEndEvents.length).toBe(3);
+
+      // Check show status is completed
+      const showRecord = await store.getShow(show.id);
+      expect(showRecord?.status).toBe('completed');
+    });
+
+    it('should update show status to running at start', async () => {
+      const template = createTestTemplate();
+      const characters = [createTestCharacter('char-1', 'Alice')];
+
+      const show = await hostModule.initializeShow(template, characters, 12345);
+
+      // Mock runPhase to check status mid-run
+      let statusDuringRun: string | undefined;
+      const originalRunPhase = orchestrator.runPhase.bind(orchestrator);
+      vi.spyOn(orchestrator, 'runPhase').mockImplementation(async (showId, phase) => {
+        const record = await store.getShow(showId);
+        statusDuringRun = record?.status;
+        return originalRunPhase(showId, phase);
+      });
+
+      await orchestrator.runShow(show.id);
+
+      expect(statusDuringRun).toBe('running');
+    });
+
+    it('should check budget before each phase', async () => {
+      const template = createTestTemplate();
+      const characters = [createTestCharacter('char-1', 'Alice')];
+
+      const show = await hostModule.initializeShow(template, characters, 12345);
+
+      const checkBudgetSpy = vi.spyOn(orchestrator, 'checkBudget');
+
+      await orchestrator.runShow(show.id);
+
+      // checkBudget should be called at least once per phase
+      expect(checkBudgetSpy).toHaveBeenCalled();
+      expect(checkBudgetSpy).toHaveBeenCalledWith(show.id);
+    });
+
+    it('should trigger gracefulFinish when budget is exhausted', async () => {
+      const template = createTestTemplate();
+      const characters = [createTestCharacter('char-1', 'Alice')];
+
+      const show = await hostModule.initializeShow(template, characters, 12345);
+
+      // Exhaust budget before running
+      const budget = await store.getBudget(show.id);
+      await store.updateBudget(show.id, budget!.totalLimit, 0);
+
+      const gracefulFinishSpy = vi.spyOn(orchestrator, 'gracefulFinish');
+
+      await orchestrator.runShow(show.id);
+
+      expect(gracefulFinishSpy).toHaveBeenCalledWith(show.id);
+    });
+
+    it('should throw error if show not found', async () => {
+      await expect(orchestrator.runShow('non-existent-show')).rejects.toThrow(
+        'Show non-existent-show not found'
+      );
+    });
+
+    it('should run decision phase for type "decision"', async () => {
+      const template: ShowFormatTemplate = {
+        ...createTestTemplate(),
+        phases: [
+          {
+            id: 'phase-decision',
+            name: 'Decision Phase',
+            type: PhaseType.decision,
+            durationMode: 'turns',
+            durationValue: 1,
+            turnOrder: 'sequential',
+            allowedChannels: [ChannelType.PUBLIC],
+            triggerTemplate: null,
+            completionCondition: 'turns_complete',
+          },
+        ],
+      };
+
+      const characters = [
+        createTestCharacter('char-1', 'Alice'),
+        createTestCharacter('char-2', 'Bob'),
+      ];
+
+      const show = await hostModule.initializeShow(template, characters, 12345);
+
+      const runDecisionPhaseSpy = vi.spyOn(hostModule, 'runDecisionPhase');
+
+      await orchestrator.runShow(show.id);
+
+      expect(runDecisionPhaseSpy).toHaveBeenCalled();
+    });
+
+    it('should run revelation at the end', async () => {
+      const template = createTestTemplate();
+      const characters = [createTestCharacter('char-1', 'Alice')];
+
+      const show = await hostModule.initializeShow(template, characters, 12345);
+
+      const runRevelationSpy = vi.spyOn(hostModule, 'runRevelation');
+
+      await orchestrator.runShow(show.id);
+
+      expect(runRevelationSpy).toHaveBeenCalledWith(show.id, template.decisionConfig);
+    });
+  });
 });
