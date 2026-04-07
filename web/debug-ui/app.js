@@ -37,6 +37,14 @@ const themeInput = document.getElementById('theme-input');
 const generateBtn = document.getElementById('generate-btn');
 const generateStatus = document.getElementById('generate-status');
 const tokenBudgetInput = document.getElementById('token-budget-input');
+// History Modal Elements
+const showHistoryBtn = document.getElementById('show-history-btn');
+const showHistoryModal = document.getElementById('show-history-modal');
+const historyModalOverlay = document.getElementById('history-modal-overlay');
+const historyModalCloseBtn = document.getElementById('history-modal-close-btn');
+const historyCloseBtn = document.getElementById('history-close-btn');
+const recentShowsList = document.getElementById('recent-shows-list');
+const allShowsList = document.getElementById('all-shows-list');
 // State
 let eventSource = null;
 let currentShowId = null;
@@ -108,6 +116,11 @@ function init() {
     generateBtn.addEventListener('click', () => {
         handleGenerateCharacters().catch(console.error);
     });
+    // History modal listeners
+    showHistoryBtn.addEventListener('click', openHistoryModal);
+    historyModalOverlay.addEventListener('click', closeHistoryModal);
+    historyModalCloseBtn.addEventListener('click', closeHistoryModal);
+    historyCloseBtn.addEventListener('click', closeHistoryModal);
 }
 /**
  * Handle connect button click
@@ -491,6 +504,8 @@ async function connect(showId) {
         reconnectAttempts = 0;
         addSystemMessage('Connected to event stream');
         connectBtn.textContent = 'Disconnect';
+        // Save to recent shows
+        saveToRecentShows(showId);
     };
     eventSource.onmessage = (event) => {
         try {
@@ -800,6 +815,139 @@ function resetModalState() {
     tokenBudgetInput.value = '';
     generateStatus.classList.add('hidden');
     generateStatus.classList.remove('error');
+}
+/**
+ * Open the history modal and load shows
+ */
+function openHistoryModal() {
+    showHistoryModal.classList.remove('hidden');
+    loadShowHistory().catch(console.error);
+}
+/**
+ * Close the history modal
+ */
+function closeHistoryModal() {
+    showHistoryModal.classList.add('hidden');
+}
+/**
+ * Load show history from server
+ */
+async function loadShowHistory() {
+    // Show loading state
+    allShowsList.innerHTML = '<p class="placeholder">Loading...</p>';
+    try {
+        const response = await fetch('/shows');
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        const data = await response.json();
+        renderShowHistory(data.shows);
+    }
+    catch (err) {
+        console.error('Failed to load show history:', err);
+        allShowsList.innerHTML = '<p class="placeholder error">Failed to load shows</p>';
+    }
+    // Load recent shows from localStorage
+    loadRecentShows();
+}
+/**
+ * Load recent shows from localStorage
+ */
+function loadRecentShows() {
+    const recentShowIds = getRecentShowIds();
+    if (recentShowIds.length === 0) {
+        recentShowsList.innerHTML = '<p class="placeholder">No recent shows...</p>';
+        return;
+    }
+    recentShowsList.innerHTML = recentShowIds
+        .map((id) => `
+      <div class="history-item" data-show-id="${id}">
+        <div class="history-item-info">
+          <span class="history-show-id">${id}</span>
+        </div>
+      </div>
+    `)
+        .join('');
+    // Add click listeners
+    recentShowsList.querySelectorAll('.history-item').forEach((item) => {
+        item.addEventListener('click', () => {
+            const showId = item.dataset.showId;
+            if (showId) {
+                selectShowFromHistory(showId);
+            }
+        });
+    });
+}
+/**
+ * Get recent show IDs from localStorage
+ */
+function getRecentShowIds() {
+    try {
+        const stored = localStorage.getItem('neuroshow_recent_shows');
+        if (stored) {
+            return JSON.parse(stored);
+        }
+    }
+    catch {
+        // Ignore parse errors
+    }
+    return [];
+}
+/**
+ * Save show ID to recent shows in localStorage
+ */
+function saveToRecentShows(showId) {
+    const recent = getRecentShowIds();
+    // Remove if already exists, then add to front
+    const filtered = recent.filter((id) => id !== showId);
+    filtered.unshift(showId);
+    // Keep only last 10
+    const trimmed = filtered.slice(0, 10);
+    localStorage.setItem('neuroshow_recent_shows', JSON.stringify(trimmed));
+}
+/**
+ * Render show history list
+ */
+function renderShowHistory(shows) {
+    if (shows.length === 0) {
+        allShowsList.innerHTML = '<p class="placeholder">No shows found</p>';
+        return;
+    }
+    allShowsList.innerHTML = shows
+        .map((show) => {
+        const dateStr = show.startedAt
+            ? new Date(show.startedAt).toLocaleString()
+            : 'Not started';
+        const statusClass = `status-${show.status}`;
+        return `
+        <div class="history-item" data-show-id="${show.id}">
+          <div class="history-item-info">
+            <span class="history-show-id">${show.id}</span>
+            <span class="history-status ${statusClass}">${show.status}</span>
+          </div>
+          <span class="history-template">${show.formatId}</span>
+          <span class="history-date">${dateStr}</span>
+        </div>
+      `;
+    })
+        .join('');
+    // Add click listeners
+    allShowsList.querySelectorAll('.history-item').forEach((item) => {
+        item.addEventListener('click', () => {
+            const showId = item.dataset.showId;
+            if (showId) {
+                selectShowFromHistory(showId);
+            }
+        });
+    });
+}
+/**
+ * Select a show from history and connect to it
+ */
+function selectShowFromHistory(showId) {
+    closeHistoryModal();
+    showIdInput.value = showId;
+    handleConnect().catch(console.error);
 }
 /**
  * Load templates and characters for the modal
