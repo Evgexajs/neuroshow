@@ -1705,29 +1705,93 @@
     },
     {
       "id": "TASK-069",
-      "category": "ui",
+      "category": "api",
       "priority": "high",
-      "description": "Debug UI: создание и запуск шоу из интерфейса",
+      "description": "API: эндпоинты для получения шаблонов и персонажей",
       "acceptance_criteria": [
-        "Кнопка 'Новое шоу' в UI",
-        "Форма выбора шаблона (dropdown с загрузкой из /formats или hardcoded coalition)",
-        "Форма выбора персонажей (checkboxes или автоматически все 5)",
-        "Кнопка 'Создать' вызывает POST /shows",
-        "После создания автоматически подключается к showId",
-        "Кнопка START становится активной после подключения",
-        "Кнопки управления (START/PAUSE/STEP) работают через POST /shows/:id/control"
+        "GET /templates — возвращает список доступных шаблонов из src/formats/*.json",
+        "GET /characters — возвращает список персонажей из src/formats/characters/*.json",
+        "Ответы включают полные объекты (не только id/name)",
+        "Обработка ошибок если файлы не найдены"
       ],
       "test_steps": [
-        "Открой http://localhost:3000",
-        "Нажми 'Новое шоу'",
+        "curl http://localhost:3000/templates",
+        "curl http://localhost:3000/characters",
+        "Проверь что возвращаются JSON массивы",
+        "Ожидаемый результат: API отдаёт шаблоны и персонажей"
+      ],
+      "dependencies": [],
+      "status": "pending"
+    },
+    {
+      "id": "TASK-070",
+      "category": "ui",
+      "priority": "high",
+      "description": "Debug UI: форма создания нового шоу",
+      "acceptance_criteria": [
+        "Кнопка 'Новое шоу' открывает модальное окно или секцию",
+        "Dropdown выбора шаблона (загружает из GET /templates)",
+        "Checkboxes выбора персонажей (загружает из GET /characters)",
+        "Валидация: min/max участников из шаблона",
+        "Кнопка 'Создать' вызывает POST /shows с выбранными данными",
+        "Показывает ошибку если создание не удалось"
+      ],
+      "test_steps": [
+        "Открой UI, нажми 'Новое шоу'",
+        "Проверь что шаблоны загрузились в dropdown",
         "Выбери шаблон и персонажей",
         "Нажми 'Создать'",
-        "Проверь что подключился к шоу",
-        "Нажми START и проверь что шоу запустилось",
-        "Ожидаемый результат: полный flow из UI без curl"
+        "Ожидаемый результат: шоу создаётся, showId получен"
       ],
       "dependencies": [
-        "TASK-066"
+        "TASK-069"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "TASK-071",
+      "category": "ui",
+      "priority": "high",
+      "description": "Debug UI: автоподключение после создания шоу",
+      "acceptance_criteria": [
+        "После успешного POST /shows автоматически подключается к SSE",
+        "showId автоматически вставляется в поле поиска",
+        "Статус меняется на 'Connected'",
+        "Загружаются персонажи шоу (GET /shows/:id/characters)"
+      ],
+      "test_steps": [
+        "Создай шоу через форму",
+        "Проверь что UI автоматически подключился",
+        "Проверь что видны карточки персонажей",
+        "Ожидаемый результат: не нужно вручную вводить showId"
+      ],
+      "dependencies": [
+        "TASK-070"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "TASK-072",
+      "category": "ui",
+      "priority": "high",
+      "description": "Debug UI: рабочие кнопки управления шоу",
+      "acceptance_criteria": [
+        "Кнопка START вызывает POST /shows/:id/control {action: 'start'}",
+        "Кнопка PAUSE вызывает POST /shows/:id/control {action: 'pause'}",
+        "Кнопка STEP вызывает POST /shows/:id/control {action: 'step'}",
+        "Кнопки активны только когда подключен к шоу",
+        "Кнопки disabled в неактуальных состояниях (START disabled когда уже running)",
+        "Показывает feedback после действия (success/error)"
+      ],
+      "test_steps": [
+        "Подключись к шоу",
+        "Нажми START — проверь что шоу запустилось",
+        "Нажми PAUSE — проверь что остановилось",
+        "Нажми STEP — проверь что выполнился один ход",
+        "Ожидаемый результат: управление работает из UI"
+      ],
+      "dependencies": [
+        "TASK-071"
       ],
       "status": "pending"
     }
