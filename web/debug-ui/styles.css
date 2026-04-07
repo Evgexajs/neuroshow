@@ -945,3 +945,121 @@ body {
 .cards-container::-webkit-scrollbar-thumb:hover {
   background: var(--accent);
 }
+
+/* History Button */
+.history-btn {
+  padding: 0.5rem 1rem;
+  background-color: var(--bg-light);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  color: var(--accent);
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.history-btn:hover {
+  background-color: var(--accent);
+  color: var(--bg-dark);
+}
+
+/* History Modal */
+.history-section {
+  margin-bottom: 1.5rem;
+}
+
+.history-section:last-child {
+  margin-bottom: 0;
+}
+
+.history-section h3 {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--bg-light);
+}
+
+.history-list {
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid var(--bg-light);
+  border-radius: 4px;
+  background-color: var(--bg-dark);
+}
+
+.history-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem;
+  border-bottom: 1px solid var(--bg-light);
+}
+
+.history-item:last-child {
+  border-bottom: none;
+}
+
+.history-item:hover {
+  background-color: var(--bg-light);
+}
+
+.history-item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.history-show-id {
+  font-family: monospace;
+  font-size: 0.85rem;
+  color: var(--accent);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-status {
+  font-size: 0.7rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 3px;
+  display: inline-block;
+  width: fit-content;
+}
+
+.history-status.status-running {
+  background-color: var(--success);
+  color: white;
+}
+
+.history-status.status-completed {
+  background-color: var(--bg-light);
+  color: var(--text-secondary);
+}
+
+.history-status.status-paused {
+  background-color: var(--warning);
+  color: white;
+}
+
+.history-template {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.history-date {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.btn-small {
+  padding: 0.35rem 0.75rem;
+  font-size: 0.8rem;
+}
+
+.btn-connect {
+  background-color: var(--accent);
+  color: var(--bg-dark);
+  flex-shrink: 0;
+}

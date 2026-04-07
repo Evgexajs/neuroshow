@@ -17,8 +17,37 @@
           <input type="text" id="show-id" placeholder="Enter show ID">
           <button id="connect-btn">Connect</button>
         </div>
+        <button id="show-history-btn" class="history-btn">History</button>
       </div>
     </header>
+
+    <!-- Show History Modal -->
+    <div id="show-history-modal" class="modal hidden">
+      <div class="modal-overlay" id="history-modal-overlay"></div>
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>Show History</h2>
+          <button id="history-modal-close-btn" class="modal-close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="history-section">
+            <h3>Recent Shows (Local)</h3>
+            <div id="recent-shows-list" class="history-list">
+              <p class="placeholder">No recent shows...</p>
+            </div>
+          </div>
+          <div class="history-section">
+            <h3>All Shows (Server)</h3>
+            <div id="all-shows-list" class="history-list">
+              <p class="placeholder">Loading...</p>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="history-close-btn" class="btn btn-secondary">Close</button>
+        </div>
+      </div>
+    </div>
 
     <!-- New Show Modal -->
     <div id="new-show-modal" class="modal hidden">

@@ -1755,3 +1755,37 @@ Added a template information panel to the Debug UI that displays template name, 
 - Добавлена инструкция 'ВАЖНО: Отвечай ТОЛЬКО на русском языке' для language='ru'
 - Заголовки секций переведены на русский (Личность, Мотивация, Границы, Формат ответа)
 - Полностью переведён системный промпт для русского языка
+
+## [2026-04-07] TASK-081: Debug UI - история showIds и список всех шоу
+**Статус:** done
+**Время:** ~20 минут
+**Изменения:**
+- src/api/server.ts - добавлен GET /shows endpoint:
+  - Возвращает список всех шоу с сервера
+  - Включает: showId, status, createdAt, templateName
+  - Сортировка по дате (новые сверху)
+- web/debug-ui/index.html - добавлена кнопка History и модальное окно:
+  - Секция "Recent Shows (Local)" - из LocalStorage
+  - Секция "All Shows (Server)" - с сервера
+- web/debug-ui/app.js - добавлена логика истории:
+  - LocalStorage: сохранение последних 10 showIds
+  - Загрузка списка шоу с сервера через GET /shows
+  - Клик по showId подключает к шоу
+  - Автоматическое сохранение при подключении
+- web/debug-ui/styles.css - стили для истории:
+  - .history-btn, .history-modal, .history-list, .history-item
+  - Статусы: status-running, status-completed, status-paused
+
+**Тесты:** 
+- npm run typecheck — passes
+- npm run lint — passes (warnings only)
+- npm test — all tests pass (28 server tests, all unit/integration tests)
+
+**Acceptance Criteria:**
+1. GET /shows — API endpoint возвращает список всех шоу ✓
+2. Список включает: showId, статус, дата создания, название шаблона ✓
+3. UI: секция 'История шоу' с таблицей/списком ✓
+4. Клик по showId подключает к этому шоу ✓
+5. Сортировка по дате (новые сверху) ✓
+6. Показывать статус: running/completed/paused ✓
+7. LocalStorage: сохранять последние 10 showIds для быстрого доступа ✓

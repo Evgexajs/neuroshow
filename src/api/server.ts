@@ -432,6 +432,40 @@ export async function createServer(): Promise<{
     }
   });
 
+  // GET /shows - List all shows
+  app.get('/shows', async (_request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const shows = await deps.store.listShows();
+
+      // Sort by startedAt descending (newest first)
+      shows.sort((a, b) => (b.startedAt ?? 0) - (a.startedAt ?? 0));
+
+      // Map to response format
+      const response = shows.map((show) => {
+        // Parse config snapshot to get template name
+        let templateName = 'Unknown';
+        try {
+          const config = JSON.parse(show.configSnapshot);
+          templateName = config.templateName ?? config.templateId ?? 'Unknown';
+        } catch {
+          // Ignore parse errors
+        }
+
+        return {
+          showId: show.id,
+          status: show.status,
+          createdAt: show.startedAt ? new Date(show.startedAt).toISOString() : null,
+          templateName,
+        };
+      });
+
+      return reply.send({ shows: response });
+    } catch (err) {
+      logger.error('Failed to list shows:', err);
+      return reply.status(500).send({ error: 'Failed to list shows' });
+    }
+  });
+
   // GET /shows/:id/events - SSE endpoint for real-time events
   app.get('/shows/:id/events', async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = request.params as { id: string };
