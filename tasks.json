@@ -2350,27 +2350,22 @@
       "id": "TASK-097",
       "category": "bugfix",
       "priority": "high",
-      "description": "Event Feed — текст сообщений не вмещается, стили сломаны",
-      "evidence": "Скриншот теста: сообщения показываются без форматирования, overflow не работает",
+      "description": "Debug UI: Event Feed растягивает страницу вместо скролла внутри",
+      "problem": "При большом количестве сообщений Event Feed растягивается на всю высоту контента, вместо того чтобы скроллиться внутри. Control Panel уезжает за пределы viewport.",
       "acceptance_criteria": [
-        "Event Feed имеет max-height с overflow-y: auto",
-        "Список сообщений скроллится внутри контейнера",
-        "Текст сообщений корректно переносится (word-wrap: break-word)",
-        "Control Panel всегда виден внизу экрана",
-        "Длинные сообщения не ломают layout"
+        "Главный контейнер занимает 100vh, не больше",
+        "Event Feed скроллится ВНУТРИ своего контейнера",
+        "Control Panel ВСЕГДА виден внизу viewport (фиксирован)",
+        "При 50+ сообщениях страница не имеет вертикального скролла",
+        "E2E тест 'control panel stays visible when content overflows' проходит"
       ],
       "test_steps": [
-        "Открой UI и добавь много сообщений",
-        "Проверь что Event Feed скроллится внутри",
-        "Проверь что Control Panel виден",
-        "Запусти screenshot тест",
-        "Ожидаемый результат: layout стабильный"
+        "npm run test:e2e",
+        "Все 4 layout теста должны пройти",
+        "Визуально проверить в браузере с 50 сообщениями"
       ],
-      "dependencies": [
-        "TASK-088"
-      ],
-      "status": "pending",
-      "notes": "ralph закрыл без фикса, сказал 'CSS уже корректен' но скриншот показывает что layout сломан"
+      "dependencies": [],
+      "status": "pending"
     }
   ]
 }
