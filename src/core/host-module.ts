@@ -362,6 +362,7 @@ export class HostModule {
     };
 
     await this.eventJournal.append(event);
+    logger.info(`[Private Channel] Opened private channel between: ${participantIds.join(', ')}`);
   }
 
   /**
@@ -398,6 +399,7 @@ export class HostModule {
     };
 
     await this.eventJournal.append(event);
+    logger.info(`[Private Channel] Closed private channel, returned to PUBLIC`);
   }
 
   /**

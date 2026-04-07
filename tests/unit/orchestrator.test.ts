@@ -583,6 +583,56 @@ describe('Orchestrator', () => {
     });
   });
 
+  describe('getActivePrivateChannel', () => {
+    it('should return null when no private channel is open', async () => {
+      const template = createTestTemplate();
+      const characters = [
+        createTestCharacter('char-1', 'Alice'),
+        createTestCharacter('char-2', 'Bob'),
+      ];
+
+      const show = await hostModule.initializeShow(template, characters, 12345);
+
+      const activeChannel = await orchestrator.getActivePrivateChannel(show.id);
+      expect(activeChannel).toBeNull();
+    });
+
+    it('should return participants when private channel is open', async () => {
+      const template = createTestTemplate();
+      const characters = [
+        createTestCharacter('char-1', 'Alice'),
+        createTestCharacter('char-2', 'Bob'),
+      ];
+
+      const show = await hostModule.initializeShow(template, characters, 12345);
+
+      // Open a private channel
+      await hostModule.openPrivateChannel(show.id, ['char-1', 'char-2']);
+
+      const activeChannel = await orchestrator.getActivePrivateChannel(show.id);
+      expect(activeChannel).not.toBeNull();
+      expect(activeChannel).toContain('char-1');
+      expect(activeChannel).toContain('char-2');
+    });
+
+    it('should return null after private channel is closed', async () => {
+      const template = createTestTemplate();
+      const characters = [
+        createTestCharacter('char-1', 'Alice'),
+        createTestCharacter('char-2', 'Bob'),
+      ];
+
+      const show = await hostModule.initializeShow(template, characters, 12345);
+
+      // Open and then close a private channel
+      await hostModule.openPrivateChannel(show.id, ['char-1', 'char-2']);
+      await hostModule.closePrivateChannel(show.id);
+
+      const activeChannel = await orchestrator.getActivePrivateChannel(show.id);
+      expect(activeChannel).toBeNull();
+    });
+  });
+
   describe('checkBudget', () => {
     it('should return "normal" mode when usage is below 80%', async () => {
       const template = createTestTemplate();

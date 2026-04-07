@@ -2172,3 +2172,33 @@ Added a template information panel to the Debug UI that displays template name, 
 **Тесты:**
 - npm run typecheck — passes
 - npm run lint — passes (0 errors)
+
+---
+
+## 2026-04-07: TASK-096 — Исправить приватные каналы
+
+**Описание:** Приватные каналы не работали — intent: request_private обрабатывался, но сообщения всё равно шли в PUBLIC канал с видимостью для всех участников.
+
+**Изменения:**
+- Добавлен метод `getActivePrivateChannel(showId)` в `Orchestrator` (src/core/orchestrator.ts):
+  - Проверяет channel_change события и определяет активный приватный канал
+  - Возвращает массив участников или null если канал закрыт/не открыт
+- Изменена логика `processCharacterTurn()` в Orchestrator:
+  - Проверяет наличие активного приватного канала перед созданием speech события
+  - Если персонаж в приватном канале — сообщение идёт в PRIVATE с ограниченной аудиторией
+  - После отправки приватного сообщения канал автоматически закрывается
+- Добавлено логирование в `HostModule.openPrivateChannel()` и `closePrivateChannel()` (src/core/host-module.ts)
+- Добавлены unit-тесты для `getActivePrivateChannel` (tests/unit/orchestrator.test.ts)
+
+**Acceptance Criteria:**
+1. intent: request_private обрабатывается и создаёт приватный канал ✓
+2. После одобрения request — следующее сообщение идёт в PRIVATE канал ✓
+3. Участники приватного канала видят сообщения в своём slidingWindow ✓ (через audienceIds filtering)
+4. После приватного разговора — channel_change обратно в PUBLIC ✓
+5. Логировать создание/закрытие приватных каналов ✓
+
+**Тесты:**
+- npm run typecheck — passes
+- npm run lint — passes (0 errors)
+- npm test tests/unit/orchestrator.test.ts -t "getActivePrivateChannel" — 3 tests passed
+- npm test tests/unit/orchestrator.test.ts -t "handleIntent" — 8 tests passed

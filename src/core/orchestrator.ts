@@ -574,9 +574,29 @@ export class Orchestrator {
     const llmCallMs = Date.now() - llmCallStart;
     logger.debug(`[LLM Call] ${characterId}: ${llmCallMs}ms (adapter: ${adapterToUse.providerId})`);
 
-    // Get all characters for audienceIds (speech is public)
+    // Get all characters for audienceIds
     const characters = await this.store.getCharacters(showId);
     const allCharacterIds = characters.map((c) => c.characterId);
+
+    // Check if there's an active private channel and if this character is a participant
+    const activePrivateChannel = await this.getActivePrivateChannel(showId);
+    const isInPrivateChannel =
+      activePrivateChannel !== null && activePrivateChannel.includes(characterId);
+
+    // Determine channel and audience based on private channel status
+    let channel: ChannelType;
+    let audienceIds: string[];
+
+    if (isInPrivateChannel) {
+      // Message goes to private channel - only participants can see it
+      channel = ChannelType.PRIVATE;
+      audienceIds = activePrivateChannel;
+      logger.info(`[Private Channel] ${characterId} sending message in private channel with: ${activePrivateChannel.join(', ')}`);
+    } else {
+      // Public message - everyone can see it
+      channel = ChannelType.PUBLIC;
+      audienceIds = allCharacterIds;
+    }
 
     // Record 'speech' event in journal
     const speechEvent: Omit<ShowEvent, 'sequenceNumber'> = {
@@ -585,11 +605,11 @@ export class Orchestrator {
       timestamp: Date.now(),
       phaseId: showRecord.currentPhaseId ?? '',
       type: EventType.speech,
-      channel: ChannelType.PUBLIC,
-      visibility: ChannelType.PUBLIC,
+      channel,
+      visibility: channel,
       senderId: characterId,
-      receiverIds: allCharacterIds,
-      audienceIds: allCharacterIds,
+      receiverIds: audienceIds,
+      audienceIds,
       content: response.text,
       metadata: {
         intent: response.intent,
@@ -600,6 +620,12 @@ export class Orchestrator {
     };
 
     await this.journal.append(speechEvent);
+
+    // If this was a private message, close the channel after sending
+    if (isInPrivateChannel) {
+      await this.hostModule.closePrivateChannel(showId);
+      logger.info(`[Private Channel] Closed private channel after message from ${characterId}`);
+    }
 
     // Update token budget (use same adapter that made the call)
     const tokenEstimate = adapterToUse.estimateTokens(promptPackage);
@@ -763,6 +789,40 @@ export class Orchestrator {
    */
   private handleEndTurn(senderId: string): void {
     logger.info(`Character ${senderId} ended their turn (skipped)`);
+  }
+
+  /**
+   * Get the currently active private channel for a show
+   * Returns the participants array if a private channel is open, null otherwise
+   *
+   * A private channel is "active" if the most recent channel_change event
+   * with action 'open' has not been followed by a channel_change with action 'close'
+   */
+  async getActivePrivateChannel(showId: string): Promise<string[] | null> {
+    const events = await this.journal.getEvents(showId);
+
+    // Find all channel_change events
+    const channelChanges = events.filter((e) => e.type === EventType.channel_change);
+
+    // Iterate from most recent to oldest
+    for (let i = channelChanges.length - 1; i >= 0; i--) {
+      const event = channelChanges[i]!;
+      const action = event.metadata?.action as string | undefined;
+
+      if (action === 'close') {
+        // Channel was closed, no active private channel
+        return null;
+      }
+
+      if (action === 'open' && event.channel === ChannelType.PRIVATE) {
+        // Found an open private channel
+        const participants = event.metadata?.participants as string[] | undefined;
+        return participants ?? null;
+      }
+    }
+
+    // No channel_change events found
+    return null;
   }
 
   /**
