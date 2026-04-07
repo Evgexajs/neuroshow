@@ -2109,7 +2109,7 @@
         "Ожидаемый результат: UI помещается в viewport"
       ],
       "dependencies": [],
-      "status": "pending"
+      "status": "done"
     },
     {
       "id": "TASK-087",

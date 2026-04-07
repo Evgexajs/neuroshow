@@ -1885,3 +1885,25 @@ Added a template information panel to the Debug UI that displays template name, 
 1. ralph.sh не выдаёт ошибку 'integer expression expected' ✓ (исправлена обработка grep)
 2. Корректная проверка количества pending/done задач ✓ (безопасный fallback на 0)
 3. Скрипт корректно завершается когда все задачи done ✓ (проверка remaining работает)
+
+## [2026-04-07] TASK-086: Debug UI - ограничить ширину списка событий viewport'ом
+**Статус:** done
+**Время:** ~10 минут
+**Изменения:**
+- web/debug-ui/styles.css:
+  - Добавлен `overflow-x: hidden` к body и .container для предотвращения горизонтального скролла
+  - Добавлен `max-width: 100vw` к .container
+  - Добавлен `min-width: 0` к .main-content, .event-feed, .events-container, .event-item для корректной работы flexbox
+  - Добавлены `word-wrap`, `overflow-wrap`, `word-break` к .event-content для переноса длинных текстов
+  - Добавлен `flex-wrap: wrap` к .header и .header-controls для адаптивности
+
+**Тесты:**
+- npm run typecheck — passes
+- npm run lint — passes (pre-existing error в app.js не связан с изменениями)
+
+**Acceptance Criteria:**
+1. Список событий не выходит за пределы viewport ✓ (overflow-x: hidden, min-width: 0)
+2. Длинные тексты событий обрезаются или переносятся ✓ (word-wrap, overflow-wrap)
+3. Кнопки START/PAUSE/STEP всегда видны без горизонтальной прокрутки ✓ (container overflow hidden)
+4. Layout адаптивный - работает на разных размерах экрана ✓ (flex-wrap на header)
+5. Горизонтальный скролл страницы отсутствует ✓ (body overflow-x: hidden)
