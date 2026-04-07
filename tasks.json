@@ -2369,7 +2369,8 @@
       "dependencies": [
         "TASK-088"
       ],
-      "status": "done"
+      "status": "pending",
+      "notes": "ralph закрыл без фикса, сказал 'CSS уже корректен' но скриншот показывает что layout сломан"
     }
   ]
 }
