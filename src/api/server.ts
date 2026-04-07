@@ -239,6 +239,48 @@ export async function createServer(): Promise<{
     }
   });
 
+  // GET /shows/:id/status - Get show status and budget
+  app.get('/shows/:id/status', async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id } = request.params as { id: string };
+
+    // Check if show exists
+    const show = await deps.store.getShow(id);
+    if (!show) {
+      return reply.status(404).send({ error: 'Show not found' });
+    }
+
+    // Get token budget
+    const budget = await deps.store.getBudget(id);
+
+    // Get events count
+    const eventsCount = await deps.store.getLatestSequence(id);
+
+    // Calculate token budget info
+    let tokenBudget: {
+      total: number;
+      used: number;
+      mode: string;
+      percentUsed: number;
+    } | null = null;
+
+    if (budget) {
+      const used = budget.usedPrompt + budget.usedCompletion;
+      tokenBudget = {
+        total: budget.totalLimit,
+        used,
+        mode: budget.mode,
+        percentUsed: budget.totalLimit > 0 ? (used / budget.totalLimit) * 100 : 0,
+      };
+    }
+
+    return reply.send({
+      status: show.status,
+      currentPhaseId: show.currentPhaseId,
+      eventsCount,
+      tokenBudget,
+    });
+  });
+
   // POST /shows - Create a new show
   app.post('/shows', async (request: FastifyRequest, reply: FastifyReply) => {
     const body = request.body as {

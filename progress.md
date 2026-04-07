@@ -892,3 +892,19 @@
 
 **Тесты:** npm run typecheck, npm test — все пройдены (237 tests passed).
 **Заметки:** runShow() запускается без await для non-blocking execution. MockAdapter выполняет шоу очень быстро, поэтому тест проверяет ['running', 'completed'] статусы.
+
+## TASK-048: API: GET /shows/:id/status - статус и бюджет
+
+**Дата:** 2026-04-07
+
+**Статус:** Выполнено
+
+**Изменения:**
+- src/api/server.ts — добавлен GET /shows/:id/status endpoint:
+  - Возвращает текущее состояние шоу
+  - Поля ответа: status, currentPhaseId, eventsCount, tokenBudget
+  - tokenBudget: { total, used, mode, percentUsed }
+  - Возврат 404 если шоу не найдено
+
+**Тесты:** npm run typecheck, npm test — все пройдены (237 tests passed).
+**Заметки:** eventsCount получается через store.getLatestSequence(), percentUsed вычисляется как (used / total) * 100.
