@@ -977,3 +977,24 @@
 
 **Тесты:** npm run typecheck, npm test — все пройдены (257 tests passed).
 **Заметки:** Шаблон соответствует ShowFormatTemplate из types/template.ts. Wildcard trigger будет реализован в контексте персонажей (TASK-054).
+
+## TASK-054: Characters: создание 5 персонажей для 'Коалиция'
+
+**Дата:** 2026-04-07
+
+**Статус:** Выполнено
+
+**Изменения:**
+- src/formats/characters/ — создана директория для персонажей
+- src/formats/characters/viktor.json — Виктор, опытный переговорщик (speakFrequency: high)
+- src/formats/characters/alina.json — Алина, финансовый аналитик (speakFrequency: medium, alliance с Еленой)
+- src/formats/characters/maxim.json — Максим, социальный предприниматель (speakFrequency: medium, wildcard о Викторе)
+- src/formats/characters/elena.json — Елена, HR-директор (speakFrequency: medium, alliance с Алиной)
+- src/formats/characters/dmitriy.json — Дмитрий, шахматист-гроссмейстер (speakFrequency: low)
+
+Распределение speakFrequency: 1 high (Виктор), 3 medium (Алина, Максим, Елена), 1 low (Дмитрий)
+Alliance: Алина и Елена имеют взаимный альянс (бывшие коллеги)
+Wildcard: Максим имеет компромат на Виктора (финансовый скандал)
+
+**Тесты:** npm run typecheck, npm test — все пройдены (257 tests passed).
+**Заметки:** Персонажи соответствуют CharacterDefinition из types/character.ts. Каждый имеет уникальную personality и motivation.
