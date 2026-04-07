@@ -56,6 +56,15 @@ export class Orchestrator {
   private turnIndex: number = 0;
   private mode: OrchestratorMode = 'AUTO';
 
+  /** DEBUG mode state: is execution currently paused? */
+  private paused: boolean = false;
+
+  /** Resolver function to signal that a step should proceed */
+  private stepResolver: (() => void) | null = null;
+
+  /** Promise that runShow waits on in DEBUG mode */
+  private stepPromise: Promise<void> | null = null;
+
   constructor(
     readonly store: IStore,
     readonly adapter: ModelAdapter,
@@ -75,6 +84,75 @@ export class Orchestrator {
       turnIndex: this.turnIndex,
       mode: this.mode,
     };
+  }
+
+  /**
+   * Set execution mode (AUTO or DEBUG)
+   * @param mode - 'AUTO' for automatic execution, 'DEBUG' for step-by-step
+   */
+  setMode(mode: OrchestratorMode): void {
+    this.mode = mode;
+    logger.debug(`Orchestrator mode set to ${mode}`);
+  }
+
+  /**
+   * Pause execution (only effective in DEBUG mode)
+   * Suspends the show at the next step boundary
+   */
+  pause(): void {
+    this.paused = true;
+    logger.debug('Orchestrator paused');
+  }
+
+  /**
+   * Resume execution after pause
+   * Continues automatic execution until the show ends or pause() is called again
+   */
+  resume(): void {
+    this.paused = false;
+    // If we have a pending step resolver, trigger it to continue
+    if (this.stepResolver) {
+      this.stepResolver();
+      this.stepResolver = null;
+      this.stepPromise = null;
+    }
+    logger.debug('Orchestrator resumed');
+  }
+
+  /**
+   * Execute one turn in DEBUG mode
+   * Resolves the pending step and sets up for the next step
+   * @returns Promise that resolves when the step is complete
+   */
+  async step(): Promise<void> {
+    if (this.mode !== 'DEBUG') {
+      logger.warn('step() called but mode is not DEBUG');
+      return;
+    }
+
+    // Signal the current step to proceed
+    if (this.stepResolver) {
+      this.stepResolver();
+      this.stepResolver = null;
+      this.stepPromise = null;
+    }
+  }
+
+  /**
+   * Wait for step signal in DEBUG mode
+   * @returns Promise that resolves when step() or resume() is called
+   */
+  private async waitForStep(): Promise<void> {
+    if (this.mode !== 'DEBUG' || !this.paused) {
+      return;
+    }
+
+    // Create a new promise that will be resolved by step() or resume()
+    this.stepPromise = new Promise<void>((resolve) => {
+      this.stepResolver = resolve;
+    });
+
+    await this.stepPromise;
   }
 
   /**
@@ -191,6 +269,104 @@ export class Orchestrator {
 
     // Default: complete when turns are done
     return currentTurn >= totalTurns;
+  }
+
+  /**
+   * Run a single phase with DEBUG mode support
+   * Similar to runPhase but waits for step() before each turn in DEBUG mode
+   *
+   * @param showId - Show ID
+   * @param phase - Phase configuration to run
+   */
+  private async runPhaseWithDebug(showId: string, phase: Phase): Promise<void> {
+    // Update internal state
+    this.showId = showId;
+    this.turnIndex = 0;
+
+    // Get show record for seed
+    const showRecord = await this.store.getShow(showId);
+    const seed = showRecord?.seed ?? '0';
+
+    // Get all characters for audienceIds
+    const characters = await this.store.getCharacters(showId);
+    const allCharacterIds = characters.map((c) => c.characterId);
+
+    // Create phase_start event
+    const phaseStartEvent: Omit<ShowEvent, 'sequenceNumber'> = {
+      id: generateId(),
+      showId,
+      timestamp: Date.now(),
+      phaseId: phase.id,
+      type: EventType.phase_start,
+      channel: ChannelType.PUBLIC,
+      visibility: ChannelType.PUBLIC,
+      senderId: '',
+      receiverIds: allCharacterIds,
+      audienceIds: allCharacterIds,
+      content: `Phase "${phase.name}" started`,
+      metadata: {
+        phaseType: phase.type,
+        durationMode: phase.durationMode,
+        durationValue: phase.durationValue,
+        turnOrder: phase.turnOrder,
+      },
+      seed,
+    };
+    await this.journal.append(phaseStartEvent);
+
+    // Get turn order for this phase
+    const turnQueue = await this.hostModule.manageTurnQueue(showId, phase);
+
+    // Execute turns based on durationMode
+    const turnsPerCharacter =
+      phase.durationMode === 'turns' && typeof phase.durationValue === 'number'
+        ? phase.durationValue
+        : 1;
+
+    // Run turns until completion
+    for (let round = 0; round < turnsPerCharacter; round++) {
+      for (const characterId of turnQueue) {
+        // Check completion condition
+        if (this.isPhaseComplete(phase, this.turnIndex, turnQueue.length * turnsPerCharacter)) {
+          break;
+        }
+
+        // In DEBUG mode, wait for step() before each turn
+        await this.waitForStep();
+
+        // Process character turn
+        await this.processCharacterTurn(showId, characterId, phase.triggerTemplate ?? '');
+
+        // Increment turn index
+        this.turnIndex++;
+      }
+
+      // Check completion condition after each round
+      if (this.isPhaseComplete(phase, this.turnIndex, turnQueue.length * turnsPerCharacter)) {
+        break;
+      }
+    }
+
+    // Create phase_end event
+    const phaseEndEvent: Omit<ShowEvent, 'sequenceNumber'> = {
+      id: generateId(),
+      showId,
+      timestamp: Date.now(),
+      phaseId: phase.id,
+      type: EventType.phase_end,
+      channel: ChannelType.PUBLIC,
+      visibility: ChannelType.PUBLIC,
+      senderId: '',
+      receiverIds: allCharacterIds,
+      audienceIds: allCharacterIds,
+      content: `Phase "${phase.name}" ended`,
+      metadata: {
+        totalTurns: this.turnIndex,
+        completionCondition: phase.completionCondition,
+      },
+      seed,
+    };
+    await this.journal.append(phaseEndEvent);
   }
 
   /**
@@ -606,6 +782,12 @@ export class Orchestrator {
     this.showId = showId;
     this.currentPhaseIndex = 0;
 
+    // In DEBUG mode, start paused and wait for first step()
+    if (this.mode === 'DEBUG') {
+      this.paused = true;
+      logger.debug(`Show ${showId} starting in DEBUG mode, waiting for step()`);
+    }
+
     // Update show status to running
     await this.store.updateShow(showId, {
       status: ShowStatus.running,
@@ -626,6 +808,9 @@ export class Orchestrator {
     // Run all phases sequentially
     for (const [i, phase] of phases.entries()) {
       this.currentPhaseIndex = i;
+
+      // In DEBUG mode, wait for step() or resume() before each phase
+      await this.waitForStep();
 
       // Update currentPhaseId in show record
       await this.store.updateShow(showId, {
@@ -648,12 +833,20 @@ export class Orchestrator {
           trigger: string,
           _previousDecisions: Array<{ characterId: string; decision: string }>
         ) => {
+          // In DEBUG mode, wait for step() before each character turn
+          if (this.mode === 'DEBUG') {
+            await this.waitForStep();
+          }
           return this.processCharacterTurn(showId, characterId, trigger);
         };
         await this.hostModule.runDecisionPhase(showId, decisionConfig, decisionCallback);
       } else {
-        // Regular phases use runPhase
-        await this.runPhase(showId, phase);
+        // Regular phases use runPhase (or runPhaseWithDebug in DEBUG mode)
+        if (this.mode === 'DEBUG') {
+          await this.runPhaseWithDebug(showId, phase);
+        } else {
+          await this.runPhase(showId, phase);
+        }
       }
     }
 
