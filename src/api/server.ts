@@ -268,6 +268,24 @@ export async function createServer(): Promise<{
     });
   });
 
+  // GET /shows/:id/export - Export show journal to JSON
+  app.get('/shows/:id/export', async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id } = request.params as { id: string };
+
+    try {
+      const exportJson = await deps.journal.exportJournal(id);
+      reply.header('Content-Type', 'application/json');
+      reply.header('Content-Disposition', `attachment; filename="show-${id}-export.json"`);
+      return reply.send(exportJson);
+    } catch (err) {
+      if (err instanceof Error && err.message.includes('not found')) {
+        return reply.status(404).send({ error: 'Show not found' });
+      }
+      logger.error(`Failed to export show ${id}:`, err);
+      return reply.status(500).send({ error: 'Export failed' });
+    }
+  });
+
   // GET /shows/:id/characters - Get characters for a show
   app.get('/shows/:id/characters', async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = request.params as { id: string };

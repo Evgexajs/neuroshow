@@ -1215,3 +1215,26 @@ Wildcard: Максим имеет компромат на Виктора (фин
 4. ✅ Флаг replayAvailable в таблице shows
 
 **Тесты:** npm run typecheck, npm test — все пройдены (310 tests passed).
+
+## [2026-04-07] TASK-060: Export журнала в JSON
+**Статус:** done
+**Время:** ~10 минут
+**Изменения:**
+- src/core/event-journal.ts — добавлен export функционал:
+  - Интерфейс JournalExport с полями: version, exportedAt, show, characters, events
+  - Метод exportJournal(showId): Promise<string> — возвращает JSON строку с полными данными шоу
+  - Выбрасывает ошибку если шоу не найдено
+  - Версия формата: '1.0' для совместимости с будущим импортом
+- src/api/server.ts — добавлен endpoint:
+  - GET /shows/:id/export — возвращает JSON экспорт шоу
+  - Content-Type: application/json
+  - Content-Disposition: attachment с именем файла
+  - 404 если шоу не найдено, 500 при других ошибках
+
+**Acceptance Criteria:**
+1. ✅ Метод exportJournal(showId): string (JSON)
+2. ✅ API endpoint: GET /shows/:id/export
+3. ✅ Включает: все события, метаданные шоу, персонажей
+4. ✅ Формат пригоден для импорта в будущем (версионирование, полная структура)
+
+**Тесты:** npm run typecheck, npm test — все пройдены (310 tests passed).

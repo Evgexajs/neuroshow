@@ -5,7 +5,19 @@
 
 import { EventEmitter } from 'events';
 import { ShowEvent } from '../types/events.js';
-import { IStore } from '../types/interfaces/store.interface.js';
+import { IStore, ShowRecord, ShowCharacterRecord } from '../types/interfaces/store.interface.js';
+
+/**
+ * Export format for show journal
+ * Designed to be self-contained and suitable for future import
+ */
+export interface JournalExport {
+  version: '1.0';
+  exportedAt: number;
+  show: ShowRecord;
+  characters: ShowCharacterRecord[];
+  events: ShowEvent[];
+}
 
 export interface GetEventsOptions {
   cursor?: number;
@@ -147,5 +159,37 @@ export class EventJournal extends EventEmitter {
     const deletedCount = latestSeq - keepUntil;
     await this.store.deleteEventsAfter(showId, keepUntil);
     return deletedCount;
+  }
+
+  /**
+   * Export journal to JSON format
+   * Includes all events, show metadata, and characters
+   * @param showId - Show ID to export
+   * @returns JSON string with complete show data
+   * @throws Error if show not found
+   */
+  async exportJournal(showId: string): Promise<string> {
+    // Get show metadata
+    const show = await this.store.getShow(showId);
+    if (!show) {
+      throw new Error(`Show not found: ${showId}`);
+    }
+
+    // Get all characters
+    const characters = await this.store.getCharacters(showId);
+
+    // Get all events
+    const events = await this.store.getEvents(showId);
+
+    // Build export object
+    const exportData: JournalExport = {
+      version: '1.0',
+      exportedAt: Date.now(),
+      show,
+      characters,
+      events,
+    };
+
+    return JSON.stringify(exportData, null, 2);
   }
 }
