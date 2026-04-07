@@ -1050,3 +1050,42 @@ Wildcard: Максим имеет компромат на Виктора (фин
 
 **Тесты:** npm run typecheck, npm test — все пройдены (268 tests passed).
 **Заметки:** При наличии OPENAI_API_KEY тесты выполняются с реальным API (~45 секунд). Документация по запуску включена в комментарии теста.
+
+## TASK-057: Валидация и санитизация входных данны��
+
+**Дата:** 2026-04-07
+
+**Статус:** Выполнено
+
+**Изменения:**
+- src/validation/schemas.ts — создан модуль с Zod-схемами для валидации:
+  - Zod-схемы для всех API endpoints (createShowRequestSchema, controlShowRequestSchema)
+  - Zod-схема для ShowFormatTemplate (showFormatTemplateSchema)
+  - Zod-схема для CharacterDefinition (characterDefinitionSchema)
+  - Вспомогательные схемы: Phase, DecisionConfig, PrivateChannelRules, ResponseConstraints, PrivateContext и др.
+  - sanitizeString() функция для санитизации строк:
+    - Удаление null bytes
+    - Удаление control characters (кроме \n и \t)
+    - Trim whitespace
+    - Опциональное ограничение длины
+  - formatValidationError() для понятных сообщений об ошибках
+  - validateShowFormatTemplate() и validateCharacterDefinition() для валидации при загрузке
+
+- src/api/server.ts — API endpoints теперь используют Zod вал��дацию:
+  - POST /shows — использует validateCreateShowRequest()
+  - POST /shows/:id/control — использует validateControlShowRequest()
+  - Оши��ки валидации возвращают 400 с понятным описанием
+
+- tests/unit/validation.test.ts — 42 теста для валидации:
+  - Тесты sanitizeString()
+  - Тесты validateShowFormatTemplate() с реальным coalition.json
+  - Тесты validateCharacterDefinition() с реальным персонажем
+  - Тесты validateControlShowRequest() для всех actions
+  - Тесты validateCreateShowRequest()
+  - Тесты защиты от injection (null bytes, control characters)
+
+- tests/unit/server.test.ts — обновлены тесты для новых enum значений
+- package.json — добавлена зависимость "zod"
+
+**Тесты:** npm run typecheck, npm test — все пройдены (310 tests passed).
+**Заметки:** Zod обеспечивает строгую типизацию и автоматическую санитизацию строк. SQL injection предотвращается параметризованными запросами в SQLite.

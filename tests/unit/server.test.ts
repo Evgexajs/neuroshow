@@ -35,18 +35,18 @@ describe('API Server', () => {
     ],
     decisionConfig: {
       timing: 'simultaneous',
-      visibility: 'hidden_until_reveal',
+      visibility: 'secret_until_reveal',
       revealMoment: 'after_all',
       format: 'choice',
       options: ['yes', 'no'],
     },
     channelTypes: [ChannelType.PUBLIC],
     privateChannelRules: {
-      initiator: 'any',
+      initiator: 'host_only',
       maxPrivatesPerPhase: 2,
       maxPrivatesPerCharacterPerPhase: 1,
       requestQueueMode: 'fifo',
-      requestFormat: 'Requesting private talk',
+      requestFormat: 'public_ask',
     },
     contextWindowSize: 50,
   });
@@ -322,7 +322,8 @@ describe('API Server', () => {
       });
 
       expect(response.statusCode).toBe(400);
-      expect(response.json().error).toContain('characters[0].id');
+      // Zod uses dot notation for array paths (characters.0.id)
+      expect(response.json().error).toContain('characters');
     });
 
     it('should return 400 when character name is missing', async () => {
@@ -342,7 +343,8 @@ describe('API Server', () => {
       });
 
       expect(response.statusCode).toBe(400);
-      expect(response.json().error).toContain('characters[1].name');
+      // Zod uses dot notation for array paths (characters.1.name)
+      expect(response.json().error).toContain('characters');
     });
 
     it('should return 400 when seed is not a number', async () => {

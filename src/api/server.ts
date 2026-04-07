@@ -13,8 +13,10 @@ import { MockAdapter } from '../adapters/mock-adapter.js';
 import { Orchestrator } from '../core/orchestrator.js';
 import { ModelAdapter } from '../types/adapter.js';
 import { logger } from '../utils/logger.js';
-import { ShowFormatTemplate } from '../types/template.js';
-import { CharacterDefinition } from '../types/character.js';
+import {
+  validateCreateShowRequest,
+  validateControlShowRequest,
+} from '../validation/schemas.js';
 
 /**
  * Application dependencies container
@@ -158,27 +160,16 @@ export async function createServer(): Promise<{
   // POST /shows/:id/control - Control show execution
   app.post('/shows/:id/control', async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = request.params as { id: string };
-    const body = request.body as {
-      action: 'start' | 'pause' | 'resume' | 'step' | 'rollback';
-      phaseId?: string;
-    } | null;
 
-    // Validate request body exists
-    if (!body) {
+    // Validate request body with Zod
+    const validation = validateControlShowRequest(request.body);
+    if (!validation.success) {
       return reply.status(400).send({
-        error: 'Request body is required',
+        error: validation.error,
       });
     }
 
-    const { action, phaseId } = body;
-
-    // Validate action
-    const validActions = ['start', 'pause', 'resume', 'step', 'rollback'];
-    if (!action || !validActions.includes(action)) {
-      return reply.status(400).send({
-        error: `action is required and must be one of: ${validActions.join(', ')}`,
-      });
-    }
+    const { action, phaseId } = validation.data;
 
     // Check if show exists
     const show = await deps.store.getShow(id);
@@ -220,12 +211,8 @@ export async function createServer(): Promise<{
           });
 
         case 'rollback':
-          if (!phaseId) {
-            return reply.status(400).send({
-              error: 'phaseId is required for rollback action',
-            });
-          }
-          await deps.orchestrator.rollbackToPhase(id, phaseId);
+          // phaseId is guaranteed by Zod validation for rollback action
+          await deps.orchestrator.rollbackToPhase(id, phaseId!);
           return reply.send({
             status: 'rolled_back',
             message: `Rolled back to phase ${phaseId}`,
@@ -283,100 +270,35 @@ export async function createServer(): Promise<{
 
   // POST /shows - Create a new show
   app.post('/shows', async (request: FastifyRequest, reply: FastifyReply) => {
-    const body = request.body as {
-      formatId?: ShowFormatTemplate;
-      characters?: Array<CharacterDefinition & { modelAdapterId?: string }>;
-      seed?: number;
-    } | null;
-
-    // Validate request body exists
-    if (!body) {
+    // Validate request body with Zod
+    const validation = validateCreateShowRequest(request.body);
+    if (!validation.success) {
       return reply.status(400).send({
-        error: 'Request body is required',
+        error: validation.error,
       });
     }
 
-    const { formatId, characters, seed } = body;
-
-    // Validate formatId (ShowFormatTemplate)
-    if (!formatId || typeof formatId !== 'object') {
-      return reply.status(400).send({
-        error: 'formatId is required and must be a valid ShowFormatTemplate object',
-      });
-    }
-
-    // Validate required ShowFormatTemplate fields
-    if (!formatId.id || typeof formatId.id !== 'string') {
-      return reply.status(400).send({
-        error: 'formatId.id is required',
-      });
-    }
-
-    if (!formatId.name || typeof formatId.name !== 'string') {
-      return reply.status(400).send({
-        error: 'formatId.name is required',
-      });
-    }
-
-    if (!Array.isArray(formatId.phases)) {
-      return reply.status(400).send({
-        error: 'formatId.phases must be an array',
-      });
-    }
-
-    // Validate characters
-    if (!characters || !Array.isArray(characters)) {
-      return reply.status(400).send({
-        error: 'characters is required and must be an array',
-      });
-    }
-
-    if (characters.length === 0) {
-      return reply.status(400).send({
-        error: 'At least one character is required',
-      });
-    }
+    const { formatId, characters, seed } = validation.data;
 
     // Validate character count against template limits
-    if (formatId.minParticipants && characters.length < formatId.minParticipants) {
+    if (characters.length < formatId.minParticipants) {
       return reply.status(400).send({
         error: `Minimum ${formatId.minParticipants} participants required, got ${characters.length}`,
       });
     }
 
-    if (formatId.maxParticipants && characters.length > formatId.maxParticipants) {
+    if (characters.length > formatId.maxParticipants) {
       return reply.status(400).send({
         error: `Maximum ${formatId.maxParticipants} participants allowed, got ${characters.length}`,
       });
     }
 
-    // Validate each character has required fields
-    for (let i = 0; i < characters.length; i++) {
-      const char = characters[i];
-      if (!char || !char.id || typeof char.id !== 'string') {
-        return reply.status(400).send({
-          error: `characters[${i}].id is required`,
-        });
-      }
-      if (!char.name || typeof char.name !== 'string') {
-        return reply.status(400).send({
-          error: `characters[${i}].name is required`,
-        });
-      }
-    }
-
-    // Validate seed if provided
-    if (seed !== undefined && typeof seed !== 'number') {
-      return reply.status(400).send({
-        error: 'seed must be a number',
-      });
-    }
-
     try {
       // Call HostModule.initializeShow()
+      // Cast types - Zod validation ensures they match the interfaces
       const show = await deps.hostModule.initializeShow(
-        formatId,
-        characters,
+        formatId as import('../types/template.js').ShowFormatTemplate,
+        characters as Array<import('../types/character.js').CharacterDefinition & { modelAdapterId?: string }>,
         seed
       );
 
