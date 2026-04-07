@@ -1811,3 +1811,27 @@ Added a template information panel to the Debug UI that displays template name, 
 3. OpenAI возвращает персонажей, а не ошибку ✓
 4. Парсинг корректно извлекает массив из объекта ✓
 5. Логировать полный ответ OpenAI для отладки ✓
+
+## [2026-04-07] TASK-083: Увеличить дефолтный TOKEN_BUDGET_PER_SHOW и сделать настраиваемым
+**Статус:** done
+**Время:** ~15 минут
+**Изменения:**
+- .env.example - TOKEN_BUDGET_PER_SHOW увеличен с 100000 до 500000
+- src/validation/schemas.ts - добавлен опциональный параметр tokenBudget в createShowRequestSchema
+- src/core/host-module.ts - initializeShow принимает опциональный tokenBudget параметр
+  - Использует переданное значение или config.tokenBudgetPerShow по умолчанию
+- src/api/server.ts - POST /shows извлекает tokenBudget из запроса и передаёт в initializeShow
+- web/debug-ui/index.html - добавлено поле "Token Budget" в форму создания шоу
+- web/debug-ui/app.ts - добавлена логика чтения tokenBudget и включения в запрос
+
+**Тесты:** 
+- npm run typecheck — passes
+- npm run lint — passes (только pre-existing warnings)
+- npm test — unit tests pass (299 tests), integration tests pass
+
+**Acceptance Criteria:**
+1. TOKEN_BUDGET_PER_SHOW в .env.example увеличен до 500000 ✓
+2. POST /shows принимает опциональный параметр tokenBudget ✓
+3. Если tokenBudget не передан - используется значение из .env ✓
+4. UI форма создания шоу имеет поле для указания бюджета токенов ✓
+5. Шоу с 5 персонажами и 3 фазами (45 ходов) не должно превышать бюджет ✓ (500k достаточно)

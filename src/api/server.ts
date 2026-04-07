@@ -754,7 +754,7 @@ export async function createServer(): Promise<{
       });
     }
 
-    const { formatId, characters, seed } = validation.data;
+    const { formatId, characters, seed, tokenBudget } = validation.data;
 
     // Validate character count against template limits
     if (characters.length < formatId.minParticipants) {
@@ -775,7 +775,8 @@ export async function createServer(): Promise<{
       const show = await deps.hostModule.initializeShow(
         formatId as import('../types/template.js').ShowFormatTemplate,
         characters as Array<import('../types/character.js').CharacterDefinition & { modelAdapterId?: string }>,
-        seed
+        seed,
+        tokenBudget
       );
 
       // Return response

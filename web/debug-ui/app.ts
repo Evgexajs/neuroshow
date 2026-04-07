@@ -110,6 +110,7 @@ const createShowBtn = document.getElementById('create-show-btn') as HTMLButtonEl
 const themeInput = document.getElementById('theme-input') as HTMLInputElement;
 const generateBtn = document.getElementById('generate-btn') as HTMLButtonElement;
 const generateStatus = document.getElementById('generate-status') as HTMLDivElement;
+const tokenBudgetInput = document.getElementById('token-budget-input') as HTMLInputElement;
 
 // State
 let eventSource: EventSource | null = null;
@@ -953,6 +954,7 @@ function resetModalState(): void {
   createShowBtn.disabled = true;
   createError.classList.add('hidden');
   themeInput.value = '';
+  tokenBudgetInput.value = '';
   generateStatus.classList.add('hidden');
   generateStatus.classList.remove('error');
 }
@@ -1183,10 +1185,23 @@ async function handleCreateShow(): Promise<void> {
     selectedCharacterIds.has(c.id)
   );
 
-  const requestBody = {
+  // Build request body with optional tokenBudget
+  const tokenBudgetValue = tokenBudgetInput.value.trim();
+  const requestBody: {
+    formatId: typeof selectedTemplate;
+    characters: typeof selectedChars;
+    tokenBudget?: number;
+  } = {
     formatId: selectedTemplate,
     characters: selectedChars,
   };
+
+  if (tokenBudgetValue) {
+    const parsedBudget = parseInt(tokenBudgetValue, 10);
+    if (!isNaN(parsedBudget) && parsedBudget > 0) {
+      requestBody.tokenBudget = parsedBudget;
+    }
+  }
 
   try {
     const response = await fetch('/shows', {

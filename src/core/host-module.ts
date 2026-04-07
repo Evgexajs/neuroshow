@@ -45,12 +45,14 @@ export class HostModule {
    * @param template - Show format template
    * @param characters - Character definitions with optional modelAdapterId
    * @param seed - Optional seed for reproducibility
+   * @param tokenBudget - Optional token budget (defaults to config.tokenBudgetPerShow)
    * @returns Initialized Show object
    */
   async initializeShow(
     template: ShowFormatTemplate,
     characters: Array<CharacterDefinition & { modelAdapterId?: string }>,
-    seed?: number
+    seed?: number,
+    tokenBudget?: number
   ): Promise<Show> {
     const showId = generateId();
     const showSeed = seed ?? Math.floor(Math.random() * 2147483647);
@@ -110,7 +112,7 @@ export class HostModule {
     // Create token_budget for the show
     const budgetRecord: TokenBudgetRecord = {
       showId,
-      totalLimit: config.tokenBudgetPerShow,
+      totalLimit: tokenBudget ?? config.tokenBudgetPerShow,
       usedPrompt: 0,
       usedCompletion: 0,
       mode: BudgetMode.normal,

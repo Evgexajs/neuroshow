@@ -213,6 +213,7 @@ export const createShowRequestSchema = z.object({
   formatId: showFormatTemplateSchema,
   characters: z.array(characterWithAdapterSchema).min(1),
   seed: z.number().int().optional(),
+  tokenBudget: z.number().int().positive().max(10000000).optional(),
 });
 
 /**
