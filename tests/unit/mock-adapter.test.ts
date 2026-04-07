@@ -118,10 +118,11 @@ describe('MockAdapter', () => {
       expect(estimate).toHaveProperty('estimatedCompletion');
       expect(estimate.prompt).toBeGreaterThan(0);
       expect(Number.isInteger(estimate.prompt)).toBe(true);
-      expect(estimate.estimatedCompletion).toBe(200); // from createTestPrompt
+      // Medium response (maxTokens=200) -> estimatedCompletion=55
+      expect(estimate.estimatedCompletion).toBe(55);
     });
 
-    it('should return approximately words * 1.3 for prompt tokens', () => {
+    it('should return approximately words * 3.5 + overhead for prompt tokens (Russian tokenization)', () => {
       const adapter = new MockAdapter();
       const prompt: PromptPackage = {
         systemPrompt: 'One two three', // 3 words
@@ -139,9 +140,10 @@ describe('MockAdapter', () => {
 
       const estimate = adapter.estimateTokens(prompt);
 
-      // Total: 10 words * 1.3 = 13 tokens
-      expect(estimate.prompt).toBe(13);
-      expect(estimate.estimatedCompletion).toBe(100);
+      // Total: 10 words * 3.5 + 10 overhead = 45 tokens
+      expect(estimate.prompt).toBe(45);
+      // Short response (maxTokens=100) -> estimatedCompletion=25
+      expect(estimate.estimatedCompletion).toBe(25);
     });
 
     it('should handle empty content', () => {
@@ -162,31 +164,41 @@ describe('MockAdapter', () => {
 
       const estimate = adapter.estimateTokens(prompt);
 
-      // 1 word * 1.3 = 1.3 -> 2 (ceil)
-      expect(estimate.prompt).toBe(2);
-      expect(estimate.estimatedCompletion).toBe(100);
+      // 1 word * 3.5 + 10 overhead = 14 (ceil(3.5) + 10)
+      expect(estimate.prompt).toBe(14);
+      // Short response (maxTokens=100) -> estimatedCompletion=25
+      expect(estimate.estimatedCompletion).toBe(25);
     });
 
-    it('should use maxTokens from responseConstraints as estimatedCompletion', () => {
+    it('should estimate completion based on maxTokens tier', () => {
       const adapter = new MockAdapter();
-      const prompt: PromptPackage = {
+
+      // Short response (maxTokens <= 100)
+      const shortPrompt: PromptPackage = {
         systemPrompt: 'Test',
-        contextLayers: {
-          factsList: [],
-          slidingWindow: [],
-        },
+        contextLayers: { factsList: [], slidingWindow: [] },
         trigger: 'test',
-        responseConstraints: {
-          maxTokens: 200,
-          format: 'free',
-          language: 'en',
-        },
+        responseConstraints: { maxTokens: 50, format: 'free', language: 'ru' },
       };
+      expect(adapter.estimateTokens(shortPrompt).estimatedCompletion).toBe(25);
 
-      const estimate = adapter.estimateTokens(prompt);
+      // Medium response (100 < maxTokens <= 200)
+      const mediumPrompt: PromptPackage = {
+        systemPrompt: 'Test',
+        contextLayers: { factsList: [], slidingWindow: [] },
+        trigger: 'test',
+        responseConstraints: { maxTokens: 150, format: 'free', language: 'ru' },
+      };
+      expect(adapter.estimateTokens(mediumPrompt).estimatedCompletion).toBe(55);
 
-      // estimatedCompletion should match maxTokens from constraints
-      expect(estimate.estimatedCompletion).toBe(200);
+      // Long response (maxTokens > 200)
+      const longPrompt: PromptPackage = {
+        systemPrompt: 'Test',
+        contextLayers: { factsList: [], slidingWindow: [] },
+        trigger: 'test',
+        responseConstraints: { maxTokens: 300, format: 'free', language: 'ru' },
+      };
+      expect(adapter.estimateTokens(longPrompt).estimatedCompletion).toBe(110);
     });
   });
 

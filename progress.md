@@ -1835,3 +1835,32 @@ Added a template information panel to the Debug UI that displays template name, 
 3. Если tokenBudget не передан - используется значение из .env ✓
 4. UI форма создания шоу имеет поле для указания бюджета токенов ✓
 5. Шоу с 5 персонажами и 3 фазами (45 ходов) не должно превышать бюджет ✓ (500k достаточно)
+
+## [2026-04-07] TASK-084: Проверить и исправить расчёт токенов в MockAdapter
+**Статус:** done
+**Время:** ~20 минут
+**Изменения:**
+- src/adapters/mock-adapter.ts:
+  - Изменён коэффициент токенизации с 1.3 на 3.5 токенов/слово для русского текста
+  - Добавлен overhead +10 токенов на сообщение (аналогично OpenAI adapter)
+  - estimatedCompletion теперь рассчитывается по тирам на основе maxTokens:
+    - maxTokens <= 100: 25 токенов (короткий ответ)
+    - maxTokens <= 200: 55 токенов (средний ответ)
+    - maxTokens > 200: 110 токенов (длинный ответ)
+  - Добавлено debug-логирование: words, promptTokens, estimatedCompletion, maxTokens
+- tests/unit/mock-adapter.test.ts:
+  - Обновлены тесты для новых значений токенизации
+  - Добавлен тест для проверки estimatedCompletion по тирам
+
+**Тесты:**
+- npm run typecheck — passes
+- npm run lint — passes (только pre-existing warnings)
+- npm test — 358 tests pass
+
+**Acceptance Criteria:**
+1. MockAdapter.estimateTokens() возвращает реалистичные значения ✓ (3.5 токенов/слово для русского)
+2. Mock ответы не потребляют слишком много токенов ✓ (estimatedCompletion 25-110 вместо 200)
+3. Логировать estimated vs actual токены для отладки ✓ (logger.debug в estimateTokens)
+4. Mock шоу корректно отслеживает бюджет ✓ (реалистичные оценки, completion не завышен)
+
+**Заметки:** Старый коэффициент 1.3 токена/слово был для английского текста. Русский текст использует ~3.5 токенов/слово в GPT tokenizers из-за кодировки кириллицы. Оценка completion снижена с maxTokens (200) до реалистичных 25-110 токенов на основе фактической длины mock-ответов.

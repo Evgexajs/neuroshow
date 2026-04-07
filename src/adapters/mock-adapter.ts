@@ -8,6 +8,7 @@
 
 import { ModelAdapter, PromptPackage, CharacterResponse, TokenEstimate } from '../types/adapter.js';
 import { CharacterIntent } from '../types/enums.js';
+import { logger } from '../utils/logger.js';
 
 /**
  * Simple hash function for seed-based determinism
@@ -135,12 +136,13 @@ export class MockAdapter implements ModelAdapter {
   /**
    * Estimate token count for the prompt
    *
-   * Uses simple word count * 1.3 approximation
-   * (average English word is about 1.3 tokens)
+   * Uses word count * 3.5 approximation for Russian text
+   * (Cyrillic characters use ~3-4 tokens per word in GPT tokenizers)
    * Returns both prompt and estimated completion tokens.
    */
   estimateTokens(prompt: PromptPackage): TokenEstimate {
-    const { systemPrompt, contextLayers, trigger } = prompt;
+    const { systemPrompt, contextLayers, trigger, responseConstraints } = prompt;
+    const maxTokens = responseConstraints.maxTokens ?? 200;
 
     // Combine all text
     const allText = [
@@ -153,11 +155,28 @@ export class MockAdapter implements ModelAdapter {
     // Count words (split by whitespace)
     const wordCount = allText.split(/\s+/).filter(w => w.length > 0).length;
 
-    // Approximate: 1 word ≈ 1.3 tokens
-    const promptTokens = Math.ceil(wordCount * 1.3);
+    // Approximate: 1 Russian word ≈ 3.5 tokens (Cyrillic encoding)
+    // Add ~10 tokens for message overhead (similar to OpenAI adapter)
+    const promptTokens = Math.ceil(wordCount * 3.5) + 10;
 
-    // Estimated completion based on responseConstraints or default
-    const estimatedCompletion = prompt.responseConstraints.maxTokens ?? 256;
+    // Estimated completion based on actual mock response length
+    // Mock responses are: short (9-20 tokens), medium (40-60 tokens), long (90-130 tokens)
+    // Select based on maxTokens (same logic as buildResponse)
+    let estimatedCompletion: number;
+    if (maxTokens <= 100) {
+      // Short response: opener or opener + middle
+      estimatedCompletion = 25; // ~15-35 tokens
+    } else if (maxTokens <= 200) {
+      // Medium response: opener + middle + closer
+      estimatedCompletion = 55; // ~40-70 tokens
+    } else {
+      // Long response: all parts + extensions
+      estimatedCompletion = 110; // ~90-130 tokens
+    }
+
+    logger.debug(
+      `MockAdapter.estimateTokens: words=${wordCount}, promptTokens=${promptTokens}, estimatedCompletion=${estimatedCompletion} (maxTokens=${maxTokens})`
+    );
 
     return {
       prompt: promptTokens,

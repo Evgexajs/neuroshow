@@ -2068,7 +2068,7 @@
         "Ожидаемый результат: mock не переоценивает токены"
       ],
       "dependencies": [],
-      "status": "pending"
+      "status": "done"
     },
     {
       "id": "TASK-085",
