@@ -2149,3 +2149,26 @@ Added a template information panel to the Debug UI that displays template name, 
 3. Определить победителя (максимум голосов) ✓
 4. При ничьей — использовать tiebreaker (первый получивший голос) ✓
 5. Формат: 'Результаты: X - N голосов. Победитель: Y (по правилу Z)' ✓
+
+---
+
+## 2026-04-07: TASK-095 — Добавить пролог/вступление
+
+**Описание:** Персонажи не знали контекст игры — шоу начиналось без объяснения правил, приза, целей голосования.
+
+**Изменения:**
+- Добавлено поле `prologue?: string` в `ShowFormatTemplate` (src/types/template.ts)
+- Добавлена валидация prologue в `showFormatTemplateSchema` (src/validation/schemas.ts)
+- В `Orchestrator.runShow()` создаётся system событие с прологом перед первой фазой (src/core/orchestrator.ts)
+- В `ContextBuilder.buildFactsList()` пролог добавляется как `[Game Rules]` в начало facts (src/core/context-builder.ts)
+
+**Acceptance Criteria:**
+1. В ShowFormatTemplate добавить поле prologue/intro с описанием игры ✓
+2. Перед первой фазой создавать system событие с прологом ✓
+3. Пролог включает: название игры, правила, приз, почему нужно голосовать ✓ (конфигурируется пользователем)
+4. Пролог добавляется в context каждого персонажа как FACTS ✓
+5. Персонажи понимают что это соревнование и за что борются ✓
+
+**Тесты:**
+- npm run typecheck — passes
+- npm run lint — passes (0 errors)

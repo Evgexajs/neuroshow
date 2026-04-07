@@ -53,4 +53,6 @@ export interface ShowFormatTemplate {
   allowCharacterInitiative?: boolean;
   scoringRules?: ScoringRule[];
   winCondition?: string;
+  /** Prologue/intro text explaining the game, prize, and rules to characters */
+  prologue?: string;
 }

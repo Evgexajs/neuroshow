@@ -31,6 +31,7 @@ export class ContextBuilder {
    * Build facts list from character's private context
    *
    * Includes:
+   * - prologue: game intro/rules if defined in template
    * - secrets: character's hidden information
    * - goals: character's objectives
    * - active alliances: current partnerships
@@ -48,6 +49,16 @@ export class ContextBuilder {
     nameMap?: Map<string, string>
   ): Promise<string[]> {
     const facts: string[] = [];
+
+    // Get show record for prologue
+    const showRecord = await this.store.getShow(showId);
+    if (showRecord) {
+      const configSnapshot = JSON.parse(showRecord.configSnapshot) as Record<string, unknown>;
+      const prologue = configSnapshot.prologue as string | undefined;
+      if (prologue) {
+        facts.push(`[Game Rules] ${prologue}`);
+      }
+    }
 
     // Get character's private context from store
     const character = await this.store.getCharacter(showId, characterId);

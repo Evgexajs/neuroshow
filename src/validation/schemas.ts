@@ -171,6 +171,7 @@ export const showFormatTemplateSchema = z.object({
   allowCharacterInitiative: z.boolean().optional(),
   scoringRules: z.array(scoringRuleSchema).optional(),
   winCondition: sanitizedString(1000).optional(),
+  prologue: sanitizedString(5000).optional(),
 }).refine((data) => data.minParticipants <= data.maxParticipants, {
   message: 'minParticipants must be less than or equal to maxParticipants',
   path: ['minParticipants'],

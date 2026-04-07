@@ -934,6 +934,30 @@ export class Orchestrator {
       throw new Error(`No phases found in show ${showId} configSnapshot`);
     }
 
+    // Create prologue system event before first phase if prologue is defined
+    const prologue = configSnapshot.prologue as string | undefined;
+    if (prologue) {
+      const characters = await this.store.getCharacters(showId);
+      const allCharacterIds = characters.map((c) => c.characterId);
+      const prologueEvent: Omit<ShowEvent, 'sequenceNumber'> = {
+        id: generateId(),
+        showId,
+        timestamp: Date.now(),
+        phaseId: phases[0]!.id,
+        type: EventType.system,
+        channel: ChannelType.PUBLIC,
+        visibility: ChannelType.PUBLIC,
+        senderId: '',
+        receiverIds: allCharacterIds,
+        audienceIds: allCharacterIds,
+        content: prologue,
+        metadata: { isPrologue: true },
+        seed: showRecord.seed,
+      };
+      await this.journal.append(prologueEvent);
+      logger.info(`Prologue event created for show ${showId}`);
+    }
+
     // Run all phases sequentially
     for (const [i, phase] of phases.entries()) {
       this.currentPhaseIndex = i;
