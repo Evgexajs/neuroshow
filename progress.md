@@ -1266,3 +1266,31 @@ Wildcard: Максим имеет компромат на Виктора (фин
 7. ✅ Нет моков — все компоненты реальные
 
 **Тесты:** npm run typecheck, npm test — все пройдены (323 tests passed).
+
+## [2026-04-07] TASK-063: Интеграционные тесты: ContextBuilder + EventJournal + MockAdapter
+**Статус:** done
+**Время:** ~15 минут
+**Изменения:**
+- tests/integration/context-builder-flow.test.ts — создан файл интеграционных тестов:
+  - 9 тестов без моков EventJournal, все компоненты реальные
+  - Тест buildPromptPackage: использует реальные события из EventJournal
+  - Тест revealed wildcards: wildcard revelations появляются в factsList
+  - Тест trimToTokenBudget: обрезает реальный PromptPackage с MockAdapter.estimateTokens()
+  - Тест factsList never trimmed: проверка что factsList НИКОГДА не обрезается
+  - Тест no modification if within budget: пакет не меняется если бюджет достаточен
+  - Тест privacy filtering: события с channel='PRIVATE' корректно фильтруются
+  - Тест own private messages: собственные приватные сообщения видны в контексте
+  - Тест sliding window trimming: старые события обрезаются, новые остаются
+  - Тест contextWindowSize: размер окна берётся из show.configSnapshot
+  - Используется временная SQLite БД (temp file)
+
+**Acceptance Criteria:**
+1. ✅ tests/integration/context-builder-flow.test.ts создан
+2. ✅ Тест buildPromptPackage: использует реальные события из EventJournal
+3. ✅ Тест trimToTokenBudget: обрезает реальный PromptPackage с MockAdapter.estimateTokens()
+4. ✅ Тест приватности: события с channel='private' корректно фильтруются в контексте
+5. ✅ Тест sliding window: старые события обрезаются при превышении бюджета
+6. ✅ Проверка что factsList НИКОГДА не обрезается при trim
+7. ✅ Нет моков EventJournal — события реально пишутся и читаются из БД
+
+**Тесты:** npm run typecheck, npm test — все пройдены (332 tests passed).
