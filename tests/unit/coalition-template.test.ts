@@ -30,7 +30,7 @@ describe('Coalition Template', () => {
     });
 
     it('should have Phase 1: Знакомство (PUBLIC only)', () => {
-      const phase1 = template.phases[0];
+      const phase1 = template.phases[0]!;
       expect(phase1.id).toBe('phase-1-introduction');
       expect(phase1.name).toBe('Знакомство');
       expect(phase1.type).toBe('discussion');
@@ -40,7 +40,7 @@ describe('Coalition Template', () => {
     });
 
     it('should have Phase 2: Переговоры (PUBLIC + PRIVATE)', () => {
-      const phase2 = template.phases[1];
+      const phase2 = template.phases[1]!;
       expect(phase2.id).toBe('phase-2-negotiations');
       expect(phase2.name).toBe('Переговоры');
       expect(phase2.type).toBe('discussion');
@@ -50,7 +50,7 @@ describe('Coalition Template', () => {
     });
 
     it('should have Phase 3: Финальное решение (DECISION)', () => {
-      const phase3 = template.phases[2];
+      const phase3 = template.phases[2]!;
       expect(phase3.id).toBe('phase-3-decision');
       expect(phase3.name).toBe('Финальное решение');
       expect(phase3.type).toBe('decision');

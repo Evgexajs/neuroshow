@@ -55,18 +55,18 @@ describe('Orchestrator', () => {
     ],
     decisionConfig: {
       timing: 'simultaneous',
-      visibility: 'hidden_until_reveal',
+      visibility: 'secret_until_reveal',
       revealMoment: 'after_all',
       format: 'choice',
       options: ['accept', 'reject'],
     },
     channelTypes: [ChannelType.PUBLIC, ChannelType.PRIVATE],
     privateChannelRules: {
-      initiator: 'any',
+      initiator: 'character_free',
       maxPrivatesPerPhase: 3,
       maxPrivatesPerCharacterPerPhase: 2,
       requestQueueMode: 'fifo',
-      requestFormat: 'Requesting private talk with {{target}}',
+      requestFormat: 'public_ask',
     },
     contextWindowSize: 50,
     allowCharacterInitiative: true,
@@ -742,7 +742,7 @@ describe('Orchestrator', () => {
 
       const show = await hostModule.initializeShow(template, characters, 12345);
 
-      const originalConstraints = { maxTokens: 200, format: 'free', language: 'ru' };
+      const originalConstraints = { maxTokens: 200, format: 'free' as const, language: 'ru' };
       const adjusted = await orchestrator.getAdjustedConstraints(show.id, originalConstraints);
 
       expect(adjusted.maxTokens).toBe(200);
@@ -760,7 +760,7 @@ describe('Orchestrator', () => {
       const tokensToUse = Math.floor(budget!.totalLimit * 0.8);
       await store.updateBudget(show.id, tokensToUse, 0);
 
-      const originalConstraints = { maxTokens: 200, format: 'free', language: 'ru' };
+      const originalConstraints = { maxTokens: 200, format: 'free' as const, language: 'ru' };
       const adjusted = await orchestrator.getAdjustedConstraints(show.id, originalConstraints);
 
       expect(adjusted.maxTokens).toBe(100); // 50% of 200

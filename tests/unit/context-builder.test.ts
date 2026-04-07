@@ -382,9 +382,9 @@ describe('ContextBuilder', () => {
 
       const window = await builder.buildSlidingWindow('char-1', 'show-1', 10);
 
-      expect(window[0].content).toBe('First');
-      expect(window[1].content).toBe('Second');
-      expect(window[2].content).toBe('Third');
+      expect(window[0]!.content).toBe('First');
+      expect(window[1]!.content).toBe('Second');
+      expect(window[2]!.content).toBe('Third');
     });
 
     it('should return empty array if no visible events', async () => {
@@ -755,9 +755,9 @@ describe('ContextBuilder', () => {
       expect(result.contextLayers.slidingWindow.length).toBe(3);
 
       // Should keep newest events (index 2, 3, 4 from original)
-      expect(result.contextLayers.slidingWindow[0].content).toBe('Message 3: This is a test message with some content.');
-      expect(result.contextLayers.slidingWindow[1].content).toBe('Message 4: This is a test message with some content.');
-      expect(result.contextLayers.slidingWindow[2].content).toBe('Message 5: This is a test message with some content.');
+      expect(result.contextLayers.slidingWindow[0]!.content).toBe('Message 3: This is a test message with some content.');
+      expect(result.contextLayers.slidingWindow[1]!.content).toBe('Message 4: This is a test message with some content.');
+      expect(result.contextLayers.slidingWindow[2]!.content).toBe('Message 5: This is a test message with some content.');
     });
 
     it('should handle empty slidingWindow', () => {

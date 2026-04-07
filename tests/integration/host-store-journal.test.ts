@@ -18,7 +18,7 @@ import { EventJournal } from '../../src/core/event-journal.js';
 import { SqliteStore } from '../../src/storage/sqlite-store.js';
 import { ShowFormatTemplate, Phase } from '../../src/types/template.js';
 import { CharacterDefinition } from '../../src/types/character.js';
-import { EventType, ShowStatus, ChannelType } from '../../src/types/enums.js';
+import { EventType, ShowStatus, ChannelType, PhaseType, SpeakFrequency } from '../../src/types/enums.js';
 import * as fs from 'fs';
 
 describe('Integration: HostModule + SqliteStore + EventJournal', () => {
@@ -32,26 +32,31 @@ describe('Integration: HostModule + SqliteStore + EventJournal', () => {
     id: 'test-format',
     name: 'Test Format',
     description: 'Test format for integration tests',
-    version: '1.0.0',
-    minParticipants: 2,
+        minParticipants: 2,
     maxParticipants: 4,
     contextWindowSize: 8000,
     phases: [
       {
         id: 'phase-1',
         name: 'Phase One',
-        type: 'discussion',
+        type: PhaseType.discussion,
+        durationMode: 'turns',
+        durationValue: 2,
         turnOrder: 'sequential',
+        allowedChannels: [ChannelType.PUBLIC],
         triggerTemplate: 'Welcome to {{names}}!',
-        maxTurns: 2,
+        completionCondition: 'turns_completed',
       },
       {
         id: 'phase-2',
         name: 'Phase Two',
-        type: 'discussion',
+        type: PhaseType.discussion,
+        durationMode: 'turns',
+        durationValue: 1,
         turnOrder: 'frequency_weighted',
+        allowedChannels: [ChannelType.PUBLIC],
         triggerTemplate: 'Time for discussion!',
-        maxTurns: 1,
+        completionCondition: 'turns_completed',
       },
     ],
     decisionConfig: {
@@ -62,11 +67,13 @@ describe('Integration: HostModule + SqliteStore + EventJournal', () => {
       options: ['Option A', 'Option B'],
     },
     privateChannelRules: {
+      initiator: 'host_only',
       maxPrivatesPerPhase: 2,
       maxPrivatesPerCharacterPerPhase: 1,
-      minDurationTurns: 1,
-      maxDurationTurns: 3,
+      requestQueueMode: 'fifo',
+      requestFormat: 'public_ask',
     },
+    channelTypes: [ChannelType.PUBLIC, ChannelType.PRIVATE],
   });
 
   // Test characters
@@ -77,13 +84,14 @@ describe('Integration: HostModule + SqliteStore + EventJournal', () => {
       publicCard: 'Alice is a friendly character.',
       personalityPrompt: 'You are Alice, friendly and helpful.',
       motivationPrompt: 'You want to make friends.',
-      boundaryRules: 'Be polite.',
-      speakFrequency: 'high',
-      responseConstraints: { maxWords: 100 },
+      boundaryRules: ['Be polite.'],
+      speakFrequency: SpeakFrequency.high,
+      responseConstraints: { maxTokens: 100, format: 'free', language: 'en' },
       startingPrivateContext: {
+        secrets: [],
         alliances: [],
+        goals: [],
         wildcards: [],
-        hiddenObjectives: [],
       },
       modelAdapterId: 'mock',
     },
@@ -93,13 +101,14 @@ describe('Integration: HostModule + SqliteStore + EventJournal', () => {
       publicCard: 'Bob is a thoughtful character.',
       personalityPrompt: 'You are Bob, thoughtful and analytical.',
       motivationPrompt: 'You seek truth.',
-      boundaryRules: 'Be honest.',
-      speakFrequency: 'medium',
-      responseConstraints: { maxWords: 100 },
+      boundaryRules: ['Be honest.'],
+      speakFrequency: SpeakFrequency.medium,
+      responseConstraints: { maxTokens: 100, format: 'free', language: 'en' },
       startingPrivateContext: {
+        secrets: [],
         alliances: [],
+        goals: [],
         wildcards: [],
-        hiddenObjectives: [],
       },
       modelAdapterId: 'mock',
     },
@@ -109,13 +118,14 @@ describe('Integration: HostModule + SqliteStore + EventJournal', () => {
       publicCard: 'Carol is a quiet observer.',
       personalityPrompt: 'You are Carol, observant and cautious.',
       motivationPrompt: 'You prefer to watch.',
-      boundaryRules: 'Stay calm.',
-      speakFrequency: 'low',
-      responseConstraints: { maxWords: 100 },
+      boundaryRules: ['Stay calm.'],
+      speakFrequency: SpeakFrequency.low,
+      responseConstraints: { maxTokens: 100, format: 'free', language: 'en' },
       startingPrivateContext: {
+        secrets: [],
         alliances: [],
+        goals: [],
         wildcards: [],
-        hiddenObjectives: [],
       },
       modelAdapterId: 'mock',
     },
@@ -359,10 +369,13 @@ describe('Integration: HostModule + SqliteStore + EventJournal', () => {
       const phase: Phase = {
         id: 'phase-1',
         name: 'Test Phase',
-        type: 'discussion',
+        type: PhaseType.discussion,
+        durationMode: 'turns',
+        durationValue: 3,
         turnOrder: 'sequential',
+        allowedChannels: [ChannelType.PUBLIC],
         triggerTemplate: 'Test',
-        maxTurns: 3,
+        completionCondition: 'turns_completed',
       };
 
       const turnQueue = await hostModule.manageTurnQueue(show.id, phase);
@@ -383,10 +396,13 @@ describe('Integration: HostModule + SqliteStore + EventJournal', () => {
       const phase: Phase = {
         id: 'phase-2',
         name: 'Weighted Phase',
-        type: 'discussion',
+        type: PhaseType.discussion,
+        durationMode: 'turns',
+        durationValue: 3,
         turnOrder: 'frequency_weighted',
+        allowedChannels: [ChannelType.PUBLIC],
         triggerTemplate: 'Test',
-        maxTurns: 3,
+        completionCondition: 'turns_completed',
       };
 
       const turnQueue = await hostModule.manageTurnQueue(show.id, phase);
@@ -410,10 +426,13 @@ describe('Integration: HostModule + SqliteStore + EventJournal', () => {
       const phase: Phase = {
         id: 'phase-1',
         name: 'Test Phase',
-        type: 'discussion',
+        type: PhaseType.discussion,
+        durationMode: 'turns',
+        durationValue: 3,
         turnOrder: 'sequential',
+        allowedChannels: [ChannelType.PUBLIC],
         triggerTemplate: 'Test',
-        maxTurns: 3,
+        completionCondition: 'turns_completed',
       };
 
       const turnQueue = await hostModule.manageTurnQueue(show.id, phase);

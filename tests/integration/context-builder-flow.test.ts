@@ -63,10 +63,10 @@ describe('Integration: ContextBuilder + EventJournal + MockAdapter', () => {
   const createTestShow = (showId: string): Show => ({
     id: showId,
     formatId: 'test-format',
-    seed: '42',
+    seed: 42,
     status: ShowStatus.running,
     currentPhaseId: 'phase-1',
-    startedAt: Date.now(),
+    startedAt: new Date(),
     completedAt: null,
     configSnapshot: {
       contextWindowSize: 10,
@@ -685,10 +685,10 @@ describe('Integration: ContextBuilder + EventJournal + MockAdapter', () => {
       const show: Show = {
         id: showId,
         formatId: 'test-format',
-        seed: '42',
+        seed: 42,
         status: ShowStatus.running,
         currentPhaseId: 'phase-1',
-        startedAt: Date.now(),
+        startedAt: new Date(),
         completedAt: null,
         configSnapshot: {
           contextWindowSize: 3, // Only 3 events

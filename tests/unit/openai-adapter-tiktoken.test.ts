@@ -7,6 +7,8 @@ import { describe, it, expect, vi } from 'vitest';
 import { OpenAIAdapter } from '../../src/adapters/openai-adapter.js';
 import { PromptPackage } from '../../src/types/adapter.js';
 import { IStore } from '../../src/types/interfaces/store.interface.js';
+import { ChannelType } from '../../src/types/enums.js';
+import type { EventSummary } from '../../src/types/events.js';
 
 /**
  * Create a mock store for testing
@@ -20,7 +22,7 @@ function createMockStore(): IStore {
     createCharacter: vi.fn(),
     getCharacters: vi.fn(),
     getCharacter: vi.fn(),
-    updateCharacter: vi.fn(),
+    updateShowCharacterContext: vi.fn(),
     appendEvent: vi.fn(),
     getEvents: vi.fn(),
     getEventsForCharacter: vi.fn(),
@@ -32,6 +34,9 @@ function createMockStore(): IStore {
     createBudget: vi.fn(),
     getBudget: vi.fn(),
     updateBudget: vi.fn(),
+    setBudgetMode: vi.fn(),
+    initSchema: vi.fn(),
+    close: vi.fn(),
   };
 }
 
@@ -41,7 +46,7 @@ function createMockStore(): IStore {
 function createTestPrompt(options?: {
   systemPrompt?: string;
   factsList?: string[];
-  slidingWindow?: Array<{ senderId: string; channel: string; content: string; timestamp: string }>;
+  slidingWindow?: EventSummary[];
   trigger?: string;
   maxTokens?: number;
 }): PromptPackage {
@@ -105,7 +110,7 @@ describe('OpenAIAdapter tiktoken', () => {
         systemPrompt: 'Test',
         contextLayers: { factsList: [], slidingWindow: [] },
         trigger: 'Test',
-        responseConstraints: { format: 'free', language: 'en' },
+        responseConstraints: { maxTokens: 256, format: 'free', language: 'en' },
       };
 
       const estimate = adapter.estimateTokens(prompt);
@@ -153,8 +158,8 @@ describe('OpenAIAdapter tiktoken', () => {
       const withContext = createTestPrompt({
         factsList: ['Important fact one', 'Important fact two', 'Important fact three'],
         slidingWindow: [
-          { senderId: 'char1', channel: 'PUBLIC', content: 'Hello everyone!', timestamp: new Date().toISOString() },
-          { senderId: 'char2', channel: 'PUBLIC', content: 'Nice to meet you!', timestamp: new Date().toISOString() },
+          { senderId: 'char1', channel: ChannelType.PUBLIC, content: 'Hello everyone!', timestamp: Date.now() },
+          { senderId: 'char2', channel: ChannelType.PUBLIC, content: 'Nice to meet you!', timestamp: Date.now() },
         ],
       });
 
@@ -228,7 +233,7 @@ describe('OpenAIAdapter tiktoken', () => {
         systemPrompt: '',
         contextLayers: { factsList: [], slidingWindow: [] },
         trigger: '',
-        responseConstraints: { format: 'free', language: 'en' },
+        responseConstraints: { maxTokens: 256, format: 'free', language: 'en' },
       };
 
       const estimate = adapter.estimateTokens(prompt);

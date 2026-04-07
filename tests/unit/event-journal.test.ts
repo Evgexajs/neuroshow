@@ -162,9 +162,9 @@ describe('EventJournal', () => {
       const events = await journal.getEvents(showId);
 
       expect(events.length).toBe(3);
-      expect(events[0].sequenceNumber).toBe(1);
-      expect(events[1].sequenceNumber).toBe(2);
-      expect(events[2].sequenceNumber).toBe(3);
+      expect(events[0]!.sequenceNumber).toBe(1);
+      expect(events[1]!.sequenceNumber).toBe(2);
+      expect(events[2]!.sequenceNumber).toBe(3);
     });
 
     it('should support cursor option for pagination', async () => {
@@ -176,8 +176,8 @@ describe('EventJournal', () => {
       const events = await journal.getEvents(showId, { cursor: 2 });
 
       expect(events.length).toBe(2);
-      expect(events[0].sequenceNumber).toBe(2);
-      expect(events[1].sequenceNumber).toBe(3);
+      expect(events[0]!.sequenceNumber).toBe(2);
+      expect(events[1]!.sequenceNumber).toBe(3);
     });
 
     it('should support limit option', async () => {
@@ -303,12 +303,12 @@ describe('EventJournal', () => {
 
       const events = await journal.getVisibleEvents(showId, 'charA');
 
-      expect(events[0].sequenceNumber).toBe(1);
-      expect(events[1].sequenceNumber).toBe(2);
-      expect(events[2].sequenceNumber).toBe(3);
-      expect(events[0].content).toBe('Event 1');
-      expect(events[1].content).toBe('Event 2');
-      expect(events[2].content).toBe('Event 3');
+      expect(events[0]!.sequenceNumber).toBe(1);
+      expect(events[1]!.sequenceNumber).toBe(2);
+      expect(events[2]!.sequenceNumber).toBe(3);
+      expect(events[0]!.content).toBe('Event 1');
+      expect(events[1]!.content).toBe('Event 2');
+      expect(events[2]!.content).toBe('Event 3');
     });
 
     it('should support limit for sliding window', async () => {
@@ -326,9 +326,9 @@ describe('EventJournal', () => {
 
       expect(events.length).toBe(3);
       // Should return the last 3 events (most recent)
-      expect(events[0].sequenceNumber).toBe(3);
-      expect(events[1].sequenceNumber).toBe(4);
-      expect(events[2].sequenceNumber).toBe(5);
+      expect(events[0]!.sequenceNumber).toBe(3);
+      expect(events[1]!.sequenceNumber).toBe(4);
+      expect(events[2]!.sequenceNumber).toBe(5);
     });
 
     it('should return all events if limit is undefined', async () => {
@@ -373,7 +373,7 @@ describe('EventJournal', () => {
       expect(deletedCount).toBe(2);
       const events = await journal.getEvents(showId);
       expect(events.length).toBe(3);
-      expect(events[2].sequenceNumber).toBe(3);
+      expect(events[2]!.sequenceNumber).toBe(3);
     });
 
     it('should return 0 if sequence is >= latest', async () => {

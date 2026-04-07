@@ -49,18 +49,18 @@ describe('HostModule', () => {
     ],
     decisionConfig: {
       timing: 'simultaneous',
-      visibility: 'hidden_until_reveal',
+      visibility: 'secret_until_reveal',
       revealMoment: 'after_all',
       format: 'choice',
       options: ['accept', 'reject'],
     },
     channelTypes: [ChannelType.PUBLIC, ChannelType.PRIVATE],
     privateChannelRules: {
-      initiator: 'any',
+      initiator: 'character_free',
       maxPrivatesPerPhase: 3,
       maxPrivatesPerCharacterPerPhase: 2,
       requestQueueMode: 'fifo',
-      requestFormat: 'Requesting private talk with {{target}}',
+      requestFormat: 'public_ask',
     },
     contextWindowSize: 50,
     allowCharacterInitiative: true,
@@ -241,7 +241,7 @@ describe('HostModule', () => {
 
       const show = await hostModule.initializeShow(template, characters);
 
-      expect(show.currentPhaseId).toBe(template.phases[0].id);
+      expect(show.currentPhaseId).toBe(template.phases[0]!.id);
     });
 
     it('handles template with no phases', async () => {
@@ -1076,14 +1076,14 @@ describe('HostModule', () => {
 
       // Second character sees first character's decision
       expect(receivedPreviousDecisions[1]).toHaveLength(1);
-      expect(receivedPreviousDecisions[1][0].characterId).toBe('char-1');
-      expect(receivedPreviousDecisions[1][0].decision).toBe('yes');
+      expect(receivedPreviousDecisions[1]![0]!.characterId).toBe('char-1');
+      expect(receivedPreviousDecisions[1]![0]!.decision).toBe('yes');
 
       // Third character sees first two decisions
       expect(receivedPreviousDecisions[2]).toHaveLength(2);
-      expect(receivedPreviousDecisions[2][0].characterId).toBe('char-1');
-      expect(receivedPreviousDecisions[2][1].characterId).toBe('char-2');
-      expect(receivedPreviousDecisions[2][1].decision).toBe('no');
+      expect(receivedPreviousDecisions[2]![0]!.characterId).toBe('char-1');
+      expect(receivedPreviousDecisions[2]![1]!.characterId).toBe('char-2');
+      expect(receivedPreviousDecisions[2]![1]!.decision).toBe('no');
     });
 
     it('stores decision metadata correctly', async () => {

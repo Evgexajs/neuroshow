@@ -730,12 +730,12 @@ describe('API Server', () => {
       expect(dataLines.length).toBe(2);
 
       // Parse first event
-      const event1 = JSON.parse(dataLines[0].replace('data: ', ''));
+      const event1 = JSON.parse(dataLines[0]!.replace('data: ', ''));
       expect(event1.content).toBe('Hello!');
       expect(event1.sequenceNumber).toBe(1);
 
       // Parse second event
-      const event2 = JSON.parse(dataLines[1].replace('data: ', ''));
+      const event2 = JSON.parse(dataLines[1]!.replace('data: ', ''));
       expect(event2.content).toBe('Hi there!');
       expect(event2.sequenceNumber).toBe(2);
     });
@@ -794,11 +794,11 @@ describe('API Server', () => {
       // Should only have events 2 and 3 (after sequence 1)
       expect(dataLines.length).toBe(2);
 
-      const event1 = JSON.parse(dataLines[0].replace('data: ', ''));
+      const event1 = JSON.parse(dataLines[0]!.replace('data: ', ''));
       expect(event1.content).toBe('Message 2');
       expect(event1.sequenceNumber).toBe(2);
 
-      const event2 = JSON.parse(dataLines[1].replace('data: ', ''));
+      const event2 = JSON.parse(dataLines[1]!.replace('data: ', ''));
       expect(event2.content).toBe('Message 3');
       expect(event2.sequenceNumber).toBe(3);
     });

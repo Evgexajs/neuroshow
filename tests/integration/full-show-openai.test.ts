@@ -355,7 +355,7 @@ describe('OpenAI Adapter Unit Tests (require API key)', () => {
         trigger: 'Say hello briefly.',
         responseConstraints: {
           maxTokens: 100,
-          format: 'json',
+          format: 'structured',
           language: 'ru',
         },
       });

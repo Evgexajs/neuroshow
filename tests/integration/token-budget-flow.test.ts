@@ -23,7 +23,7 @@ import { Orchestrator } from '../../src/core/orchestrator.js';
 import { MockAdapter } from '../../src/adapters/mock-adapter.js';
 import { ShowFormatTemplate } from '../../src/types/template.js';
 import { CharacterDefinition } from '../../src/types/character.js';
-import { BudgetMode, EventType } from '../../src/types/enums.js';
+import { BudgetMode, EventType, PhaseType, SpeakFrequency, ChannelType } from '../../src/types/enums.js';
 import * as fs from 'fs';
 
 describe('Integration: Token Budget Flow', () => {
@@ -40,18 +40,20 @@ describe('Integration: Token Budget Flow', () => {
     id: 'test-format',
     name: 'Test Format',
     description: 'Test format for token budget tests',
-    version: '1.0.0',
-    minParticipants: 2,
+        minParticipants: 2,
     maxParticipants: 4,
     contextWindowSize: 8000,
     phases: [
       {
         id: 'phase-1',
         name: 'Phase One',
-        type: 'discussion',
+        type: PhaseType.discussion,
+        durationMode: 'turns',
+        durationValue: 2,
         turnOrder: 'sequential',
+        allowedChannels: [ChannelType.PUBLIC],
         triggerTemplate: 'Welcome!',
-        maxTurns: 2,
+        completionCondition: 'turns_completed',
       },
     ],
     decisionConfig: {
@@ -62,11 +64,13 @@ describe('Integration: Token Budget Flow', () => {
       options: ['Option A', 'Option B'],
     },
     privateChannelRules: {
+      initiator: 'host_only',
       maxPrivatesPerPhase: 2,
       maxPrivatesPerCharacterPerPhase: 1,
-      minDurationTurns: 1,
-      maxDurationTurns: 3,
+      requestQueueMode: 'fifo',
+      requestFormat: 'public_ask',
     },
+    channelTypes: [ChannelType.PUBLIC],
   });
 
   // Test characters
@@ -77,13 +81,14 @@ describe('Integration: Token Budget Flow', () => {
       publicCard: 'Alice is a friendly character.',
       personalityPrompt: 'You are Alice.',
       motivationPrompt: 'Be friendly.',
-      boundaryRules: 'Be polite.',
-      speakFrequency: 'medium',
-      responseConstraints: { maxWords: 100 },
+      boundaryRules: ['Be polite.'],
+      speakFrequency: SpeakFrequency.medium,
+      responseConstraints: { maxTokens: 100, format: 'free', language: 'en' },
       startingPrivateContext: {
+        secrets: [],
         alliances: [],
+        goals: [],
         wildcards: [],
-        hiddenObjectives: [],
       },
       modelAdapterId: 'mock',
     },
@@ -93,13 +98,14 @@ describe('Integration: Token Budget Flow', () => {
       publicCard: 'Bob is thoughtful.',
       personalityPrompt: 'You are Bob.',
       motivationPrompt: 'Seek truth.',
-      boundaryRules: 'Be honest.',
-      speakFrequency: 'medium',
-      responseConstraints: { maxWords: 100 },
+      boundaryRules: ['Be honest.'],
+      speakFrequency: SpeakFrequency.medium,
+      responseConstraints: { maxTokens: 100, format: 'free', language: 'en' },
       startingPrivateContext: {
+        secrets: [],
         alliances: [],
+        goals: [],
         wildcards: [],
-        hiddenObjectives: [],
       },
       modelAdapterId: 'mock',
     },

@@ -5,7 +5,7 @@
 import { describe, it, expect } from 'vitest';
 import { MockAdapter } from '../../src/adapters/mock-adapter.js';
 import { PromptPackage } from '../../src/types/adapter.js';
-import { CharacterIntent } from '../../src/types/enums.js';
+import { CharacterIntent, ChannelType } from '../../src/types/enums.js';
 
 /**
  * Helper to create a test PromptPackage
@@ -16,7 +16,7 @@ function createTestPrompt(trigger: string): PromptPackage {
     contextLayers: {
       factsList: ['Fact 1', 'Fact 2'],
       slidingWindow: [
-        { senderId: 'char1', channel: 'PUBLIC', content: 'Hello', timestamp: new Date().toISOString() },
+        { senderId: 'char1', channel: ChannelType.PUBLIC, content: 'Hello', timestamp: Date.now() },
       ],
     },
     trigger,
@@ -167,7 +167,7 @@ describe('MockAdapter', () => {
       expect(estimate.estimatedCompletion).toBe(100);
     });
 
-    it('should use default estimatedCompletion when maxTokens not specified', () => {
+    it('should use maxTokens from responseConstraints as estimatedCompletion', () => {
       const adapter = new MockAdapter();
       const prompt: PromptPackage = {
         systemPrompt: 'Test',
@@ -177,6 +177,7 @@ describe('MockAdapter', () => {
         },
         trigger: 'test',
         responseConstraints: {
+          maxTokens: 200,
           format: 'free',
           language: 'en',
         },
@@ -184,8 +185,8 @@ describe('MockAdapter', () => {
 
       const estimate = adapter.estimateTokens(prompt);
 
-      // Default estimatedCompletion is 256
-      expect(estimate.estimatedCompletion).toBe(256);
+      // estimatedCompletion should match maxTokens from constraints
+      expect(estimate.estimatedCompletion).toBe(200);
     });
   });
 
@@ -212,8 +213,8 @@ describe('MockAdapter', () => {
 
       // All responses should match
       for (let i = 0; i < triggers.length; i++) {
-        expect(responses1[i].text).toBe(responses2[i].text);
-        expect(responses1[i].intent).toBe(responses2[i].intent);
+        expect(responses1[i]!.text).toBe(responses2[i]!.text);
+        expect(responses1[i]!.intent).toBe(responses2[i]!.intent);
       }
     });
   });

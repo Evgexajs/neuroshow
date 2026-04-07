@@ -111,6 +111,7 @@ describe('OpenAIAdapter retry logic', () => {
       });
 
       let callCount = 0;
+      // @ts-expect-error - mock returns Promise, not APIPromise
       vi.spyOn(adapter['client'].chat.completions, 'create').mockImplementation(async () => {
         callCount++;
         if (callCount === 1) {
@@ -136,6 +137,7 @@ describe('OpenAIAdapter retry logic', () => {
       });
 
       let callCount = 0;
+      // @ts-expect-error - mock returns Promise, not APIPromise
       vi.spyOn(adapter['client'].chat.completions, 'create').mockImplementation(async () => {
         callCount++;
         if (callCount === 1) {
@@ -160,6 +162,7 @@ describe('OpenAIAdapter retry logic', () => {
       });
 
       let callCount = 0;
+      // @ts-expect-error - mock returns Promise, not APIPromise
       vi.spyOn(adapter['client'].chat.completions, 'create').mockImplementation(async () => {
         callCount++;
         if (callCount === 1) {
@@ -184,6 +187,7 @@ describe('OpenAIAdapter retry logic', () => {
       });
 
       let callCount = 0;
+      // @ts-expect-error - mock returns Promise, not APIPromise
       vi.spyOn(adapter['client'].chat.completions, 'create').mockImplementation(async () => {
         callCount++;
         if (callCount === 1) {
@@ -210,6 +214,7 @@ describe('OpenAIAdapter retry logic', () => {
       });
 
       let callCount = 0;
+      // @ts-expect-error - mock returns Promise, not APIPromise
       vi.spyOn(adapter['client'].chat.completions, 'create').mockImplementation(async () => {
         callCount++;
         const error = new OpenAI.APIError(503, { message: 'Service Unavailable' }, 'Service Unavailable', {});
@@ -235,6 +240,7 @@ describe('OpenAIAdapter retry logic', () => {
       });
 
       let callCount = 0;
+      // @ts-expect-error - mock returns Promise, not APIPromise
       vi.spyOn(adapter['client'].chat.completions, 'create').mockImplementation(async () => {
         callCount++;
         if (callCount === 1) {
@@ -272,6 +278,7 @@ describe('OpenAIAdapter retry logic', () => {
       });
 
       let callCount = 0;
+      // @ts-expect-error - mock returns Promise, not APIPromise
       vi.spyOn(adapter['client'].chat.completions, 'create').mockImplementation(async () => {
         callCount++;
         return {
@@ -309,6 +316,7 @@ describe('OpenAIAdapter retry logic', () => {
         characterId: 'char1',
       });
 
+      // @ts-expect-error - mock returns Promise, not APIPromise
       vi.spyOn(adapter['client'].chat.completions, 'create').mockImplementation(async () => {
         const error = new OpenAI.APIError(503, { message: 'Service Unavailable' }, 'Service Unavailable', {});
         throw error;
@@ -328,6 +336,7 @@ describe('OpenAIAdapter retry logic', () => {
         characterId: 'char1',
       });
 
+      // @ts-expect-error - mock returns Promise, not APIPromise
       vi.spyOn(adapter['client'].chat.completions, 'create').mockImplementation(async () => {
         const error = new OpenAI.APIError(503, { message: 'Service Unavailable' }, 'Service Unavailable', {});
         throw error;
@@ -336,7 +345,7 @@ describe('OpenAIAdapter retry logic', () => {
       await adapter.call(createTestPrompt());
 
       expect(store.logs.length).toBe(1);
-      const loggedResponse = JSON.parse(store.logs[0].rawResponse);
+      const loggedResponse = JSON.parse(store.logs[0]!.rawResponse);
       expect(loggedResponse.metadata).toBeDefined();
       expect(loggedResponse.metadata.fallback).toBe(true);
     });
@@ -352,6 +361,7 @@ describe('OpenAIAdapter retry logic', () => {
       });
 
       let callCount = 0;
+      // @ts-expect-error - mock returns Promise, not APIPromise
       vi.spyOn(adapter['client'].chat.completions, 'create').mockImplementation(async () => {
         callCount++;
         const error = new OpenAI.APIError(400, { message: 'Bad Request' }, 'Bad Request', {});
@@ -374,6 +384,7 @@ describe('OpenAIAdapter retry logic', () => {
       });
 
       let callCount = 0;
+      // @ts-expect-error - mock returns Promise, not APIPromise
       vi.spyOn(adapter['client'].chat.completions, 'create').mockImplementation(async () => {
         callCount++;
         const error = new OpenAI.APIError(401, { message: 'Unauthorized' }, 'Unauthorized', {});

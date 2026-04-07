@@ -1378,3 +1378,31 @@ Wildcard: Максим имеет компромат на Виктора (фин
 7. ✅ Проверка что promptTokens и completionTokens корректно суммируются
 
 **Тесты:** npm run lint (0 errors), npm run typecheck, npm test — все пройдены (364 tests passed).
+
+## 2026-04-07 — TASK-068: Include tests in typecheck and fix type errors
+
+### Summary
+Включены тесты в проверку типов (tsconfig.json) и исправлены все ошибки типизации.
+
+### Changes Made
+1. **tsconfig.json**: Removed 'tests' from exclude, added 'tests/**/*' to include
+2. **Integration tests** (host-store-journal, token-budget-flow, turn-cycle, context-builder-flow):
+   - Fixed Phase interface (durationMode, durationValue, allowedChannels, completionCondition)
+   - Fixed PrivateChannelRules (correct properties)
+   - Fixed CharacterDefinition (boundaryRules as array, SpeakFrequency enum, proper responseConstraints)
+   - Fixed PrivateContext (secrets, alliances, goals, wildcards)
+   - Added channelTypes to ShowFormatTemplate
+   - Fixed Show type (seed as number, startedAt as Date)
+3. **Unit tests** (orchestrator, server, sqlite-store, mock-adapter, openai-adapter-*):
+   - Used proper enum values instead of string literals
+   - Added non-null assertions for array access (noUncheckedIndexedAccess)
+   - Fixed ShowRecord (added replayAvailable)
+   - Fixed ShowEvent (added sequenceNumber)
+   - Fixed ResponseConstraints (format as literal type)
+   - Added missing IStore methods to mocks
+
+### Verification
+- `npm run typecheck` — passes
+- `npm run lint` — passes (warnings only)
+- `npm test` — 364 tests pass
+

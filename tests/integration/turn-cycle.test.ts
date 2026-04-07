@@ -21,7 +21,7 @@ import { MockAdapter } from '../../src/adapters/mock-adapter.js';
 import { ShowFormatTemplate } from '../../src/types/template.js';
 import { CharacterDefinition } from '../../src/types/character.js';
 import { Show } from '../../src/types/runtime.js';
-import { EventType, ChannelType, SpeakFrequency } from '../../src/types/enums.js';
+import { EventType, ChannelType, SpeakFrequency, PhaseType } from '../../src/types/enums.js';
 import { LlmCallRecord } from '../../src/types/interfaces/store.interface.js';
 import { generateId } from '../../src/utils/id.js';
 import * as fs from 'fs';
@@ -39,18 +39,20 @@ describe('Integration: Full Turn Cycle', () => {
     id: 'test-format',
     name: 'Test Format',
     description: 'Test format for turn cycle tests',
-    version: '1.0.0',
-    minParticipants: 2,
+        minParticipants: 2,
     maxParticipants: 4,
     contextWindowSize: 50,
     phases: [
       {
         id: 'phase-1',
         name: 'Discussion Phase',
-        type: 'discussion',
+        type: PhaseType.discussion,
+        durationMode: 'turns',
+        durationValue: 10,
         turnOrder: 'sequential',
+        allowedChannels: [ChannelType.PUBLIC, ChannelType.PRIVATE],
         triggerTemplate: 'Welcome to the discussion!',
-        maxTurns: 10,
+        completionCondition: 'turns_completed',
       },
     ],
     decisionConfig: {
@@ -61,11 +63,13 @@ describe('Integration: Full Turn Cycle', () => {
       options: ['Option A', 'Option B'],
     },
     privateChannelRules: {
+      initiator: 'host_only',
       maxPrivatesPerPhase: 3,
       maxPrivatesPerCharacterPerPhase: 2,
-      minDurationTurns: 1,
-      maxDurationTurns: 3,
+      requestQueueMode: 'fifo',
+      requestFormat: 'public_ask',
     },
+    channelTypes: [ChannelType.PUBLIC, ChannelType.PRIVATE],
   });
 
   // Test characters
