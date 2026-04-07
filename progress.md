@@ -1238,3 +1238,31 @@ Wildcard: Максим имеет компромат на Виктора (фин
 4. ✅ Формат пригоден для импорта в будущем (версионирование, полная структура)
 
 **Тесты:** npm run typecheck, npm test — все пройдены (310 tests passed).
+
+## [2026-04-07] TASK-062: Интеграционные тесты: HostModule + SqliteStore + EventJournal
+**Статус:** done
+**Время:** ~15 минут
+**Изменения:**
+- tests/integration/host-store-journal.test.ts — создан файл интеграционных тестов:
+  - 13 тестов без моков, все компоненты реальные
+  - Тест инициализации шоу: HostModule создаёт шоу через реальный SqliteStore
+  - Тест создания персонажей: show_characters записываются в БД
+  - Тест создания бюджета: token_budget создаётся при инициализации
+  - Тест записи событий: EventJournal пишет события, SqliteStore читает
+  - Тест sequence numbers: правильная нумерация для множества событий
+  - Тест manageTurnQueue: возвращает персонажей из SqliteStore
+  - Тест frequency_weighted: персонажи сортируются по speakFrequency
+  - Тест emitTrigger: host_trigger сохраняется в БД и читается
+  - Тест полного цикла: init -> characters -> events -> read
+  - Используется временная SQLite БД (temp file)
+
+**Acceptance Criteria:**
+1. ✅ tests/integration/host-store-journal.test.ts создан
+2. ✅ Тест инициализации шоу: HostModule создаёт шоу через реальный SqliteStore
+3. ✅ Тест записи событий: EventJournal пишет события которые читаются из SqliteStore
+4. ✅ Тест manageTurnQueue: возвращает персонажей созданных через SqliteStore
+5. ✅ Тест emitTrigger: событие host_trigger сохраняется в БД и читается через getEventsByShowId
+6. ✅ Тесты используют временную SQLite БД (temp file)
+7. ✅ Нет моков — все компоненты реальные
+
+**Тесты:** npm run typecheck, npm test — все пройдены (323 tests passed).
