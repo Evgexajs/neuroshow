@@ -6,7 +6,7 @@ import { ContextBuilder } from '../../src/core/context-builder.js';
 import { SqliteStore } from '../../src/storage/sqlite-store.js';
 import { ShowFormatTemplate, Phase } from '../../src/types/template.js';
 import { CharacterDefinition } from '../../src/types/character.js';
-import { PhaseType, ChannelType, SpeakFrequency, EventType, CharacterIntent } from '../../src/types/enums.js';
+import { PhaseType, ChannelType, SpeakFrequency, EventType, CharacterIntent, BudgetMode } from '../../src/types/enums.js';
 import { PrivateContext } from '../../src/types/context.js';
 import { ModelAdapter, PromptPackage, CharacterResponse, TokenEstimate } from '../../src/types/adapter.js';
 import * as fs from 'fs';
@@ -580,6 +580,231 @@ describe('Orchestrator', () => {
       // No additional events should be created
       const eventsAfter = await eventJournal.getEvents(show.id);
       expect(eventsAfter.length).toBe(countBefore);
+    });
+  });
+
+  describe('checkBudget', () => {
+    it('should return "normal" mode when usage is below 80%', async () => {
+      const template = createTestTemplate();
+      const characters = [createTestCharacter('char-1', 'Alice')];
+
+      const show = await hostModule.initializeShow(template, characters, 12345);
+
+      // Budget starts at 0, so it should be in normal mode
+      const mode = await orchestrator.checkBudget(show.id);
+      expect(mode).toBe(BudgetMode.normal);
+    });
+
+    it('should return "budget_saving" mode at 80% usage', async () => {
+      const template = createTestTemplate();
+      const characters = [createTestCharacter('char-1', 'Alice')];
+
+      const show = await hostModule.initializeShow(template, characters, 12345);
+
+      // Get current budget to know the total limit
+      const budget = await store.getBudget(show.id);
+      expect(budget).not.toBeNull();
+
+      // Update budget to 80% usage
+      const tokensToUse = Math.floor(budget!.totalLimit * 0.8);
+      await store.updateBudget(show.id, tokensToUse, 0);
+
+      const mode = await orchestrator.checkBudget(show.id);
+      expect(mode).toBe(BudgetMode.budget_saving);
+    });
+
+    it('should return "graceful_finish" mode at 100% usage', async () => {
+      const template = createTestTemplate();
+      const characters = [createTestCharacter('char-1', 'Alice')];
+
+      const show = await hostModule.initializeShow(template, characters, 12345);
+
+      const budget = await store.getBudget(show.id);
+      expect(budget).not.toBeNull();
+
+      // Update budget to 100% usage
+      await store.updateBudget(show.id, budget!.totalLimit, 0);
+
+      const mode = await orchestrator.checkBudget(show.id);
+      expect(mode).toBe(BudgetMode.graceful_finish);
+    });
+
+    it('should create "system" event when mode changes', async () => {
+      const template = createTestTemplate();
+      const characters = [createTestCharacter('char-1', 'Alice')];
+
+      const show = await hostModule.initializeShow(template, characters, 12345);
+
+      const budget = await store.getBudget(show.id);
+      expect(budget).not.toBeNull();
+
+      // Get events before budget change
+      const eventsBefore = await eventJournal.getEvents(show.id);
+      const countBefore = eventsBefore.length;
+
+      // Update budget to 80% to trigger mode change
+      const tokensToUse = Math.floor(budget!.totalLimit * 0.8);
+      await store.updateBudget(show.id, tokensToUse, 0);
+
+      // Check budget (triggers mode change)
+      await orchestrator.checkBudget(show.id);
+
+      // Verify system event was created
+      const eventsAfter = await eventJournal.getEvents(show.id);
+      expect(eventsAfter.length).toBe(countBefore + 1);
+
+      const systemEvent = eventsAfter.find((e) => e.type === EventType.system);
+      expect(systemEvent).toBeDefined();
+      expect(systemEvent!.metadata?.budgetModeChange).toBe(true);
+      expect(systemEvent!.metadata?.oldMode).toBe(BudgetMode.normal);
+      expect(systemEvent!.metadata?.newMode).toBe(BudgetMode.budget_saving);
+    });
+
+    it('should not create event if mode does not change', async () => {
+      const template = createTestTemplate();
+      const characters = [createTestCharacter('char-1', 'Alice')];
+
+      const show = await hostModule.initializeShow(template, characters, 12345);
+
+      // Check budget twice while in normal mode
+      await orchestrator.checkBudget(show.id);
+      const eventsAfterFirst = await eventJournal.getEvents(show.id);
+
+      await orchestrator.checkBudget(show.id);
+      const eventsAfterSecond = await eventJournal.getEvents(show.id);
+
+      // No new events should be created
+      expect(eventsAfterSecond.length).toBe(eventsAfterFirst.length);
+    });
+
+    it('should return "normal" mode if no budget exists', async () => {
+      // Call checkBudget with a non-existent show
+      const mode = await orchestrator.checkBudget('non-existent-show');
+      expect(mode).toBe(BudgetMode.normal);
+    });
+
+    it('should persist mode change to store', async () => {
+      const template = createTestTemplate();
+      const characters = [createTestCharacter('char-1', 'Alice')];
+
+      const show = await hostModule.initializeShow(template, characters, 12345);
+
+      const budget = await store.getBudget(show.id);
+      expect(budget!.mode).toBe(BudgetMode.normal);
+
+      // Update budget to 80%
+      const tokensToUse = Math.floor(budget!.totalLimit * 0.8);
+      await store.updateBudget(show.id, tokensToUse, 0);
+
+      // Check budget (triggers mode change)
+      await orchestrator.checkBudget(show.id);
+
+      // Verify mode was persisted
+      const updatedBudget = await store.getBudget(show.id);
+      expect(updatedBudget!.mode).toBe(BudgetMode.budget_saving);
+    });
+
+    it('should transition from budget_saving to graceful_finish', async () => {
+      const template = createTestTemplate();
+      const characters = [createTestCharacter('char-1', 'Alice')];
+
+      const show = await hostModule.initializeShow(template, characters, 12345);
+
+      const budget = await store.getBudget(show.id);
+
+      // First, go to budget_saving mode (80%)
+      const tokensFor80 = Math.floor(budget!.totalLimit * 0.8);
+      await store.updateBudget(show.id, tokensFor80, 0);
+      let mode = await orchestrator.checkBudget(show.id);
+      expect(mode).toBe(BudgetMode.budget_saving);
+
+      // Then, go to graceful_finish mode (100%)
+      const remaining = budget!.totalLimit - tokensFor80;
+      await store.updateBudget(show.id, remaining, 0);
+      mode = await orchestrator.checkBudget(show.id);
+      expect(mode).toBe(BudgetMode.graceful_finish);
+
+      // Verify system event for the second transition
+      const events = await eventJournal.getEvents(show.id);
+      const systemEvents = events.filter((e) => e.type === EventType.system);
+      expect(systemEvents.length).toBe(2);
+
+      const lastSystemEvent = systemEvents[systemEvents.length - 1];
+      expect(lastSystemEvent!.metadata?.oldMode).toBe(BudgetMode.budget_saving);
+      expect(lastSystemEvent!.metadata?.newMode).toBe(BudgetMode.graceful_finish);
+    });
+  });
+
+  describe('getAdjustedConstraints', () => {
+    it('should return original constraints in normal mode', async () => {
+      const template = createTestTemplate();
+      const characters = [createTestCharacter('char-1', 'Alice')];
+
+      const show = await hostModule.initializeShow(template, characters, 12345);
+
+      const originalConstraints = { maxTokens: 200, format: 'free', language: 'ru' };
+      const adjusted = await orchestrator.getAdjustedConstraints(show.id, originalConstraints);
+
+      expect(adjusted.maxTokens).toBe(200);
+      expect(adjusted.format).toBe('free');
+      expect(adjusted.language).toBe('ru');
+    });
+
+    it('should reduce maxTokens by 50% in budget_saving mode', async () => {
+      const template = createTestTemplate();
+      const characters = [createTestCharacter('char-1', 'Alice')];
+
+      const show = await hostModule.initializeShow(template, characters, 12345);
+
+      const budget = await store.getBudget(show.id);
+      const tokensToUse = Math.floor(budget!.totalLimit * 0.8);
+      await store.updateBudget(show.id, tokensToUse, 0);
+
+      const originalConstraints = { maxTokens: 200, format: 'free', language: 'ru' };
+      const adjusted = await orchestrator.getAdjustedConstraints(show.id, originalConstraints);
+
+      expect(adjusted.maxTokens).toBe(100); // 50% of 200
+      expect(adjusted.format).toBe('free');
+      expect(adjusted.language).toBe('ru');
+    });
+  });
+
+  describe('shouldLimitPrivates', () => {
+    it('should return false in normal mode', async () => {
+      const template = createTestTemplate();
+      const characters = [createTestCharacter('char-1', 'Alice')];
+
+      const show = await hostModule.initializeShow(template, characters, 12345);
+
+      const shouldLimit = await orchestrator.shouldLimitPrivates(show.id);
+      expect(shouldLimit).toBe(false);
+    });
+
+    it('should return true in budget_saving mode', async () => {
+      const template = createTestTemplate();
+      const characters = [createTestCharacter('char-1', 'Alice')];
+
+      const show = await hostModule.initializeShow(template, characters, 12345);
+
+      const budget = await store.getBudget(show.id);
+      const tokensToUse = Math.floor(budget!.totalLimit * 0.8);
+      await store.updateBudget(show.id, tokensToUse, 0);
+
+      const shouldLimit = await orchestrator.shouldLimitPrivates(show.id);
+      expect(shouldLimit).toBe(true);
+    });
+
+    it('should return true in graceful_finish mode', async () => {
+      const template = createTestTemplate();
+      const characters = [createTestCharacter('char-1', 'Alice')];
+
+      const show = await hostModule.initializeShow(template, characters, 12345);
+
+      const budget = await store.getBudget(show.id);
+      await store.updateBudget(show.id, budget!.totalLimit, 0);
+
+      const shouldLimit = await orchestrator.shouldLimitPrivates(show.id);
+      expect(shouldLimit).toBe(true);
     });
   });
 });

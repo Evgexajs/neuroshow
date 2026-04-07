@@ -653,3 +653,33 @@
 
 **Тесты:** npm run typecheck, npm test — все пройдены (184 tests passed).
 **Заметки:** Метод обрабатывает различные интенты персонажей, позволяя им взаимодействовать с системой (запрос приватки, раскрытие козыря, пропуск хода).
+
+
+## [2026-04-07] TASK-039: Orchestrator.budgetControl()
+**Статус:** done
+**Время:** ~15 минут
+**Изменения:**
+- src/core/orchestrator.ts — добавлены методы контроля бюджета:
+  - checkBudget(showId): Promise<BudgetMode> — проверяет текущий бюджет и возвращает режим
+    - При использовании >=80% переключает в budget_saving
+    - При использовании >=100% переключает в graceful_finish
+    - Создаёт события 'system' при смене режима (metadata.budgetModeChange: true)
+    - Сохраняет новый режим в store через setBudgetMode()
+  - getAdjustedConstraints(showId, baseConstraints): Promise<ResponseConstraints> — возвращает скорректированные ограничения
+    - В budget_saving mode уменьшает maxTokens на 50%
+  - shouldLimitPrivates(showId): Promise<boolean> — проверяет нужно ли ограничивать приватки
+    - Возвращает true в budget_saving и graceful_finish режимах
+  - createBudgetModeChangeEvent() — приватный метод для создания system-события при смене режима
+- tests/unit/orchestrator.test.ts — добавлены 13 тестов для budgetControl:
+  - Возвращает 'normal' при использовании менее 80%
+  - Возвращает 'budget_saving' при 80% использовании
+  - Возвращает 'graceful_finish' при 100% использовании
+  - Создаёт 'system' событие при смене режима
+  - Не создаёт событие если режим не меняется
+  - Возвращает 'normal' если бюджет не найден
+  - Сохраняет смену режима в store
+  - Корректно переходит из budget_saving в graceful_finish
+  - Тесты для getAdjustedConstraints и shouldLimitPrivates
+
+**Тесты:** npm run typecheck, npm test — все пройдены (197 tests passed).
+**Заметки:** Метод проверяет использование токенового бюджета и автоматически переключает режимы экономии. В budget_saving режиме maxTokens сокращается на 50%, а приватные каналы ограничиваются.

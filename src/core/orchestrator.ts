@@ -10,7 +10,7 @@ import { HostModule } from './host-module.js';
 import { ContextBuilder } from './context-builder.js';
 import { Phase } from '../types/template.js';
 import { ShowEvent } from '../types/events.js';
-import { EventType, ChannelType, SpeakFrequency, ShowStatus, CharacterIntent } from '../types/enums.js';
+import { EventType, ChannelType, SpeakFrequency, ShowStatus, CharacterIntent, BudgetMode } from '../types/enums.js';
 import { generateId } from '../utils/id.js';
 import { CharacterDefinition } from '../types/character.js';
 import { Show } from '../types/runtime.js';
@@ -461,5 +461,124 @@ export class Orchestrator {
    */
   private handleEndTurn(senderId: string): void {
     logger.info(`Character ${senderId} ended their turn (skipped)`);
+  }
+
+  /**
+   * Check token budget and return current mode.
+   *
+   * - At 80% usage: switches to 'budget_saving' mode
+   * - At 100% usage: switches to 'graceful_finish' mode
+   * - Creates 'system' events when mode changes
+   * - In budget_saving mode: reduces maxTokens by 50%, limits privates
+   *
+   * @param showId - Show ID
+   * @returns Current BudgetMode
+   */
+  async checkBudget(showId: string): Promise<BudgetMode> {
+    const budget = await this.store.getBudget(showId);
+    if (!budget) {
+      logger.warn(`No budget found for show ${showId}, returning normal mode`);
+      return BudgetMode.normal;
+    }
+
+    const totalUsed = budget.usedPrompt + budget.usedCompletion;
+    const usagePercent = (totalUsed / budget.totalLimit) * 100;
+
+    let newMode: BudgetMode;
+    if (usagePercent >= 100) {
+      newMode = BudgetMode.graceful_finish;
+    } else if (usagePercent >= 80) {
+      newMode = BudgetMode.budget_saving;
+    } else {
+      newMode = BudgetMode.normal;
+    }
+
+    // Only create event if mode is changing
+    if (newMode !== budget.mode) {
+      await this.store.setBudgetMode(showId, newMode);
+      await this.createBudgetModeChangeEvent(showId, budget.mode, newMode, usagePercent);
+      logger.info(
+        `Budget mode changed for show ${showId}: ${budget.mode} -> ${newMode} (${usagePercent.toFixed(1)}% used)`
+      );
+    }
+
+    return newMode;
+  }
+
+  /**
+   * Create a 'system' event when budget mode changes
+   */
+  private async createBudgetModeChangeEvent(
+    showId: string,
+    oldMode: BudgetMode,
+    newMode: BudgetMode,
+    usagePercent: number
+  ): Promise<void> {
+    const showRecord = await this.store.getShow(showId);
+    if (!showRecord) {
+      return;
+    }
+
+    const characters = await this.store.getCharacters(showId);
+    const allCharacterIds = characters.map((c) => c.characterId);
+
+    const systemEvent: Omit<ShowEvent, 'sequenceNumber'> = {
+      id: generateId(),
+      showId,
+      timestamp: Date.now(),
+      phaseId: showRecord.currentPhaseId ?? '',
+      type: EventType.system,
+      channel: ChannelType.PUBLIC,
+      visibility: ChannelType.PUBLIC,
+      senderId: '',
+      receiverIds: allCharacterIds,
+      audienceIds: allCharacterIds,
+      content: `Budget mode changed: ${oldMode} -> ${newMode}`,
+      metadata: {
+        budgetModeChange: true,
+        oldMode,
+        newMode,
+        usagePercent,
+      },
+      seed: showRecord.seed,
+    };
+
+    await this.journal.append(systemEvent);
+  }
+
+  /**
+   * Get response constraints adjusted for current budget mode.
+   * In budget_saving mode, maxTokens is reduced by 50%.
+   *
+   * @param showId - Show ID
+   * @param baseConstraints - Original response constraints
+   * @returns Adjusted constraints based on budget mode
+   */
+  async getAdjustedConstraints(
+    showId: string,
+    baseConstraints: ResponseConstraints
+  ): Promise<ResponseConstraints> {
+    const mode = await this.checkBudget(showId);
+
+    if (mode === BudgetMode.budget_saving) {
+      return {
+        ...baseConstraints,
+        maxTokens: Math.floor(baseConstraints.maxTokens * 0.5),
+      };
+    }
+
+    return baseConstraints;
+  }
+
+  /**
+   * Check if private channels should be limited in current budget mode.
+   * In budget_saving mode, privates are restricted.
+   *
+   * @param showId - Show ID
+   * @returns true if private channels should be limited
+   */
+  async shouldLimitPrivates(showId: string): Promise<boolean> {
+    const mode = await this.checkBudget(showId);
+    return mode === BudgetMode.budget_saving || mode === BudgetMode.graceful_finish;
   }
 }
