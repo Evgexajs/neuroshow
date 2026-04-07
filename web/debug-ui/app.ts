@@ -112,6 +112,15 @@ const generateBtn = document.getElementById('generate-btn') as HTMLButtonElement
 const generateStatus = document.getElementById('generate-status') as HTMLDivElement;
 const tokenBudgetInput = document.getElementById('token-budget-input') as HTMLInputElement;
 
+// History Modal Elements
+const showHistoryBtn = document.getElementById('show-history-btn') as HTMLButtonElement;
+const showHistoryModal = document.getElementById('show-history-modal') as HTMLDivElement;
+const historyModalOverlay = document.getElementById('history-modal-overlay') as HTMLDivElement;
+const historyModalCloseBtn = document.getElementById('history-modal-close-btn') as HTMLButtonElement;
+const historyCloseBtn = document.getElementById('history-close-btn') as HTMLButtonElement;
+const recentShowsList = document.getElementById('recent-shows-list') as HTMLDivElement;
+const allShowsList = document.getElementById('all-shows-list') as HTMLDivElement;
+
 // State
 let eventSource: EventSource | null = null;
 let currentShowId: string | null = null;
@@ -192,6 +201,12 @@ function init(): void {
   generateBtn.addEventListener('click', () => {
     handleGenerateCharacters().catch(console.error);
   });
+
+  // History modal listeners
+  showHistoryBtn.addEventListener('click', openHistoryModal);
+  historyModalOverlay.addEventListener('click', closeHistoryModal);
+  historyModalCloseBtn.addEventListener('click', closeHistoryModal);
+  historyCloseBtn.addEventListener('click', closeHistoryModal);
 }
 
 /**
@@ -629,6 +644,8 @@ async function connect(showId: string): Promise<void> {
     reconnectAttempts = 0;
     addSystemMessage('Connected to event stream');
     connectBtn.textContent = 'Disconnect';
+    // Save to recent shows
+    saveToRecentShows(showId);
   };
 
   eventSource.onmessage = (event: MessageEvent<string>): void => {
@@ -975,6 +992,165 @@ function resetModalState(): void {
   tokenBudgetInput.value = '';
   generateStatus.classList.add('hidden');
   generateStatus.classList.remove('error');
+}
+
+// ==================== History Modal ====================
+
+interface ShowHistoryItem {
+  id: string;
+  status: string;
+  formatId: string;
+  startedAt: number | null;
+  completedAt: number | null;
+}
+
+/**
+ * Open the history modal and load shows
+ */
+function openHistoryModal(): void {
+  showHistoryModal.classList.remove('hidden');
+  loadShowHistory().catch(console.error);
+}
+
+/**
+ * Close the history modal
+ */
+function closeHistoryModal(): void {
+  showHistoryModal.classList.add('hidden');
+}
+
+/**
+ * Load show history from server
+ */
+async function loadShowHistory(): Promise<void> {
+  // Show loading state
+  allShowsList.innerHTML = '<p class="placeholder">Loading...</p>';
+
+  try {
+    const response = await fetch('/shows');
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    const data = await response.json() as { shows: ShowHistoryItem[] };
+    renderShowHistory(data.shows);
+  } catch (err) {
+    console.error('Failed to load show history:', err);
+    allShowsList.innerHTML = '<p class="placeholder error">Failed to load shows</p>';
+  }
+
+  // Load recent shows from localStorage
+  loadRecentShows();
+}
+
+/**
+ * Load recent shows from localStorage
+ */
+function loadRecentShows(): void {
+  const recentShowIds = getRecentShowIds();
+  if (recentShowIds.length === 0) {
+    recentShowsList.innerHTML = '<p class="placeholder">No recent shows...</p>';
+    return;
+  }
+
+  recentShowsList.innerHTML = recentShowIds
+    .map(
+      (id) => `
+      <div class="history-item" data-show-id="${id}">
+        <div class="history-item-info">
+          <span class="history-show-id">${id}</span>
+        </div>
+      </div>
+    `
+    )
+    .join('');
+
+  // Add click listeners
+  recentShowsList.querySelectorAll('.history-item').forEach((item) => {
+    item.addEventListener('click', () => {
+      const showId = (item as HTMLElement).dataset.showId;
+      if (showId) {
+        selectShowFromHistory(showId);
+      }
+    });
+  });
+}
+
+/**
+ * Get recent show IDs from localStorage
+ */
+function getRecentShowIds(): string[] {
+  try {
+    const stored = localStorage.getItem('neuroshow_recent_shows');
+    if (stored) {
+      return JSON.parse(stored) as string[];
+    }
+  } catch {
+    // Ignore parse errors
+  }
+  return [];
+}
+
+/**
+ * Save show ID to recent shows in localStorage
+ */
+function saveToRecentShows(showId: string): void {
+  const recent = getRecentShowIds();
+  // Remove if already exists, then add to front
+  const filtered = recent.filter((id) => id !== showId);
+  filtered.unshift(showId);
+  // Keep only last 10
+  const trimmed = filtered.slice(0, 10);
+  localStorage.setItem('neuroshow_recent_shows', JSON.stringify(trimmed));
+}
+
+/**
+ * Render show history list
+ */
+function renderShowHistory(shows: ShowHistoryItem[]): void {
+  if (shows.length === 0) {
+    allShowsList.innerHTML = '<p class="placeholder">No shows found</p>';
+    return;
+  }
+
+  allShowsList.innerHTML = shows
+    .map((show) => {
+      const dateStr = show.startedAt
+        ? new Date(show.startedAt).toLocaleString()
+        : 'Not started';
+      const statusClass = `status-${show.status}`;
+
+      return `
+        <div class="history-item" data-show-id="${show.id}">
+          <div class="history-item-info">
+            <span class="history-show-id">${show.id}</span>
+            <span class="history-status ${statusClass}">${show.status}</span>
+          </div>
+          <span class="history-template">${show.formatId}</span>
+          <span class="history-date">${dateStr}</span>
+        </div>
+      `;
+    })
+    .join('');
+
+  // Add click listeners
+  allShowsList.querySelectorAll('.history-item').forEach((item) => {
+    item.addEventListener('click', () => {
+      const showId = (item as HTMLElement).dataset.showId;
+      if (showId) {
+        selectShowFromHistory(showId);
+      }
+    });
+  });
+}
+
+/**
+ * Select a show from history and connect to it
+ */
+function selectShowFromHistory(showId: string): void {
+  closeHistoryModal();
+  showIdInput.value = showId;
+  handleConnect().catch(console.error);
 }
 
 /**

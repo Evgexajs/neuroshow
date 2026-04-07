@@ -2258,3 +2258,30 @@ Added a template information panel to the Debug UI that displays template name, 
 - npm run typecheck — passes
 - npm run lint — passes (0 errors)
 - npm test tests/unit — 302 tests passed (with ADAPTER_MODE=mock)
+
+---
+
+## [2026-04-07] TASK-099: Кнопка History в UI не работает
+**Статус:** done
+**Время:** ~20 минут
+**Изменения:**
+- web/debug-ui/app.ts:
+  - Added DOM element references for History modal elements
+  - Added event listeners for History button and modal close buttons in init()
+  - Implemented openHistoryModal() and closeHistoryModal() functions
+  - Implemented loadShowHistory() to fetch shows from GET /shows API
+  - Implemented renderShowHistory() to display shows with ID, status, template, and date
+  - Implemented loadRecentShows() to load from localStorage
+  - Implemented saveToRecentShows() to track recently viewed shows
+  - Implemented selectShowFromHistory() to connect to selected show
+  - Added saveToRecentShows() call in eventSource.onopen for tracking
+
+**Acceptance Criteria:**
+1. Клик на History открывает список прошедших шоу ✓
+2. Список показывает ID, статус, дату каждого шоу ✓
+3. Можно выбрать шоу из списка и подключиться к нему ✓
+4. Если шоу нет — показать сообщение 'Нет завершённых шоу' ✓
+
+**Тесты:**
+- npm run typecheck — passes
+- npm run lint — passes (0 errors, only warnings)
