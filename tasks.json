@@ -2450,6 +2450,28 @@
       ],
       "dependencies": [],
       "status": "pending"
+    },
+    {
+      "id": "TASK-102",
+      "category": "feature",
+      "priority": "high",
+      "description": "Просмотр завершённого шоу из истории — показывать лог, не пытаться подключиться",
+      "problem": "При открытии completed шоу из History UI пытается подключиться через SSE и падает с ошибками: 'Failed to load characters', 'Connection closed', 'Reconnecting...'",
+      "acceptance_criteria": [
+        "Для completed шоу: загрузить события из БД и показать как read-only лог",
+        "Не пытаться подключаться через SSE к завершённому шоу",
+        "Кнопки управления (Start/Pause/Step) скрыты или disabled для completed",
+        "Показать статус 'Completed' и финальные результаты (победитель)",
+        "Можно скроллить историю событий"
+      ],
+      "test_steps": [
+        "Открой History и выбери completed шоу",
+        "Должен загрузиться лог событий без ошибок подключения",
+        "Кнопки управления недоступны",
+        "Ожидаемый результат: просмотр истории как replay/лог"
+      ],
+      "dependencies": [],
+      "status": "pending"
     }
   ]
 }
