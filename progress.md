@@ -1326,3 +1326,28 @@ Wildcard: Максим имеет компромат на Виктора (фин
 7. ✅ ralph.sh обновлён: добавлен npm run lint в проверки перед коммитом
 
 **Тесты:** npm run lint, npm run typecheck, npm test — все пройдены (332 tests passed).
+
+## [2026-04-07] TASK-064: Интеграционные т��сты: полный цикл хода персонажа
+**Статус:** done
+**Время:** ~15 минут
+**Изменения:**
+- tests/integration/turn-cycle.test.ts — создан с 11 тестами:
+  - Full turn cycle: HostModule -> ContextBuilder -> MockAdapter -> EventJournal -> SqliteStore
+  - Prompt assembly from previous show events
+  - Adapter response parsing and event saving with metadata
+  - LLM call recording with raw_request/raw_response containing PromptPackage and CharacterResponse
+  - Token counts recorded in llm_call records
+  - Multiple turns: second turn sees first turn event in context, events accumulate correctly
+  - Private channel: private events not visible to non-participants
+  - Private channel: participants (sender and receiver) can see their private messages
+
+**Acceptance Criteria:**
+1. ✅ tests/integration/turn-cycle.test.ts создан
+2. ✅ Тест полно��о хода: HostModule -> ContextBuilder -> MockAdapter -> EventJournal -> SqliteStore
+3. ✅ Проверка ч��о промпт собирается из предыдущих событий шоу
+4. ✅ Проверка что ответ адаптера парсится и сохра��яется как событие
+5. ✅ Проверка что llm_call записы��ается в БД с raw_request/raw_response
+6. ✅ Тест нескольких ходов подряд: второй ход ��идит событие первого хода в конте��сте
+7. ✅ Тест приватного кана��а: ответ в private channel не виден другим персонажам в следующем ходе
+
+**Тесты:** npm run lint, npm run typecheck, npm test — все пройдены (343 tests passed).
