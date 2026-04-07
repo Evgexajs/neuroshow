@@ -2202,3 +2202,28 @@ Added a template information panel to the Debug UI that displays template name, 
 - npm run lint — passes (0 errors)
 - npm test tests/unit/orchestrator.test.ts -t "getActivePrivateChannel" — 3 tests passed
 - npm test tests/unit/orchestrator.test.ts -t "handleIntent" — 8 tests passed
+
+
+---
+
+## 2026-04-07: TASK-097 — Event Feed layout fix
+
+**Описание:** Event Feed — текст сообщений не вмещается, стили сломаны. Проверка показала, что CSS уже корректен после TASK-088.
+
+**Текущее состояние CSS:**
+- `.event-feed` использует flexbox с `overflow: hidden` для ограничения высоты
+- `.events-container` имеет `overflow-y: auto` и `flex: 1` для скролла внутри
+- `.event-content` имеет `word-wrap: break-word`, `overflow-wrap: break-word`, `word-break: break-word`
+- Control Panel (footer) всегда видим внизу благодаря flexbox layout
+
+**Acceptance Criteria:**
+1. Event Feed имеет max-height с overflow-y: auto ✓ (через flexbox, events-container scrolls)
+2. Список сообщений скроллится внутри контейнера ✓
+3. Текст сообщений корректно переносится (word-wrap: break-word) ✓
+4. Control Panel всегда виден внизу экрана ✓
+5. Длинные сообщения не ломают layout ✓
+
+**Тесты:**
+- npm run test:e2e — 4 tests passed (все layout тесты)
+- npm run typecheck — passes
+- npm run lint — passes (warnings only)
