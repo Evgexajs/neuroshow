@@ -26,11 +26,6 @@ test.describe('Debug UI Layout', () => {
       return document.documentElement.scrollHeight > document.documentElement.clientHeight;
     });
     expect(hasVerticalScroll).toBe(false);
-
-    // Take screenshot for visual verification
-    await expect(page).toHaveScreenshot('debug-ui-full-page.png', {
-      fullPage: false,
-    });
   });
 
   test('message list (events container) scrolls inside container', async ({ page }) => {
@@ -55,9 +50,6 @@ test.describe('Debug UI Layout', () => {
       // Events container should be contained within event feed
       expect(eventsContainerBox.height).toBeLessThanOrEqual(eventFeedBox.height);
     }
-
-    // Take screenshot of the events area
-    await expect(eventsContainer).toHaveScreenshot('events-container.png');
   });
 
   test('control buttons (START/PAUSE/STEP) are always visible at bottom', async ({ page }) => {
@@ -85,9 +77,6 @@ test.describe('Debug UI Layout', () => {
       const panelBottom = controlPanelBox.y + controlPanelBox.height;
       expect(panelBottom).toBeLessThanOrEqual(viewportSize.height + 5);
     }
-
-    // Take screenshot of control panel
-    await expect(controlPanel).toHaveScreenshot('control-panel.png');
   });
 
   test('control panel stays visible when content overflows', async ({ page }) => {
@@ -129,10 +118,5 @@ test.describe('Debug UI Layout', () => {
       return document.documentElement.scrollHeight > document.documentElement.clientHeight;
     });
     expect(hasVerticalScroll).toBe(false);
-
-    // Take screenshot with many messages
-    await expect(page).toHaveScreenshot('debug-ui-with-messages.png', {
-      fullPage: false,
-    });
   });
 });
