@@ -17,6 +17,8 @@ import { Show } from '../types/runtime.js';
 import { ResponseConstraints, PrivateChannelRules, DecisionConfig } from '../types/primitives.js';
 import { logger } from '../utils/logger.js';
 import { ReplayAdapter } from '../adapters/replay-adapter.js';
+import { OpenAIAdapter } from '../adapters/openai-adapter.js';
+import { config } from '../config.js';
 
 /**
  * Orchestrator execution mode
@@ -528,10 +530,23 @@ export class Orchestrator {
     );
 
     // Call the adapter to get response
+    // Use OpenAI adapter if configured, otherwise use the default adapter (mock)
     const llmCallStart = Date.now();
-    const response = await this.activeAdapter.call(promptPackage);
+    let adapterToUse: ModelAdapter = this.activeAdapter;
+
+    if (config.adapterMode === 'openai' && !this._replayAdapter) {
+      adapterToUse = new OpenAIAdapter({
+        apiKey: config.openaiApiKey,
+        modelId: config.openaiDefaultModel,
+        store: this.store,
+        showId,
+        characterId,
+      });
+    }
+
+    const response = await adapterToUse.call(promptPackage);
     const llmCallMs = Date.now() - llmCallStart;
-    logger.debug(`[LLM Call] ${characterId}: ${llmCallMs}ms (adapter: ${this.activeAdapter.providerId})`);
+    logger.debug(`[LLM Call] ${characterId}: ${llmCallMs}ms (adapter: ${adapterToUse.providerId})`);
 
     // Get all characters for audienceIds (speech is public)
     const characters = await this.store.getCharacters(showId);
