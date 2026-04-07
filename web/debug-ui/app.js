@@ -7,27 +7,34 @@
 const showIdInput = document.getElementById('show-id');
 const connectBtn = document.getElementById('connect-btn');
 const eventsContainer = document.getElementById('events-container');
+const cardsContainer = document.getElementById('cards-container');
 // State
 let eventSource = null;
 let currentShowId = null;
 let reconnectAttempts = 0;
 const MAX_RECONNECT_ATTEMPTS = 5;
 const RECONNECT_DELAY_MS = 2000;
+// Character state
+let characters = [];
+const characterStatuses = new Map();
+let activeCharacterId = null;
 /**
  * Initialize the application
  */
 function init() {
-    connectBtn.addEventListener('click', handleConnect);
+    connectBtn.addEventListener('click', () => {
+        handleConnect().catch(console.error);
+    });
     showIdInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') {
-            handleConnect();
+            handleConnect().catch(console.error);
         }
     });
 }
 /**
  * Handle connect button click
  */
-function handleConnect() {
+async function handleConnect() {
     const showId = showIdInput.value.trim();
     if (!showId) {
         alert('Please enter a Show ID');
@@ -37,14 +44,121 @@ function handleConnect() {
         disconnect();
     }
     currentShowId = showId;
-    connect(showId);
+    await connect(showId);
+}
+/**
+ * Fetch characters for a show
+ */
+async function fetchCharacters(showId) {
+    try {
+        const response = await fetch(`/shows/${showId}/characters`);
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        const data = await response.json();
+        characters = data.characters;
+        // Initialize statuses
+        characterStatuses.clear();
+        for (const char of characters) {
+            characterStatuses.set(char.id, 'waiting');
+        }
+        activeCharacterId = null;
+        renderCharacterCards();
+    }
+    catch (err) {
+        console.error('Failed to fetch characters:', err);
+        addSystemMessage('Failed to load characters');
+    }
+}
+/**
+ * Render character cards
+ */
+function renderCharacterCards() {
+    if (characters.length === 0) {
+        cardsContainer.innerHTML = '<p class="placeholder">No characters loaded...</p>';
+        return;
+    }
+    cardsContainer.innerHTML = '';
+    for (const char of characters) {
+        const status = characterStatuses.get(char.id) ?? 'waiting';
+        const isActive = char.id === activeCharacterId;
+        const cardEl = document.createElement('div');
+        cardEl.className = `character-card${isActive ? ' active' : ''}${status === 'speaking' ? ' speaking' : ''}${status === 'in-private' ? ' in-private' : ''}`;
+        cardEl.dataset.characterId = char.id;
+        cardEl.innerHTML = `
+      <div class="character-name">${escapeHtml(char.name)}</div>
+      <div class="character-model">${escapeHtml(char.modelAdapterId)}</div>
+      <div class="character-public-card">${escapeHtml(char.publicCard)}</div>
+      <span class="character-status ${status}">${formatStatus(status)}</span>
+    `;
+        cardsContainer.appendChild(cardEl);
+    }
+}
+/**
+ * Format status for display
+ */
+function formatStatus(status) {
+    switch (status) {
+        case 'waiting':
+            return 'Waiting';
+        case 'speaking':
+            return 'Speaking';
+        case 'in-private':
+            return 'In Private';
+        default:
+            return 'Unknown';
+    }
+}
+/**
+ * Update character status based on event
+ */
+function updateCharacterStatus(event) {
+    const { type, senderId, channel } = event;
+    // Handle speech events - mark sender as speaking
+    if (type === 'speech' && senderId) {
+        // Reset previous active character
+        if (activeCharacterId && activeCharacterId !== senderId) {
+            characterStatuses.set(activeCharacterId, 'waiting');
+        }
+        // Set new active character
+        activeCharacterId = senderId;
+        if (channel === 'PRIVATE') {
+            characterStatuses.set(senderId, 'in-private');
+        }
+        else {
+            characterStatuses.set(senderId, 'speaking');
+        }
+        renderCharacterCards();
+        return;
+    }
+    // Handle channel change events
+    if (type === 'channel_change' && senderId) {
+        if (channel === 'PRIVATE') {
+            characterStatuses.set(senderId, 'in-private');
+        }
+        else {
+            characterStatuses.set(senderId, 'waiting');
+        }
+        renderCharacterCards();
+        return;
+    }
+    // Handle phase transitions - reset all to waiting
+    if (type === 'phase_start' || type === 'phase_end') {
+        for (const charId of characterStatuses.keys()) {
+            characterStatuses.set(charId, 'waiting');
+        }
+        activeCharacterId = null;
+        renderCharacterCards();
+    }
 }
 /**
  * Connect to SSE endpoint for a show
  */
-function connect(showId) {
+async function connect(showId) {
     clearEvents();
     addSystemMessage('Connecting to show...');
+    // Fetch characters first
+    await fetchCharacters(showId);
     const url = `/shows/${showId}/events`;
     eventSource = new EventSource(url);
     eventSource.onopen = () => {
@@ -56,6 +170,7 @@ function connect(showId) {
         try {
             const showEvent = JSON.parse(event.data);
             addEventToFeed(showEvent);
+            updateCharacterStatus(showEvent);
         }
         catch (err) {
             console.error('Failed to parse event:', err);
@@ -83,6 +198,11 @@ function disconnect() {
     reconnectAttempts = 0;
     connectBtn.textContent = 'Connect';
     addSystemMessage('Disconnected');
+    // Clear character state
+    characters = [];
+    characterStatuses.clear();
+    activeCharacterId = null;
+    cardsContainer.innerHTML = '<p class="placeholder">No characters loaded...</p>';
 }
 /**
  * Attempt to reconnect after connection loss

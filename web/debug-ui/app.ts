@@ -14,10 +14,20 @@ interface ShowEvent {
   content?: string;
 }
 
+interface Character {
+  id: string;
+  name: string;
+  modelAdapterId: string;
+  publicCard: string;
+}
+
+type CharacterStatus = 'waiting' | 'speaking' | 'in-private';
+
 // DOM Elements
 const showIdInput = document.getElementById('show-id') as HTMLInputElement;
 const connectBtn = document.getElementById('connect-btn') as HTMLButtonElement;
 const eventsContainer = document.getElementById('events-container') as HTMLDivElement;
+const cardsContainer = document.getElementById('cards-container') as HTMLDivElement;
 
 // State
 let eventSource: EventSource | null = null;
@@ -26,14 +36,21 @@ let reconnectAttempts = 0;
 const MAX_RECONNECT_ATTEMPTS = 5;
 const RECONNECT_DELAY_MS = 2000;
 
+// Character state
+let characters: Character[] = [];
+const characterStatuses: Map<string, CharacterStatus> = new Map();
+let activeCharacterId: string | null = null;
+
 /**
  * Initialize the application
  */
 function init(): void {
-  connectBtn.addEventListener('click', handleConnect);
+  connectBtn.addEventListener('click', () => {
+    handleConnect().catch(console.error);
+  });
   showIdInput.addEventListener('keypress', (e: KeyboardEvent) => {
     if (e.key === 'Enter') {
-      handleConnect();
+      handleConnect().catch(console.error);
     }
   });
 }
@@ -41,7 +58,7 @@ function init(): void {
 /**
  * Handle connect button click
  */
-function handleConnect(): void {
+async function handleConnect(): Promise<void> {
   const showId = showIdInput.value.trim();
   if (!showId) {
     alert('Please enter a Show ID');
@@ -53,15 +70,137 @@ function handleConnect(): void {
   }
 
   currentShowId = showId;
-  connect(showId);
+  await connect(showId);
+}
+
+/**
+ * Fetch characters for a show
+ */
+async function fetchCharacters(showId: string): Promise<void> {
+  try {
+    const response = await fetch(`/shows/${showId}/characters`);
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    const data = await response.json() as { characters: Character[] };
+    characters = data.characters;
+
+    // Initialize statuses
+    characterStatuses.clear();
+    for (const char of characters) {
+      characterStatuses.set(char.id, 'waiting');
+    }
+    activeCharacterId = null;
+
+    renderCharacterCards();
+  } catch (err) {
+    console.error('Failed to fetch characters:', err);
+    addSystemMessage('Failed to load characters');
+  }
+}
+
+/**
+ * Render character cards
+ */
+function renderCharacterCards(): void {
+  if (characters.length === 0) {
+    cardsContainer.innerHTML = '<p class="placeholder">No characters loaded...</p>';
+    return;
+  }
+
+  cardsContainer.innerHTML = '';
+
+  for (const char of characters) {
+    const status = characterStatuses.get(char.id) ?? 'waiting';
+    const isActive = char.id === activeCharacterId;
+
+    const cardEl = document.createElement('div');
+    cardEl.className = `character-card${isActive ? ' active' : ''}${status === 'speaking' ? ' speaking' : ''}${status === 'in-private' ? ' in-private' : ''}`;
+    cardEl.dataset.characterId = char.id;
+
+    cardEl.innerHTML = `
+      <div class="character-name">${escapeHtml(char.name)}</div>
+      <div class="character-model">${escapeHtml(char.modelAdapterId)}</div>
+      <div class="character-public-card">${escapeHtml(char.publicCard)}</div>
+      <span class="character-status ${status}">${formatStatus(status)}</span>
+    `;
+
+    cardsContainer.appendChild(cardEl);
+  }
+}
+
+/**
+ * Format status for display
+ */
+function formatStatus(status: CharacterStatus): string {
+  switch (status) {
+    case 'waiting':
+      return 'Waiting';
+    case 'speaking':
+      return 'Speaking';
+    case 'in-private':
+      return 'In Private';
+    default:
+      return 'Unknown';
+  }
+}
+
+/**
+ * Update character status based on event
+ */
+function updateCharacterStatus(event: ShowEvent): void {
+  const { type, senderId, channel } = event;
+
+  // Handle speech events - mark sender as speaking
+  if (type === 'speech' && senderId) {
+    // Reset previous active character
+    if (activeCharacterId && activeCharacterId !== senderId) {
+      characterStatuses.set(activeCharacterId, 'waiting');
+    }
+
+    // Set new active character
+    activeCharacterId = senderId;
+
+    if (channel === 'PRIVATE') {
+      characterStatuses.set(senderId, 'in-private');
+    } else {
+      characterStatuses.set(senderId, 'speaking');
+    }
+
+    renderCharacterCards();
+    return;
+  }
+
+  // Handle channel change events
+  if (type === 'channel_change' && senderId) {
+    if (channel === 'PRIVATE') {
+      characterStatuses.set(senderId, 'in-private');
+    } else {
+      characterStatuses.set(senderId, 'waiting');
+    }
+    renderCharacterCards();
+    return;
+  }
+
+  // Handle phase transitions - reset all to waiting
+  if (type === 'phase_start' || type === 'phase_end') {
+    for (const charId of characterStatuses.keys()) {
+      characterStatuses.set(charId, 'waiting');
+    }
+    activeCharacterId = null;
+    renderCharacterCards();
+  }
 }
 
 /**
  * Connect to SSE endpoint for a show
  */
-function connect(showId: string): void {
+async function connect(showId: string): Promise<void> {
   clearEvents();
   addSystemMessage('Connecting to show...');
+
+  // Fetch characters first
+  await fetchCharacters(showId);
 
   const url = `/shows/${showId}/events`;
   eventSource = new EventSource(url);
@@ -76,6 +215,7 @@ function connect(showId: string): void {
     try {
       const showEvent: ShowEvent = JSON.parse(event.data);
       addEventToFeed(showEvent);
+      updateCharacterStatus(showEvent);
     } catch (err) {
       console.error('Failed to parse event:', err);
     }
@@ -103,6 +243,12 @@ function disconnect(): void {
   reconnectAttempts = 0;
   connectBtn.textContent = 'Connect';
   addSystemMessage('Disconnected');
+
+  // Clear character state
+  characters = [];
+  characterStatuses.clear();
+  activeCharacterId = null;
+  cardsContainer.innerHTML = '<p class="placeholder">No characters loaded...</p>';
 }
 
 /**

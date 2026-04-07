@@ -268,6 +268,49 @@ export async function createServer(): Promise<{
     });
   });
 
+  // GET /shows/:id/characters - Get characters for a show
+  app.get('/shows/:id/characters', async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id } = request.params as { id: string };
+
+    // Check if show exists
+    const show = await deps.store.getShow(id);
+    if (!show) {
+      return reply.status(404).send({ error: 'Show not found' });
+    }
+
+    // Get characters from store
+    const characterRecords = await deps.store.getCharacters(id);
+
+    // Parse configSnapshot to get character definitions (name, publicCard)
+    let characterDefinitions: Array<{
+      id: string;
+      name: string;
+      publicCard: string;
+    }> = [];
+
+    try {
+      const config = JSON.parse(show.configSnapshot);
+      if (config.characterDefinitions) {
+        characterDefinitions = config.characterDefinitions;
+      }
+    } catch {
+      // If parsing fails, we'll use characterRecords only
+    }
+
+    // Build character response with merged data
+    const characters = characterRecords.map((record) => {
+      const definition = characterDefinitions.find((d) => d.id === record.characterId);
+      return {
+        id: record.characterId,
+        name: definition?.name ?? record.characterId,
+        modelAdapterId: record.modelAdapterId,
+        publicCard: definition?.publicCard ?? '',
+      };
+    });
+
+    return reply.send({ characters });
+  });
+
   // POST /shows - Create a new show
   app.post('/shows', async (request: FastifyRequest, reply: FastifyReply) => {
     // Validate request body with Zod

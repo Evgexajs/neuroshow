@@ -1125,3 +1125,27 @@ Wildcard: Максим имеет компромат на Виктора (фин
 
 **Тесты:** npm run typecheck, npm run build, npm test — все пройдены (310 tests passed).
 **Заметки:** index.html не требует изменений — TypeScript компилируется в app.js на то же место.
+
+## [2026-04-07] TASK-051: Debug UI: Character Cards
+**Статус:** done
+**Время:** ~15 минут
+**Изменения:**
+- src/api/server.ts — добавлен GET /shows/:id/characters endpoint:
+  - Возвращает список персонажей с id, name, modelAdapterId, publicCard
+  - Данные берутся из store.getCharacters() и configSnapshot
+- web/debug-ui/app.ts — добавлен функционал карточек персонажей:
+  - Интерфейсы Character и CharacterStatus
+  - fetchCharacters() — загрузка персонажей при подключении к шоу
+  - renderCharacterCards() — отрисовка карточек
+  - updateCharacterStatus() — обновление статуса по SSE событиям
+  - Статусы: waiting, speaking, in-private
+  - Подсветка активного персонажа (класс .active)
+  - Статус обновляется при событиях speech, channel_change, phase_start/end
+
+**Acceptance Criteria:**
+1. ✅ Отображение карточек для каждого персонажа
+2. ✅ На карточке: имя, модель, publicCard, статус (ожидает/говорит/в приватке)
+3. ✅ Статус обновляется по событиям из SSE
+4. ✅ Подсветка активного персонажа
+
+**Тесты:** npm run typecheck, npm run build, npm test — все пройдены (310 tests passed).
