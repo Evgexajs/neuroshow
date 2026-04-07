@@ -998,3 +998,28 @@ Wildcard: Максим имеет компромат на Виктора (фин
 
 **Тесты:** npm run typecheck, npm test — все пройдены (257 tests passed).
 **Заметки:** Персонажи соответствуют CharacterDefinition из types/character.ts. Каждый имеет уникальную personality и motivation.
+
+## TASK-055: E2E тест: полный выпуск с MockAdapter
+
+**Дата:** 2026-04-07
+
+**Статус:** Выполнено
+
+**Изменения:**
+- tests/integration/full-show-mock.test.ts — создан E2E тест для полного выпуска Коалиция:
+  - Загружает coalition.json шаблон и все 5 персонажей
+  - Использует MockAdapter с фиксированным seed для детерминизма
+  - Запускает полный выпуск через orchestrator.runShow()
+  - Проверяет: show status = completed, все фазы пройдены
+  - Проверяет: decisions собраны от всех 5 персонажей
+  - Проверяет: revelation выполнен с revealMoment=after_all
+  - Тест проходит за < 10 секунд (фактически ~50ms)
+  
+Дополнительные тесты:
+  - Проверка генерации speech events в discussion фазах
+  - Проверка корректного отслеживания token budget
+  - Проверка использования character IDs из определений
+  - Проверка сохранения private context (alliances, wildcards)
+
+**Тесты:** npm run typecheck, npm test — все пройдены (262 tests passed).
+**Заметки:** Тест подтверждает корректную интеграцию всех компонентов: Orchestrator, HostModule, EventJournal, ContextBuilder, MockAdapter.
