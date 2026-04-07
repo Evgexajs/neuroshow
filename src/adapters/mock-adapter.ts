@@ -3,6 +3,7 @@
  *
  * Provides deterministic responses for testing without API calls.
  * Supports seed-based reproducibility for consistent test results.
+ * Generates personality-aware Russian responses with variable length.
  */
 
 import { ModelAdapter, PromptPackage, CharacterResponse, TokenEstimate } from '../types/adapter.js';
@@ -24,7 +25,11 @@ function hashString(str: string, seed: number): number {
 /**
  * Mock LLM adapter for testing
  *
- * Returns deterministic responses based on trigger content and optional seed.
+ * Returns deterministic responses based on:
+ * - personalityPrompt (from systemPrompt)
+ * - triggerTemplate (from trigger)
+ * - speakFrequency (inferred from maxTokens)
+ *
  * Useful for unit tests and development without API costs.
  */
 export class MockAdapter implements ModelAdapter {
@@ -45,34 +50,86 @@ export class MockAdapter implements ModelAdapter {
    * Generate a deterministic response based on the prompt
    *
    * The response is determined by:
-   * 1. The trigger text (hashed with seed)
-   * 2. The seed value
+   * 1. The systemPrompt (personality affects tone)
+   * 2. The trigger text (topic affects content)
+   * 3. The maxTokens (affects response length)
+   * 4. The seed value (for reproducibility)
    *
-   * Same trigger + same seed = same response
+   * Same inputs + same seed = same response
    */
   async call(prompt: PromptPackage): Promise<CharacterResponse> {
-    const { trigger } = prompt;
+    const { systemPrompt, trigger, responseConstraints } = prompt;
+    const maxTokens = responseConstraints.maxTokens ?? 200;
 
-    // Generate hash from trigger and seed for determinism
-    const hash = hashString(trigger, this.seed);
+    // Generate hashes from different inputs for varied selection
+    const triggerHash = hashString(trigger, this.seed);
+    const personalityHash = hashString(systemPrompt, this.seed);
+    const combinedHash = hashString(trigger + systemPrompt, this.seed);
 
-    // Select response template based on hash
-    const responses = this.getResponseTemplates();
-    const index = hash % responses.length;
-    const template = responses[index]!;
+    // Build response from parts for uniqueness
+    const text = this.buildResponse(triggerHash, personalityHash, combinedHash, maxTokens);
 
-    // Select intent based on hash
+    // Select intent based on combined hash
     const intents: CharacterIntent[] = [
       CharacterIntent.speak,
       CharacterIntent.end_turn,
       CharacterIntent.request_private,
     ];
-    const intentIndex = (hash >> 4) % intents.length;
+    const intentIndex = (combinedHash >> 4) % intents.length;
 
     return {
-      text: template.replace('{trigger}', trigger.slice(0, 50)),
+      text,
       intent: intents[intentIndex],
     };
+  }
+
+  /**
+   * Build a unique response by combining phrase parts
+   * Length varies based on maxTokens (proxy for speakFrequency)
+   */
+  private buildResponse(
+    triggerHash: number,
+    personalityHash: number,
+    combinedHash: number,
+    maxTokens: number
+  ): string {
+    const openers = this.getOpeners();
+    const middles = this.getMiddlePhrases();
+    const closers = this.getClosers();
+    const extensions = this.getExtensions();
+
+    // Select parts deterministically
+    const opener = openers[triggerHash % openers.length]!;
+    const middle = middles[personalityHash % middles.length]!;
+    const closer = closers[combinedHash % closers.length]!;
+
+    // Determine response length based on maxTokens
+    // low speakFrequency ~ maxTokens <= 100 -> short (opener only or opener + middle)
+    // medium ~ maxTokens 100-200 -> medium (opener + middle + closer)
+    // high ~ maxTokens > 200 -> long (all parts + extensions)
+
+    if (maxTokens <= 100) {
+      // Short response for low speakFrequency
+      if ((combinedHash >> 2) % 2 === 0) {
+        return opener;
+      }
+      return `${opener} ${middle}`;
+    }
+
+    if (maxTokens <= 200) {
+      // Medium response
+      return `${opener} ${middle} ${closer}`;
+    }
+
+    // Long response for high speakFrequency - add extensions
+    const ext1 = extensions[(triggerHash >> 3) % extensions.length]!;
+    const ext2 = extensions[(personalityHash >> 3) % extensions.length]!;
+
+    // Avoid duplicate extensions
+    if (ext1 === ext2) {
+      return `${opener} ${middle} ${closer} ${ext1}`;
+    }
+    return `${opener} ${middle} ${closer} ${ext1} ${ext2}`;
   }
 
   /**
@@ -109,18 +166,78 @@ export class MockAdapter implements ModelAdapter {
   }
 
   /**
-   * Get response templates for deterministic generation
+   * Opening phrases (reaction to trigger)
    */
-  private getResponseTemplates(): string[] {
+  private getOpeners(): string[] {
     return [
-      'Интересный вопрос. Мне кажется, что нужно подумать об этом глубже.',
-      'Я полностью согласен с предыдущим оратором. Это важная тема.',
-      'Позвольте мне высказать альтернативную точку зрения на этот вопрос.',
-      'Я не уверен в правильности такого подхода. Может, стоит рассмотреть другие варианты?',
-      'Это напоминает мне о важном принципе, который мы часто забываем.',
-      'Хороший момент. Я хотел бы добавить несколько мыслей к этому.',
-      'Мне нужно время, чтобы обдумать это. Пока воздержусь от комментариев.',
-      'Абсолютно верно! Это именно то, о чем я думал.',
+      'Интересный вопрос.',
+      'Позвольте высказаться.',
+      'Хочу добавить кое-что важное.',
+      'Это заставляет задуматься.',
+      'Не могу промолчать.',
+      'У меня есть мнение по этому поводу.',
+      'Давайте разберёмся.',
+      'Вот что я думаю.',
+      'Это сложный вопрос.',
+      'Интересная точка зрения.',
+      'Позвольте не согласиться.',
+      'Хороший момент для обсуждения.',
+    ];
+  }
+
+  /**
+   * Middle phrases (personality-influenced content)
+   */
+  private getMiddlePhrases(): string[] {
+    return [
+      'Мне кажется, что нужно подумать об этом глубже.',
+      'Я вижу здесь несколько важных аспектов.',
+      'С моей точки зрения, ситуация неоднозначная.',
+      'Думаю, мы упускаем что-то важное.',
+      'Здесь есть над чем поразмыслить.',
+      'Моя позиция по этому вопросу однозначна.',
+      'Я бы посмотрел на это иначе.',
+      'Это напоминает мне о важном принципе.',
+      'Не стоит торопиться с выводами.',
+      'Факты говорят сами за себя.',
+      'Мой опыт подсказывает другое.',
+      'Здесь нужен взвешенный подход.',
+    ];
+  }
+
+  /**
+   * Closing phrases (conclusion)
+   */
+  private getClosers(): string[] {
+    return [
+      'Впрочем, решать не мне.',
+      'Но это лишь моё мнение.',
+      'Время покажет, кто прав.',
+      'Надеюсь, вы меня понимаете.',
+      'Готов обсудить это подробнее.',
+      'Пусть каждый сделает свои выводы.',
+      'Это то, что я хотел сказать.',
+      'Думаю, это важно учитывать.',
+      'Вот к чему я веду.',
+      'Поживём — увидим.',
+      'Остальное — детали.',
+      'На этом, пожалуй, всё.',
+    ];
+  }
+
+  /**
+   * Extension phrases (for longer responses)
+   */
+  private getExtensions(): string[] {
+    return [
+      'Кстати, есть ещё один момент, который стоит упомянуть.',
+      'И ещё хочу добавить — не всё так просто, как кажется на первый взгляд.',
+      'Между прочим, я давно хотел поднять этот вопрос.',
+      'К слову, у меня есть интересное наблюдение по этой теме.',
+      'Более того, я считаю, что мы недооцениваем масштаб проблемы.',
+      'Помимо этого, стоит учитывать и другие факторы.',
+      'Вдобавок ко всему, есть ещё один важный нюанс.',
+      'Между тем, ситуация развивается не так, как многие ожидали.',
     ];
   }
 }

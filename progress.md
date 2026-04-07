@@ -1631,3 +1631,33 @@ Improved the event feed readability by showing character names instead of IDs, a
 - `npm run lint` — passes (warnings only)
 - `npm run typecheck` — passes
 - `npm test` — 336 tests pass (excluding flaky server.test.ts with pre-existing disk I/O error)
+
+---
+
+## 2026-04-07: TASK-076 — MockAdapter: разные ответы на русском языке
+
+### Summary
+Enhanced MockAdapter to generate unique Russian responses that consider personality, trigger, and vary in length based on maxTokens (proxy for speakFrequency).
+
+### Changes
+- **src/adapters/mock-adapter.ts**:
+  - Refactored call() to use systemPrompt, trigger, and maxTokens for varied responses
+  - Added buildResponse() method that combines phrase parts for uniqueness
+  - Added getOpeners() — 12 opening phrases (reaction to trigger)
+  - Added getMiddlePhrases() — 12 personality-influenced content phrases
+  - Added getClosers() — 12 conclusion phrases
+  - Added getExtensions() — 8 extension phrases for longer responses
+  - Response length now varies by maxTokens: ≤100 (short), 100-200 (medium), >200 (long with extensions)
+  - Removed old getResponseTemplates() single-template approach
+
+### Acceptance Criteria Verified
+1. MockAdapter генерирует ответы на русском языке — DONE (all phrases in Russian)
+2. Каждый ответ уникальный (не повторяется один и тот же текст) — DONE (combinations of 12×12×12×8 phrases)
+3. Ответы учитывают personalityPrompt персонажа — DONE (personalityHash selects middle phrase)
+4. Ответы соответствуют triggerTemplate фазы — DONE (triggerHash selects opener)
+5. Разная длина ответов для разных speakFrequency — DONE (low→29 chars, medium→87 chars, high→219 chars)
+
+### Verification
+- `npm run lint` — passes (warnings only, pre-existing in other files)
+- `npm run typecheck` — passes
+- `npm test` — mock-adapter tests (12 tests) and full-show-mock tests (5 tests) pass

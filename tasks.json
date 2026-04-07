@@ -1892,7 +1892,7 @@
         "Ожидаемый результат: mock режим выглядит реалистично"
       ],
       "dependencies": [],
-      "status": "pending"
+      "status": "done"
     },
     {
       "id": "TASK-077",
