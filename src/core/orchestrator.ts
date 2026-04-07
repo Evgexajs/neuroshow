@@ -653,6 +653,12 @@ export class Orchestrator {
       return;
     }
 
+    // Fallback validation: prevent self-messaging
+    if (targetId === requesterId) {
+      logger.warn(`request_private from ${requesterId} targets self, ignoring`);
+      return;
+    }
+
     // Get private channel rules from config snapshot
     const showRecord = await this.store.getShow(showId);
     if (!showRecord) {

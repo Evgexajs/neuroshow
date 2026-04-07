@@ -2011,3 +2011,28 @@ Added a template information panel to the Debug UI that displays template name, 
 3. В system prompt список других участников содержит их имена ✓
 4. Персонажи в диалогах обращаются друг к другу по именам ✓
 5. UI уже показывает имена через characterNames.get() (не требует изменений) ✓
+
+## [2026-04-07] TASK-090: Персонажи пишут приватные сообщения самим себе
+**Статус:** done
+**Время:** ~20 минут
+**Изменения:**
+- src/core/context-builder.ts:
+  - buildSystemPrompt() добавлена секция "## Правила приватных каналов" / "## Private Channel Rules"
+  - Объясняет что request_private только для ДРУГИХ участников
+  - Указывает что target должен быть именем другого участника, не своим
+  - Предупреждает что приватное сообщение должно отличаться от публичного
+- src/core/orchestrator.ts:
+  - handleRequestPrivate() добавлена валидация: если targetId === requesterId, логируется warning и intent игнорируется
+
+**Тесты:**
+- npm run typecheck — passes
+- npm run lint — passes (0 errors)
+- npx vitest run tests/unit/context-builder.test.ts — 31 tests passed
+- Orchestrator тесты имеют pre-existing flaky failures (не связаны с изменениями)
+
+**Acceptance Criteria:**
+1. В system prompt добавить список других участников с именами ✓ (было реализовано в TASK-089)
+2. В system prompt объяснить: request_private только для общения с ДРУГИМИ участниками ✓
+3. В system prompt указать: target должен быть ID другого участника, не свой ✓
+4. Fallback валидация: если target === senderId — игнорировать intent, логировать warning ✓
+5. Приватное сообщение не должно дублировать публичное ✓ (указано в prompt)

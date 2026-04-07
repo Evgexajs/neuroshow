@@ -263,6 +263,13 @@ export class ContextBuilder {
       );
       parts.push('- "target": ID персонажа для приватного запроса (опционально)');
       parts.push('- "decisionValue": Твой выбор для голосования/решения (опционально)');
+      parts.push('');
+      parts.push('## Правила приватных каналов');
+      parts.push('- "request_private" используется ТОЛЬКО для общения с ДРУГИМИ участниками');
+      parts.push('- "target" должен быть именем ДРУГОГО участника, НЕ твоим собственным');
+      parts.push(
+        '- Приватное сообщение должно отличаться от публичного "text" — не дублируй одно и то же'
+      );
     } else {
       parts.push('You MUST respond with a valid JSON object containing:');
       parts.push('- "text": Your spoken response (required)');
@@ -271,6 +278,11 @@ export class ContextBuilder {
       );
       parts.push('- "target": Character ID for private request (optional)');
       parts.push('- "decisionValue": Your choice for voting/decision (optional)');
+      parts.push('');
+      parts.push('## Private Channel Rules');
+      parts.push('- "request_private" is ONLY for communicating with OTHER participants');
+      parts.push('- "target" must be the name of ANOTHER participant, NOT your own');
+      parts.push('- Private message should differ from your public "text" — do not duplicate');
     }
 
     return parts.join('\n');
