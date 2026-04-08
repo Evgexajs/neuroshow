@@ -117,4 +117,18 @@ export interface IVotingModule extends IModule {
     winnerName: string,
     callCharacter: DecisionCallback
   ): Promise<void>;
+
+  /**
+   * Run epilogue - generate what happened to each participant after the show
+   * Creates epilogue events for each character
+   *
+   * @param showId - Show ID
+   * @param winnerName - Name of the winner
+   * @param callCharacter - Callback to invoke LLM for each character
+   */
+  runEpilogue(
+    showId: string,
+    winnerName: string,
+    callCharacter: DecisionCallback
+  ): Promise<void>;
 }

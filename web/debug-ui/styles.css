@@ -246,6 +246,31 @@ body {
   100% { box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3); }
 }
 
+/* Epilogue - dreamy purple style for "what happened after" */
+.event-item.epilogue {
+  background: linear-gradient(135deg, #f3e5f5 0%, #e1bee7 50%, #ce93d8 100%) !important;
+  border-left: 4px solid #9c27b0 !important;
+  box-shadow: 0 2px 8px rgba(156, 39, 176, 0.3);
+  animation: epilogue-glow 2s ease-in-out;
+}
+
+.event-item.epilogue .event-content {
+  font-weight: 500;
+  font-size: 0.95rem;
+  color: #4a148c;
+  font-style: italic;
+}
+
+.event-item.epilogue .event-header {
+  color: #7b1fa2;
+}
+
+@keyframes epilogue-glow {
+  0% { box-shadow: 0 0 5px rgba(156, 39, 176, 0.3); }
+  50% { box-shadow: 0 0 15px rgba(156, 39, 176, 0.5); }
+  100% { box-shadow: 0 2px 8px rgba(156, 39, 176, 0.3); }
+}
+
 /* Phase separator */
 .phase-separator {
   display: flex;

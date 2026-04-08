@@ -2963,3 +2963,32 @@ Added a template information panel to the Debug UI that displays template name, 
 
 **Тесты:** npm run lint (warnings only), npm run typecheck (passed), npm run build (passed)
 **Заметки:** События loser_reaction создаются для всех участников кроме победителя. Каждый получает host_trigger и создаёт loser_reaction событие.
+
+## [2026-04-08] TASK-124: Финал: эпилог (что стало с участниками)
+**Статус:** done
+**Время:** ~25 минут
+**Изменения:**
+- src/types/enums.ts — добавлен epilogue в EventType enum
+- src/modules/voting/types.ts:
+  - IVotingModule расширен методом runEpilogue(showId, winnerName, callCharacter)
+- src/modules/voting/decision-phase.ts:
+  - Добавлен метод runEpilogue() — генерирует эпилог для каждого участника
+  - Триггер RU: "[Ты победил/не победил]. Напиши что случилось с тобой через месяц после шоу. Учти события шоу — союзы, конфликты, предательства. РОВНО 1 предложение."
+  - Триггер EN: "[You won/didn't win]. Write what happened to you one month after the show. Consider show events. EXACTLY 1 sentence."
+  - Эпилог учитывает статус победителя/проигравшего через outcomeContext
+- src/modules/voting/index.ts — экспорт runEpilogue через VotingModule
+- src/core/orchestrator.ts — после runLoserReactions() вызывает runEpilogue() (2 места)
+- web/debug-ui/app.ts — добавлен epilogue класс для события
+- web/debug-ui/styles.css — стиль .epilogue:
+  - Фиолетовый градиентный фон (#f3e5f5 → #e1bee7 → #ce93d8)
+  - Фиолетовая левая граница (#9c27b0)
+  - Курсив для текста эпилога
+  - Анимация свечения (epilogue-glow keyframes)
+
+**Acceptance Criteria:**
+1. Эпилог генерируется для каждого участника ✓ (цикл по всем персонажам в runEpilogue)
+2. Учитывает события шоу (союзы, конфликты, предательства) ✓ (триггер указывает учитывать события, контекст виден через sliding window)
+3. UI: отдельный блок 'Эпилог' после финала ✓ (фиолетовый стиль выделяет epilogue события)
+
+**Тесты:** npm run lint (warnings only), npm run typecheck (passed), npm run build:ui (passed)
+**Заметки:** Эпилог — финальный штрих шоу. Каждый персонаж получает host_trigger с контекстом о победе/поражении и создаёт epilogue событие с 1 предложением о будущем.

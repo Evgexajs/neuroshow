@@ -1565,4 +1565,128 @@ export class DecisionPhaseHandler {
       await this.eventJournal.append(loserReactionEvent);
     }
   }
+
+  /**
+   * Generate epilogue for each participant - what happened to them after the show
+   */
+  async runEpilogue(
+    showId: string,
+    winnerName: string,
+    callCharacter: DecisionCallback
+  ): Promise<void> {
+    // Get show info
+    const showRecord = await this.store.getShow(showId);
+    if (!showRecord) {
+      throw new Error(`Show ${showId} not found`);
+    }
+    const phaseId = showRecord.currentPhaseId ?? '';
+    const seed = showRecord.seed;
+
+    // Get all characters
+    const characters = await this.store.getCharacters(showId);
+    if (characters.length === 0) {
+      return;
+    }
+
+    // Get character definitions from configSnapshot
+    const configSnapshot = JSON.parse(showRecord.configSnapshot) as Record<string, unknown>;
+    const characterDefinitions = configSnapshot.characterDefinitions as
+      | Array<{ id: string; name: string; responseConstraints?: { language?: string } }>
+      | undefined;
+
+    // Build name map
+    const nameMap = new Map<string, string>(); // id -> name
+    const idMap = new Map<string, string>(); // name -> id
+    let isRussian = false;
+    if (characterDefinitions) {
+      for (const def of characterDefinitions) {
+        nameMap.set(def.id, def.name);
+        idMap.set(def.name, def.id);
+        if (def.responseConstraints?.language === 'ru') {
+          isRussian = true;
+        }
+      }
+    }
+
+    const allCharacterIds = characters.map((c) => c.characterId);
+
+    // Find winner character ID
+    let winnerId: string | undefined;
+    if (idMap.has(winnerName)) {
+      winnerId = idMap.get(winnerName);
+    } else if (nameMap.has(winnerName)) {
+      winnerId = winnerName;
+    }
+
+    // Build epilogue trigger - ask LLM to generate what happened after the show
+    const triggerTemplate = isRussian
+      ? `Напиши что случилось с тобой через месяц после шоу. Учти события шоу — союзы, конфликты, предательства, победу или поражение. РОВНО 1 предложение, не больше.`
+      : `Write what happened to you one month after the show. Consider show events — alliances, conflicts, betrayals, victory or defeat. EXACTLY 1 sentence, no more.`;
+
+    // Process each character
+    for (const characterId of allCharacterIds) {
+      const characterName = nameMap.get(characterId) ?? characterId;
+      const isWinner = characterId === winnerId;
+
+      // Add context about whether they won or lost
+      const outcomeContext = isRussian
+        ? isWinner
+          ? 'Ты победил в шоу.'
+          : 'Ты не победил в шоу.'
+        : isWinner
+          ? 'You won the show.'
+          : "You didn't win the show.";
+
+      const trigger = `${outcomeContext} ${triggerTemplate}`;
+
+      // Emit host_trigger for the character
+      const triggerEvent: Omit<ShowEvent, 'sequenceNumber'> = {
+        id: generateId(),
+        showId,
+        timestamp: Date.now(),
+        phaseId,
+        type: EventType.host_trigger,
+        channel: ChannelType.PUBLIC,
+        visibility: ChannelType.PUBLIC,
+        senderId: '',
+        receiverIds: [characterId],
+        audienceIds: [characterId],
+        content: trigger,
+        metadata: {
+          epilogue: true,
+          character: characterName,
+          winner: winnerName,
+          isWinner,
+        },
+        seed,
+      };
+      await this.eventJournal.append(triggerEvent);
+
+      // Call character for their epilogue
+      const response = await callCharacter(characterId, trigger, []);
+
+      // Create epilogue event
+      const epilogueEvent: Omit<ShowEvent, 'sequenceNumber'> = {
+        id: generateId(),
+        showId,
+        timestamp: Date.now(),
+        phaseId,
+        type: EventType.epilogue,
+        channel: ChannelType.PUBLIC,
+        visibility: ChannelType.PUBLIC,
+        senderId: characterId,
+        receiverIds: allCharacterIds,
+        audienceIds: allCharacterIds,
+        content: response.text,
+        metadata: {
+          epilogue: true,
+          character: characterName,
+          winner: winnerName,
+          isWinner,
+        },
+        seed,
+      };
+      await this.eventJournal.append(epilogueEvent);
+    }
+  }
 }

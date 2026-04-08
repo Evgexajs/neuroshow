@@ -107,6 +107,18 @@ export class VotingModule implements IVotingModule {
   ): Promise<void> {
     return this.handler.runLoserReactions(showId, winnerName, callCharacter);
   }
+
+  /**
+   * Run epilogue - generate what happened to each participant after the show
+   * @see DecisionPhaseHandler.runEpilogue
+   */
+  async runEpilogue(
+    showId: string,
+    winnerName: string,
+    callCharacter: DecisionCallback
+  ): Promise<void> {
+    return this.handler.runEpilogue(showId, winnerName, callCharacter);
+  }
 }
 
 // Re-export types for convenience

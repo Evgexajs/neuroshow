@@ -1338,6 +1338,13 @@ export class Orchestrator {
         revelationResult.winner,
         winnerSpeechCallback
       );
+
+      // Run epilogue - what happened to each participant after the show
+      await votingModuleForRevelation.runEpilogue(
+        showId,
+        revelationResult.winner,
+        winnerSpeechCallback
+      );
     }
 
     // Update show status to completed
@@ -1818,6 +1825,13 @@ export class Orchestrator {
 
       // Run loser reactions
       await votingModuleForRevelation.runLoserReactions(
+        showId,
+        revelationResult.winner,
+        winnerSpeechCallback
+      );
+
+      // Run epilogue - what happened to each participant after the show
+      await votingModuleForRevelation.runEpilogue(
         showId,
         revelationResult.winner,
         winnerSpeechCallback

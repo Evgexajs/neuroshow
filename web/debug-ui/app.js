@@ -787,13 +787,16 @@ function addEventToFeed(event) {
     const eventEl = document.createElement('div');
     // Get channel class for color coding
     const channelClass = getChannelClass(event.channel);
-    // Add special class for winner announcement or winner speech
+    // Add special class for winner announcement, winner speech, or epilogue
     let specialClass = '';
     if (eventType === 'winner_announcement') {
         specialClass = 'winner-announcement';
     }
     else if (eventType === 'winner_speech') {
         specialClass = 'winner-speech';
+    }
+    else if (eventType === 'epilogue') {
+        specialClass = 'epilogue';
     }
     eventEl.className = `event-item ${channelClass} ${specialClass}`.trim();
     // Format event data
