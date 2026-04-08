@@ -2694,6 +2694,50 @@
       "output": "docs/PRD-llm-host.md",
       "dependencies": [],
       "status": "done"
+    },
+    {
+      "id": "TASK-112",
+      "category": "feature",
+      "priority": "high",
+      "description": "Генерация связей между персонажами (relationships)",
+      "problem": "Персонажи создаются изолированно, без предыстории отношений. Хотим чтобы некоторые персонажи имели связи: бывшие партнёры, знакомые, враги, родственники.",
+      "mechanics": [
+        "При генерации персонажей LLM создаёт связи для 30-50% пар",
+        "Типы связей: romantic_history, friendship, rivalry, family, colleagues, strangers_with_secret",
+        "Visibility: public (все знают) или private (знают только участники)",
+        "Связь содержит: type, participantIds[], visibility, description"
+      ],
+      "data_model": {
+        "relationship": {
+          "id": "string",
+          "type": "romantic_history | friendship | rivalry | family | colleagues | secret",
+          "participantIds": ["char-1", "char-2"],
+          "visibility": "public | private",
+          "description": "Встречались 2 года, расстались месяц назад",
+          "knownBy": ["char-1", "char-2"]
+        }
+      },
+      "prompt_addition": "Для 2-3 пар персонажей создай предысторию отношений. Некоторые связи публичные (все знают), некоторые приватные (знают только участники). Формат: relationships: [{type, participants, visibility, description}]",
+      "ui_display": [
+        "В карточке персонажа показывать иконки связей",
+        "При наведении — tooltip с описанием связи",
+        "Публичные связи видны всем, приватные — только при развороте карточки"
+      ],
+      "acceptance_criteria": [
+        "generateCharactersWithOpenAI возвращает массив relationships",
+        "Relationships сохраняются в configSnapshot шоу",
+        "UI показывает связи между персонажами при создании шоу",
+        "Приватные связи добавляются в privateContext участников",
+        "Публичные связи добавляются в publicCard или общий контекст"
+      ],
+      "test_steps": [
+        "Сгенерируй 5 персонажей",
+        "Проверь что есть 1-3 связи между ними",
+        "Проверь что связи видны в UI",
+        "Создай шоу и проверь что персонажи знают о своих связях"
+      ],
+      "dependencies": [],
+      "status": "pending"
     }
   ]
 }
