@@ -358,9 +358,16 @@ export class Orchestrator {
         const phaseInfo = `Сейчас фаза «${phase.name}», ход ${this.turnIndex + 1} из примерно ${totalTurns}.`;
         // Trigger template only for first round (may include conflict trigger), but always include phase info
         const selectedTrigger = this.selectTrigger(phase, seed, this.turnIndex);
-        const trigger = round === 0
+        let trigger = round === 0
           ? `${phaseInfo}\n\n${selectedTrigger}`
           : phaseInfo;
+
+        // Add last turn instruction (TASK-125) - prevent asking questions on final turn
+        const isLastTurn = this.turnIndex >= totalTurns - turnQueue.length;
+        if (isLastTurn) {
+          const lastTurnTrigger = '\n\n⚠️ Это твой ПОСЛЕДНИЙ ход в этой фазе. Заверши свою мысль. НЕ задавай вопросов — никто уже не ответит. Подведи итог или попрощайся.';
+          trigger += lastTurnTrigger;
+        }
 
         // Process character turn
         await this.processCharacterTurn(showId, characterId, trigger);
@@ -571,9 +578,16 @@ export class Orchestrator {
         const phaseInfo = `Сейчас фаза «${phase.name}», ход ${this.turnIndex + 1} из примерно ${totalTurns}.`;
         // Trigger template only for first round (may include conflict trigger), but always include phase info
         const selectedTrigger = this.selectTrigger(phase, seed, this.turnIndex);
-        const trigger = round === 0
+        let trigger = round === 0
           ? `${phaseInfo}\n\n${selectedTrigger}`
           : phaseInfo;
+
+        // Add last turn instruction (TASK-125) - prevent asking questions on final turn
+        const isLastTurn = this.turnIndex >= totalTurns - turnQueue.length;
+        if (isLastTurn) {
+          const lastTurnTrigger = '\n\n⚠️ Это твой ПОСЛЕДНИЙ ход в этой фазе. Заверши свою мысль. НЕ задавай вопросов — никто уже не ответит. Подведи итог или попрощайся.';
+          trigger += lastTurnTrigger;
+        }
 
         // Process character turn
         await this.processCharacterTurn(showId, characterId, trigger);

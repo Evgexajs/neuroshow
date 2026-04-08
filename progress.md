@@ -2992,3 +2992,22 @@ Added a template information panel to the Debug UI that displays template name, 
 
 **Тесты:** npm run lint (warnings only), npm run typecheck (passed), npm run build:ui (passed)
 **Заметки:** Эпилог — финальный штрих шоу. Каждый персонаж получает host_trigger с контекстом о победе/поражении и создаёт epilogue событие с 1 предложением о будущем.
+
+## [2026-04-08] TASK-125: Триггер последнего хода — не задавать вопросов
+**Статус:** done
+**Время:** ~10 минут
+**Изменения:**
+- src/core/orchestrator.ts — runPhase() и runPhaseWithDebug():
+  - Добавлено определение последнего хода: `isLastTurn = turnIndex >= totalTurns - turnQueue.length`
+  - Если последний ход — к триггеру добавляется lastTurnTrigger:
+    "⚠️ Это твой ПОСЛЕДНИЙ ход в этой фазе. Заверши свою мысль. НЕ задавай вопросов — никто уже не ответит. Подведи итог или попрощайся."
+  - Изменено `const trigger` → `let trigger` для возможности модификации
+
+**Acceptance Criteria:**
+1. Определять когда персонаж делает последний ход фазы ✓ (isLastTurn = turnIndex >= totalTurns - turnQueue.length)
+2. Добавлять last_turn_trigger к обычному триггеру ✓ (trigger += lastTurnTrigger)
+3. Персонаж не задаёт вопросов на последнем ходе ✓ (триггер явно запрещает вопросы)
+4. Персонаж завершает мысль или прощается ✓ (триггер предлагает подвести итог или попрощаться)
+
+**Тесты:** npm run lint (warnings only), npm run typecheck (passed)
+**Заметки:** Логика определяет последний "раунд" ходов — когда turnIndex достигает totalTurns - charactersCount, все оставшиеся ходы являются последними для своих персонажей.
