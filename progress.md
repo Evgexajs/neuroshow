@@ -2663,3 +2663,19 @@ Added a template information panel to the Debug UI that displays template name, 
 4. npm test проходит ✓ (361 tests passed)
 
 **Заметки:** Voting module зарегистрируется lazy — при первом вызове getVotingModule(). DecisionPhaseHandler содержит всю логику голосования, включая валидацию решений и revelation. HostModule по-прежнему содержит эти методы, но orchestrator теперь использует voting module напрямую.
+
+## [2026-04-08] TASK-130: Шаблон модуля + README для создания новых модулей
+**Статус:** done
+**Время:** ~15 минут
+**Изменения:**
+- src/modules/_template/types.ts — шаблон интерфейса модуля (ITemplateModule extends IModule)
+- src/modules/_template/index.ts — шаблон реализации модуля (TemplateModule implements ITemplateModule)
+- src/modules/_template/README.md — краткая инструкция и чеклист для копирования
+- src/modules/README.md — полная документация по созданию модулей с примерами
+
+**Acceptance Criteria:**
+1. Папка _template с index.ts, types.ts, README.md ✓
+2. README.md описывает как создать новый модуль ✓
+3. Шаблон содержит пример IModule реализации ✓
+
+**Заметки:** Шаблон демонстрирует паттерн модульной архитектуры: types.ts для интерфейса, index.ts для реализации. README в папке _template содержит quick start, а README в src/modules/ — полное руководство с примерами кода и best practices.
