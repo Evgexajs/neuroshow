@@ -2634,3 +2634,14 @@ Added a template information panel to the Debug UI that displays template name, 
 2. Описаны критерии что является ядром ✓ (раздел 2.1)
 3. Список: orchestrator.ts методы → какой модуль ✓ (раздел 4 + Appendix A)
 4. Описан IModule interface ✓ (раздел 5 с примерами)
+
+## [2026-04-08] TASK-128: Module registry для модульной архитектуры
+**Статус:** done
+**Время:** ~15 минут
+**Изменения:**
+- src/core/types/module.ts — создан IModule interface с методами init(), dispose(), name
+- src/core/module-registry.ts — создан ModuleRegistry класс с методами register(), getModule(), getAllModules(), disposeAll()
+- src/core/orchestrator.ts — добавлен import ModuleRegistry и свойство moduleRegistry в класс Orchestrator
+
+**Тесты:** npm run typecheck проходит
+**Заметки:** ModuleRegistry передаётся опционально в конструктор Orchestrator. Если не передан, создаётся новый экземпляр. Это backward-compatible изменение.

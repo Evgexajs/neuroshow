@@ -5,6 +5,7 @@
 
 import { IStore } from '../types/interfaces/store.interface.js';
 import { ModelAdapter, CharacterResponse } from '../types/adapter.js';
+import { ModuleRegistry } from './module-registry.js';
 import { EventJournal } from './event-journal.js';
 import { HostModule } from './host-module.js';
 import { ContextBuilder } from './context-builder.js';
@@ -85,13 +86,19 @@ export class Orchestrator {
   /** Replay adapter used during replay mode */
   private _replayAdapter: ReplayAdapter | null = null;
 
+  /** Module registry for pluggable modules */
+  readonly moduleRegistry: ModuleRegistry;
+
   constructor(
     readonly store: IStore,
     readonly adapter: ModelAdapter,
     readonly journal: EventJournal,
     readonly hostModule: HostModule,
-    readonly contextBuilder: ContextBuilder
-  ) {}
+    readonly contextBuilder: ContextBuilder,
+    moduleRegistry?: ModuleRegistry
+  ) {
+    this.moduleRegistry = moduleRegistry ?? new ModuleRegistry();
+  }
 
   /**
    * Get the active adapter (replay adapter if in replay mode, otherwise normal adapter)

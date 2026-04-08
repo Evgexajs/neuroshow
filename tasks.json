@@ -2594,7 +2594,9 @@
         "Проверь что она видна в UI",
         "Проверь что персонажи её знают"
       ],
-      "dependencies": ["TASK-095"],
+      "dependencies": [
+        "TASK-095"
+      ],
       "status": "done"
     },
     {
@@ -2619,7 +2621,9 @@
         "Проверь что персонажи говорят о ставках/ситуации",
         "Ожидаемый результат: осмысленные диалоги в контексте истории"
       ],
-      "dependencies": ["TASK-107"],
+      "dependencies": [
+        "TASK-107"
+      ],
       "status": "done"
     },
     {
@@ -2711,10 +2715,16 @@
         "relationship": {
           "id": "string",
           "type": "romantic_history | friendship | rivalry | family | colleagues | secret",
-          "participantIds": ["char-1", "char-2"],
+          "participantIds": [
+            "char-1",
+            "char-2"
+          ],
           "visibility": "public | private",
           "description": "Встречались 2 года, расстались месяц назад",
-          "knownBy": ["char-1", "char-2"]
+          "knownBy": [
+            "char-1",
+            "char-2"
+          ]
         }
       },
       "prompt_addition": "Для 2-3 пар персонажей создай предысторию отношений. Некоторые связи публичные (все знают), некоторые приватные (знают только участники). Формат: relationships: [{type, participants, visibility, description}]",
@@ -2744,7 +2754,9 @@
         "Проверь что связи видны в UI",
         "Создай шоу и проверь что персонажи знают о своих связях"
       ],
-      "dependencies": ["TASK-130"],
+      "dependencies": [
+        "TASK-130"
+      ],
       "status": "pending"
     },
     {
@@ -2771,7 +2783,9 @@
         "В motivationPrompt персонажей есть конкурентные элементы",
         "Минимум 2 персонажа имеют противоположные цели"
       ],
-      "dependencies": ["TASK-130"],
+      "dependencies": [
+        "TASK-130"
+      ],
       "status": "pending"
     },
     {
@@ -2800,7 +2814,9 @@
         "Персонажи упоминают/действуют согласно заданиям",
         "UI показывает секретные задания при создании"
       ],
-      "dependencies": ["TASK-130"],
+      "dependencies": [
+        "TASK-130"
+      ],
       "status": "pending"
     },
     {
@@ -2828,7 +2844,9 @@
         "HostModule случайно использует провокационные триггеры",
         "Персонажи реагируют на провокации (обвинения, защита)"
       ],
-      "dependencies": ["TASK-130"],
+      "dependencies": [
+        "TASK-130"
+      ],
       "status": "pending"
     },
     {
@@ -2854,7 +2872,10 @@
         "Триггерить по условиям или случайно"
       ],
       "note": "Это пост-MVP фича, связана с TASK-111 (LLM-ведущий)",
-      "dependencies": ["TASK-131", "TASK-111"],
+      "dependencies": [
+        "TASK-131",
+        "TASK-111"
+      ],
       "status": "blocked"
     },
     {
@@ -2880,7 +2901,9 @@
         "Если да — не объявлять победителя сразу, вызвать tiebreaker",
         "Создать динамическую фазу 'tiebreaker' в UI"
       ],
-      "dependencies": ["TASK-130"],
+      "dependencies": [
+        "TASK-130"
+      ],
       "status": "pending"
     },
     {
@@ -2902,7 +2925,10 @@
         "Использовать тот же buildDecisionTrigger но с ограниченным списком",
         "После revote — объявить победителя"
       ],
-      "dependencies": ["TASK-131", "TASK-117"],
+      "dependencies": [
+        "TASK-131",
+        "TASK-117"
+      ],
       "status": "pending"
     },
     {
@@ -2923,7 +2949,10 @@
         "Фаза: 1 ход на финалиста",
         "Потом вызвать runRevote"
       ],
-      "dependencies": ["TASK-131", "TASK-118"],
+      "dependencies": [
+        "TASK-131",
+        "TASK-118"
+      ],
       "status": "pending"
     },
     {
@@ -2939,7 +2968,10 @@
         "Ведущий объясняет выбор (2-3 предложения)",
         "Событие 'host_decision' с объяснением"
       ],
-      "dependencies": ["TASK-131", "TASK-111"],
+      "dependencies": [
+        "TASK-131",
+        "TASK-111"
+      ],
       "status": "blocked"
     },
     {
@@ -2959,7 +2991,9 @@
         "Текст драматичный, с паузами (...)",
         "UI выделяет это событие особым стилем"
       ],
-      "dependencies": ["TASK-130"],
+      "dependencies": [
+        "TASK-130"
+      ],
       "status": "pending"
     },
     {
@@ -2979,7 +3013,10 @@
         "Речь содержит благодарности и/или планы",
         "UI: речь выделена как особое событие"
       ],
-      "dependencies": ["TASK-131", "TASK-121"],
+      "dependencies": [
+        "TASK-131",
+        "TASK-121"
+      ],
       "status": "pending"
     },
     {
@@ -2999,7 +3036,10 @@
         "Реакции разные: поздравления, разочарование, обида, философия",
         "Короткие реплики (1-2 предложения)"
       ],
-      "dependencies": ["TASK-131", "TASK-122"],
+      "dependencies": [
+        "TASK-131",
+        "TASK-122"
+      ],
       "status": "pending"
     },
     {
@@ -3024,7 +3064,10 @@
         "Учитывает события шоу (союзы, конфликты, предательства)",
         "UI: отдельный блок 'Эпилог' после финала"
       ],
-      "dependencies": ["TASK-131", "TASK-123"],
+      "dependencies": [
+        "TASK-131",
+        "TASK-123"
+      ],
       "status": "pending"
     },
     {
@@ -3048,7 +3091,10 @@
         "Можно проверять: currentTurn >= totalTurns - charactersCount",
         "Или проверять: это последний ход конкретного персонажа в фазе"
       ],
-      "dependencies": ["TASK-131", "TASK-104"],
+      "dependencies": [
+        "TASK-131",
+        "TASK-104"
+      ],
       "status": "pending"
     },
     {
@@ -3077,7 +3123,9 @@
         "7. Примеры: формат с ресурсами, формат с предметами"
       ],
       "output": "docs/PRD-side-effects.md",
-      "dependencies": ["TASK-130"],
+      "dependencies": [
+        "TASK-130"
+      ],
       "status": "pending"
     },
     {
@@ -3086,7 +3134,9 @@
       "priority": "critical",
       "description": "PRD: модульная архитектура backend (только документ)",
       "problem": "Нужен документ с чётким определением границ core/modules перед рефакторингом",
-      "deliverables": ["docs/PRD-modular-architecture.md"],
+      "deliverables": [
+        "docs/PRD-modular-architecture.md"
+      ],
       "prd_sections": [
         "1. Цели модульной архитектуры",
         "2. Определение границы ЯДРО vs МОДУЛЬ (критерии)",
@@ -3122,8 +3172,10 @@
         "Orchestrator использует registry (import, но пока без модулей)",
         "npm run typecheck проходит"
       ],
-      "dependencies": ["TASK-127"],
-      "status": "pending"
+      "dependencies": [
+        "TASK-127"
+      ],
+      "status": "done"
     },
     {
       "id": "TASK-129",
@@ -3147,7 +3199,9 @@
         "Decision phase работает как раньше (регрессии нет)",
         "npm test проходит"
       ],
-      "dependencies": ["TASK-128"],
+      "dependencies": [
+        "TASK-128"
+      ],
       "status": "pending"
     },
     {
@@ -3165,7 +3219,9 @@
         "README.md описывает как создать новый модуль",
         "Шаблон содержит пример IModule реализации"
       ],
-      "dependencies": ["TASK-129"],
+      "dependencies": [
+        "TASK-129"
+      ],
       "status": "pending"
     },
     {
@@ -3174,7 +3230,9 @@
       "priority": "high",
       "description": "PRD: модульная архитектура для Frontend/UI",
       "problem": "Весь UI в одном app.ts (1600+ строк). При росте фич будет хаос. Нужна изоляция UI компонентов.",
-      "deliverables": ["docs/PRD-frontend-architecture.md"],
+      "deliverables": [
+        "docs/PRD-frontend-architecture.md"
+      ],
       "proposed_structure": {
         "web/debug-ui/": "Корень UI",
         "web/debug-ui/core/": "Ядро: state, api, events, router",
@@ -3197,7 +3255,9 @@
         "Описана структура компонентов",
         "Описан план миграции app.ts"
       ],
-      "dependencies": ["TASK-130"],
+      "dependencies": [
+        "TASK-130"
+      ],
       "status": "pending"
     }
   ]
