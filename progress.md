@@ -2645,3 +2645,21 @@ Added a template information panel to the Debug UI that displays template name, 
 
 **Тесты:** npm run typecheck проходит
 **Заметки:** ModuleRegistry передаётся опционально в конструктор Orchestrator. Если не передан, создаётся новый экземпляр. Это backward-compatible изменение.
+
+## [2026-04-08] TASK-129: Extract voting логику в модуль
+**Статус:** done
+**Время:** ~30 минут
+**Изменения:**
+- src/modules/voting/types.ts — создан DecisionCallback тип и IVotingModule интерфейс (расширяет IModule)
+- src/modules/voting/decision-phase.ts — создан DecisionPhaseHandler класс с логикой runDecisionPhase(), runRevelation(), buildDecisionTrigger(), validateDecisionValue()
+- src/modules/voting/index.ts — создан VotingModule класс, реализует IModule
+- src/core/orchestrator.ts — добавлен lazy getter getVotingModule(), все вызовы hostModule.runDecisionPhase/runRevelation заменены на вызовы через voting module
+- tests/unit/orchestrator.test.ts — обновлены тесты decision phase и revelation для проверки реального поведения (события) вместо spy на hostModule
+
+**Acceptance Criteria:**
+1. Модуль voting реализует IModule ✓ (VotingModule implements IVotingModule extends IModule)
+2. Orchestrator вызывает voting через registry ✓ (getVotingModule() использует moduleRegistry)
+3. Decision phase работает как раньше (регрессии нет) ✓ (все тесты проходят)
+4. npm test проходит ✓ (361 tests passed)
+
+**Заметки:** Voting module зарегистрируется lazy — при первом вызове getVotingModule(). DecisionPhaseHandler содержит всю логику голосования, включая валидацию решений и revelation. HostModule по-прежнему содержит эти методы, но orchestrator теперь использует voting module напрямую.

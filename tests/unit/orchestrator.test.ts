@@ -1006,24 +1006,46 @@ describe('Orchestrator', () => {
 
       const show = await hostModule.initializeShow(template, characters, 12345);
 
-      const runDecisionPhaseSpy = vi.spyOn(hostModule, 'runDecisionPhase');
-
       await orchestrator.runShow(show.id);
 
-      expect(runDecisionPhaseSpy).toHaveBeenCalled();
+      // Verify voting module was used by checking for decision events
+      const events = await eventJournal.getEvents(show.id);
+      const decisionEvents = events.filter((e) => e.type === EventType.decision);
+      // Each character should have made a decision
+      expect(decisionEvents.length).toBeGreaterThanOrEqual(1);
     });
 
     it('should run revelation at the end', async () => {
-      const template = createTestTemplate();
-      const characters = [createTestCharacter('char-1', 'Alice')];
+      // Use template with decision phase to test revelation
+      const template: ShowFormatTemplate = {
+        ...createTestTemplate(),
+        phases: [
+          {
+            id: 'phase-decision',
+            name: 'Decision Phase',
+            type: PhaseType.decision,
+            durationMode: 'turns',
+            durationValue: 1,
+            turnOrder: 'sequential',
+            allowedChannels: [ChannelType.PUBLIC],
+            triggerTemplate: null,
+            completionCondition: 'turns_complete',
+          },
+        ],
+      };
+      const characters = [
+        createTestCharacter('char-1', 'Alice'),
+        createTestCharacter('char-2', 'Bob'),
+      ];
 
       const show = await hostModule.initializeShow(template, characters, 12345);
 
-      const runRevelationSpy = vi.spyOn(hostModule, 'runRevelation');
-
       await orchestrator.runShow(show.id);
 
-      expect(runRevelationSpy).toHaveBeenCalledWith(show.id, template.decisionConfig);
+      // Verify revelation was run by checking for revelation events
+      const events = await eventJournal.getEvents(show.id);
+      const revelationEvents = events.filter((e) => e.type === EventType.revelation);
+      expect(revelationEvents.length).toBeGreaterThanOrEqual(1);
     });
   });
 

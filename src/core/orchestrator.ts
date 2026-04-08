@@ -20,6 +20,7 @@ import { logger } from '../utils/logger.js';
 import { ReplayAdapter } from '../adapters/replay-adapter.js';
 import { OpenAIAdapter } from '../adapters/openai-adapter.js';
 import { config } from '../config.js';
+import { VotingModule, IVotingModule, VOTING_MODULE_NAME } from '../modules/voting/index.js';
 
 /**
  * Custom error thrown when token budget is exceeded.
@@ -89,6 +90,9 @@ export class Orchestrator {
   /** Module registry for pluggable modules */
   readonly moduleRegistry: ModuleRegistry;
 
+  /** Cached voting module instance */
+  private _votingModule: IVotingModule | null = null;
+
   constructor(
     readonly store: IStore,
     readonly adapter: ModelAdapter,
@@ -98,6 +102,27 @@ export class Orchestrator {
     moduleRegistry?: ModuleRegistry
   ) {
     this.moduleRegistry = moduleRegistry ?? new ModuleRegistry();
+  }
+
+  /**
+   * Get the voting module, registering it if not already registered
+   * Uses lazy initialization to avoid async constructor
+   */
+  private async getVotingModule(): Promise<IVotingModule> {
+    if (this._votingModule) {
+      return this._votingModule;
+    }
+
+    // Check if already registered
+    let votingModule = this.moduleRegistry.getModule<IVotingModule>(VOTING_MODULE_NAME);
+    if (!votingModule) {
+      // Register voting module
+      votingModule = new VotingModule(this.store, this.journal);
+      await this.moduleRegistry.register(votingModule);
+    }
+
+    this._votingModule = votingModule;
+    return votingModule;
   }
 
   /**
@@ -1182,7 +1207,8 @@ export class Orchestrator {
           // Skip speech event - runDecisionPhase creates decision event instead
           return this.processCharacterTurn(showId, characterId, trigger, { skipSpeechEvent: true });
         };
-        await this.hostModule.runDecisionPhase(showId, decisionConfig, decisionCallback);
+        const votingModule = await this.getVotingModule();
+        await votingModule.runDecisionPhase(showId, decisionConfig, decisionCallback);
       } else {
         // Regular phases use runPhase (or runPhaseWithDebug in DEBUG mode)
         if (this.mode === 'DEBUG') {
@@ -1212,7 +1238,8 @@ export class Orchestrator {
     }
 
     // Run revelation at the end
-    await this.hostModule.runRevelation(showId, decisionConfig);
+    const votingModuleForRevelation = await this.getVotingModule();
+    await votingModuleForRevelation.runRevelation(showId, decisionConfig);
 
     // Update show status to completed
     await this.store.updateShow(showId, {
@@ -1355,10 +1382,11 @@ export class Orchestrator {
         return this.processCharacterTurn(showId, characterId, trigger, { skipSpeechEvent: true });
       };
 
-      await this.hostModule.runDecisionPhase(showId, decisionConfig, decisionCallback);
+      const votingModule = await this.getVotingModule();
+      await votingModule.runDecisionPhase(showId, decisionConfig, decisionCallback);
 
       // Run Revelation
-      await this.hostModule.runRevelation(showId, decisionConfig);
+      await votingModule.runRevelation(showId, decisionConfig);
     }
 
     // Create 'system' event with graceful_finish: true
@@ -1582,7 +1610,8 @@ export class Orchestrator {
           // Skip speech event - runDecisionPhase creates decision event instead
           return this.processCharacterTurn(showId, characterId, trigger, { skipSpeechEvent: true });
         };
-        await this.hostModule.runDecisionPhase(showId, decisionConfig, decisionCallback);
+        const votingModule = await this.getVotingModule();
+        await votingModule.runDecisionPhase(showId, decisionConfig, decisionCallback);
       } else {
         // Regular phases use runPhase (or runPhaseWithDebug in DEBUG mode)
         if (this.mode === 'DEBUG') {
@@ -1612,7 +1641,8 @@ export class Orchestrator {
     }
 
     // Run revelation at the end
-    await this.hostModule.runRevelation(showId, decisionConfig);
+    const votingModuleForRevelation = await this.getVotingModule();
+    await votingModuleForRevelation.runRevelation(showId, decisionConfig);
 
     // Update show status to completed
     await this.store.updateShow(showId, {
