@@ -989,7 +989,9 @@ function addEventToFeed(event: ShowEvent): void {
 
   // Get channel class for color coding
   const channelClass = getChannelClass(event.channel);
-  eventEl.className = `event-item ${channelClass}`;
+  // Add special class for winner announcement
+  const winnerClass = eventType === 'winner_announcement' ? 'winner-announcement' : '';
+  eventEl.className = `event-item ${channelClass} ${winnerClass}`.trim();
 
   // Format event data
   const time = formatTime(event.timestamp);

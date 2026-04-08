@@ -197,6 +197,31 @@ body {
   border-left-color: var(--accent) !important;
 }
 
+/* Winner announcement - dramatic golden style */
+.event-item.winner-announcement {
+  background: linear-gradient(135deg, #fff8e1 0%, #ffecb3 50%, #ffe082 100%) !important;
+  border-left: 4px solid #ffc107 !important;
+  box-shadow: 0 2px 8px rgba(255, 193, 7, 0.3);
+  animation: winner-glow 2s ease-in-out;
+}
+
+.event-item.winner-announcement .event-content {
+  font-weight: 700;
+  font-size: 1rem;
+  color: #5d4037;
+  text-align: center;
+}
+
+.event-item.winner-announcement .event-header {
+  color: #8d6e63;
+}
+
+@keyframes winner-glow {
+  0% { box-shadow: 0 0 5px rgba(255, 193, 7, 0.3); }
+  50% { box-shadow: 0 0 20px rgba(255, 193, 7, 0.6); }
+  100% { box-shadow: 0 2px 8px rgba(255, 193, 7, 0.3); }
+}
+
 /* Phase separator */
 .phase-separator {
   display: flex;

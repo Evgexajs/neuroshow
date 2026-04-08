@@ -2886,3 +2886,27 @@ Added a template information panel to the Debug UI that displays template name, 
 
 **Тесты:** npm run lint (warnings only), npm run typecheck (passed)
 **Заметки:** Существующие падения в тестах связаны с disk I/O error (известная проблема с файловыми локами, см. CLAUDE.md).
+
+## [2026-04-08] TASK-121: Финал: драматичное объявление победителя
+**Статус:** done
+**Время:** ~20 минут
+**Изменения:**
+- src/types/enums.ts — добавлен winner_announcement в EventType enum
+- src/modules/voting/decision-phase.ts — добавлено создание драматичного события после summary:
+  - Текст RU: "Голоса подсчитаны... Напряжение нарастает... Победитель сегодняшнего шоу — {name}!"
+  - Текст EN: "The votes are in... The tension builds... The winner of today's show is — {name}!"
+  - Событие создаётся только когда есть победитель (не при ничьей)
+- web/debug-ui/styles.css — добавлен стиль .winner-announcement:
+  - Золотой градиентный фон (#fff8e1 → #ffecb3 → #ffe082)
+  - Золотая левая граница (#ffc107)
+  - Анимация свечения (winner-glow keyframes)
+  - Жирный центрированный текст
+- web/debug-ui/app.ts — добавлена логика для winner-announcement класса в addEventToFeed()
+
+**Acceptance Criteria:**
+1. После голосования — отдельное событие объявления ✓ (winner_announcement event после summary)
+2. Текст драматичный, с паузами (...) ✓ ("Голоса подсчитаны... Напряжение нарастает...")
+3. UI выделяет это событие особым стилем ✓ (золотой градиент, анимация свечения)
+
+**Тесты:** npm run lint (warnings only), npm run typecheck (passed), npm run build:ui (passed)
+**Заметки:** Существующие падения в тестах связаны с disk I/O error (см. CLAUDE.md).

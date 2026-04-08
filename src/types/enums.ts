@@ -19,6 +19,7 @@ export enum EventType {
   duel_speech = 'duel_speech', // Final duel speech before revote
   private_injection = 'private_injection', // Non-MVP (structurally supported in MVP)
   system = 'system',
+  winner_announcement = 'winner_announcement', // Dramatic winner announcement
 }
 
 /**

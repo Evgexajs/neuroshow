@@ -684,6 +684,34 @@ export class DecisionPhaseHandler {
       };
 
       await this.eventJournal.append(summaryEvent);
+
+      // Dramatic winner announcement
+      if (winner) {
+        const dramaticContent = isRussian
+          ? `Голоса подсчитаны... Напряжение нарастает... Победитель сегодняшнего шоу — ${winner}!`
+          : `The votes are in... The tension builds... The winner of today's show is — ${winner}!`;
+
+        const announcementEvent: Omit<ShowEvent, 'sequenceNumber'> = {
+          id: generateId(),
+          showId,
+          timestamp: Date.now(),
+          phaseId,
+          type: EventType.winner_announcement,
+          channel: ChannelType.PUBLIC,
+          visibility: ChannelType.PUBLIC,
+          senderId: '', // System event
+          receiverIds: allCharacterIds,
+          audienceIds: allCharacterIds,
+          content: dramaticContent,
+          metadata: {
+            winner,
+            tiebreakerUsed,
+          },
+          seed,
+        };
+
+        await this.eventJournal.append(announcementEvent);
+      }
     }
 
     return {};
