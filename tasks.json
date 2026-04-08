@@ -3079,6 +3079,53 @@
       "output": "docs/PRD-side-effects.md",
       "dependencies": [],
       "status": "pending"
+    },
+    {
+      "id": "TASK-127",
+      "category": "architecture",
+      "priority": "critical",
+      "description": "PRD + рефакторинг: модульная архитектура с изолированными модулями",
+      "problem": "Всё в src/core/ — монолит. При росте функционала будет хаос. Нужна изоляция модулей с собственным API.",
+      "blocking": "Эта таска должна быть выполнена ПЕРЕД всеми pending feature-тасками (113-126)",
+      "deliverables": [
+        "docs/PRD-modular-architecture.md",
+        "Рефакторинг структуры src/modules/",
+        "Шаблон для новых модулей"
+      ],
+      "proposed_structure": {
+        "src/core/": "Ядро: orchestrator, event-journal, host-module (минимум)",
+        "src/modules/relationships/": "TASK-112 — генерация связей",
+        "src/modules/tiebreaker/": "TASK-117-120 — разрешение ничьей",
+        "src/modules/finale/": "TASK-121-124 — финальные механики",
+        "src/modules/conflicts/": "TASK-113-115 — конфликтные механики",
+        "src/modules/side-effects/": "TASK-126 — действия в мире",
+        "src/modules/llm-host/": "TASK-111 — LLM-ведущий"
+      },
+      "module_template": {
+        "index.ts": "Публичный API модуля (export interface IModule)",
+        "types.ts": "Типы модуля",
+        "tasks.json": "Таски относящиеся к этому модулю",
+        "README.md": "Документация модуля",
+        "*.ts": "Внутренняя реализация"
+      },
+      "prd_sections": [
+        "1. Цели модульной архитектуры",
+        "2. Структура модуля (файлы, контракты)",
+        "3. Регистрация модулей в ядре (DI / Registry)",
+        "4. Коммуникация между модулями (events / interfaces)",
+        "5. Тестирование модулей изолированно",
+        "6. Миграция существующего кода",
+        "7. Шаблон создания нового модуля"
+      ],
+      "acceptance_criteria": [
+        "PRD написан и утверждён",
+        "Создана структура src/modules/ с шаблоном",
+        "Хотя бы 1 модуль вынесен как пример (например tiebreaker)",
+        "Каждый модуль имеет свой tasks.json",
+        "README с инструкцией как создать новый модуль"
+      ],
+      "dependencies": [],
+      "status": "pending"
     }
   ]
 }
