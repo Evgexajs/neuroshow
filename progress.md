@@ -2860,3 +2860,29 @@ Added a template information panel to the Debug UI that displays template name, 
 
 **Тесты:** npm run lint (warnings only), npm run typecheck (passed), host-module tests (50 passed)
 **Заметки:** Существующие падения в unit-тестах оркестратора не связаны с этими изменениями (проблемы с mock adapter). Режим duel будет реализован в TASK-119.
+
+## [2026-04-08] TASK-119: Tiebreaker режим duel (финальная речь)
+**Статус:** done
+**Время:** ~30 минут
+**Изменения:**
+- src/types/enums.ts — добавлен duel_speech в EventType enum для UI распознавания финальной дуэли
+- src/modules/voting/types.ts — добавлен runDuelTiebreaker() в IVotingModule interface
+- src/modules/voting/decision-phase.ts — добавлены методы:
+  - runDuelTiebreaker(showId, finalists, decisionConfig, callCharacter) — дуэль с речами и revote
+  - buildDuelSpeechTrigger() — триггер для финальной речи (RU/EN): "Убеди остальных почему ты достоин победы"
+  - Каждый финалист получает 1 ход с duel_speech событием
+  - После речей вызывается runTiebreaker для revote
+- src/modules/voting/index.ts — добавлен runDuelTiebreaker()
+- src/core/orchestrator.ts — интеграция runDuelTiebreaker в 3 местах:
+  - runShow() — если tiebreakerMode === 'duel', вызывает runDuelTiebreaker вместо runTiebreaker
+  - executeShowRun() — аналогично
+  - gracefulFinish() — аналогично
+
+**Acceptance Criteria:**
+1. При duel mode: сначала мини-фаза речей финалистов ✓ (runDuelTiebreaker создаёт duel_speech события)
+2. Каждый финалист получает 1 ход с триггером 'Убеди остальных почему ты достоин победы' ✓ (buildDuelSpeechTrigger)
+3. После речей — revote ✓ (runTiebreaker вызывается в конце runDuelTiebreaker)
+4. UI показывает что это финальная дуэль ✓ (duel_speech event type, metadata.isDuel, metadata.duelSpeech)
+
+**Тесты:** npm run lint (warnings only), npm run typecheck (passed)
+**Заметки:** Существующие падения в тестах связаны с disk I/O error (известная проблема с файловыми локами, см. CLAUDE.md).

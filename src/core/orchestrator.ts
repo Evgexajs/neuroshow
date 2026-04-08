@@ -1278,7 +1278,7 @@ export class Orchestrator {
     const votingModuleForRevelation = await this.getVotingModule();
     const revelationResult = await votingModuleForRevelation.runRevelation(showId, decisionConfig);
 
-    // If tiebreaker revote is needed, run it
+    // If tiebreaker is needed, run it (duel or revote based on mode)
     if (revelationResult.tiebreakerNeeded && revelationResult.tiebreakerNeeded.length > 0) {
       const tiebreakerCallback = async (
         characterId: string,
@@ -1293,12 +1293,23 @@ export class Orchestrator {
         }
         return this.processCharacterTurn(showId, characterId, trigger, { skipSpeechEvent: true });
       };
-      await votingModuleForRevelation.runTiebreaker(
-        showId,
-        revelationResult.tiebreakerNeeded,
-        decisionConfig,
-        tiebreakerCallback
-      );
+
+      // Choose tiebreaker method based on mode
+      if (decisionConfig.tiebreakerMode === 'duel') {
+        await votingModuleForRevelation.runDuelTiebreaker(
+          showId,
+          revelationResult.tiebreakerNeeded,
+          decisionConfig,
+          tiebreakerCallback
+        );
+      } else {
+        await votingModuleForRevelation.runTiebreaker(
+          showId,
+          revelationResult.tiebreakerNeeded,
+          decisionConfig,
+          tiebreakerCallback
+        );
+      }
     }
 
     // Update show status to completed
@@ -1448,14 +1459,23 @@ export class Orchestrator {
       // Run Revelation
       const revelationResult = await votingModule.runRevelation(showId, decisionConfig);
 
-      // If tiebreaker revote is needed, run it
+      // If tiebreaker is needed, run it (duel or revote based on mode)
       if (revelationResult.tiebreakerNeeded && revelationResult.tiebreakerNeeded.length > 0) {
-        await votingModule.runTiebreaker(
-          showId,
-          revelationResult.tiebreakerNeeded,
-          decisionConfig,
-          decisionCallback
-        );
+        if (decisionConfig.tiebreakerMode === 'duel') {
+          await votingModule.runDuelTiebreaker(
+            showId,
+            revelationResult.tiebreakerNeeded,
+            decisionConfig,
+            decisionCallback
+          );
+        } else {
+          await votingModule.runTiebreaker(
+            showId,
+            revelationResult.tiebreakerNeeded,
+            decisionConfig,
+            decisionCallback
+          );
+        }
       }
     }
 
@@ -1714,7 +1734,7 @@ export class Orchestrator {
     const votingModuleForRevelation = await this.getVotingModule();
     const revelationResult = await votingModuleForRevelation.runRevelation(showId, decisionConfig);
 
-    // If tiebreaker revote is needed, run it
+    // If tiebreaker is needed, run it (duel or revote based on mode)
     if (revelationResult.tiebreakerNeeded && revelationResult.tiebreakerNeeded.length > 0) {
       const tiebreakerCallback = async (
         characterId: string,
@@ -1729,12 +1749,23 @@ export class Orchestrator {
         }
         return this.processCharacterTurn(showId, characterId, trigger, { skipSpeechEvent: true });
       };
-      await votingModuleForRevelation.runTiebreaker(
-        showId,
-        revelationResult.tiebreakerNeeded,
-        decisionConfig,
-        tiebreakerCallback
-      );
+
+      // Choose tiebreaker method based on mode
+      if (decisionConfig.tiebreakerMode === 'duel') {
+        await votingModuleForRevelation.runDuelTiebreaker(
+          showId,
+          revelationResult.tiebreakerNeeded,
+          decisionConfig,
+          tiebreakerCallback
+        );
+      } else {
+        await votingModuleForRevelation.runTiebreaker(
+          showId,
+          revelationResult.tiebreakerNeeded,
+          decisionConfig,
+          tiebreakerCallback
+        );
+      }
     }
 
     // Update show status to completed
