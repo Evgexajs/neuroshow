@@ -2744,7 +2744,7 @@
         "Проверь что связи видны в UI",
         "Создай шоу и проверь что персонажи знают о своих связях"
       ],
-      "dependencies": [],
+      "dependencies": ["TASK-127"],
       "status": "pending"
     },
     {
@@ -2771,7 +2771,7 @@
         "В motivationPrompt персонажей есть конкурентные элементы",
         "Минимум 2 персонажа имеют противоположные цели"
       ],
-      "dependencies": [],
+      "dependencies": ["TASK-127"],
       "status": "pending"
     },
     {
@@ -2800,7 +2800,7 @@
         "Персонажи упоминают/действуют согласно заданиям",
         "UI показывает секретные задания при создании"
       ],
-      "dependencies": [],
+      "dependencies": ["TASK-127"],
       "status": "pending"
     },
     {
@@ -2828,7 +2828,7 @@
         "HostModule случайно использует провокационные триггеры",
         "Персонажи реагируют на провокации (обвинения, защита)"
       ],
-      "dependencies": [],
+      "dependencies": ["TASK-127"],
       "status": "pending"
     },
     {
@@ -2854,7 +2854,7 @@
         "Триггерить по условиям или случайно"
       ],
       "note": "Это пост-MVP фича, связана с TASK-111 (LLM-ведущий)",
-      "dependencies": ["TASK-111"],
+      "dependencies": ["TASK-127", "TASK-111"],
       "status": "blocked"
     },
     {
@@ -2880,7 +2880,7 @@
         "Если да — не объявлять победителя сразу, вызвать tiebreaker",
         "Создать динамическую фазу 'tiebreaker' в UI"
       ],
-      "dependencies": [],
+      "dependencies": ["TASK-127"],
       "status": "pending"
     },
     {
@@ -2902,7 +2902,7 @@
         "Использовать тот же buildDecisionTrigger но с ограниченным списком",
         "После revote — объявить победителя"
       ],
-      "dependencies": ["TASK-117"],
+      "dependencies": ["TASK-127", "TASK-117"],
       "status": "pending"
     },
     {
@@ -2923,7 +2923,7 @@
         "Фаза: 1 ход на финалиста",
         "Потом вызвать runRevote"
       ],
-      "dependencies": ["TASK-118"],
+      "dependencies": ["TASK-127", "TASK-118"],
       "status": "pending"
     },
     {
@@ -2939,7 +2939,7 @@
         "Ведущий объясняет выбор (2-3 предложения)",
         "Событие 'host_decision' с объяснением"
       ],
-      "dependencies": ["TASK-111"],
+      "dependencies": ["TASK-127", "TASK-111"],
       "status": "blocked"
     },
     {
@@ -2959,7 +2959,7 @@
         "Текст драматичный, с паузами (...)",
         "UI выделяет это событие особым стилем"
       ],
-      "dependencies": [],
+      "dependencies": ["TASK-127"],
       "status": "pending"
     },
     {
@@ -2979,7 +2979,7 @@
         "Речь содержит благодарности и/или планы",
         "UI: речь выделена как особое событие"
       ],
-      "dependencies": ["TASK-121"],
+      "dependencies": ["TASK-127", "TASK-121"],
       "status": "pending"
     },
     {
@@ -2999,7 +2999,7 @@
         "Реакции разные: поздравления, разочарование, обида, философия",
         "Короткие реплики (1-2 предложения)"
       ],
-      "dependencies": ["TASK-122"],
+      "dependencies": ["TASK-127", "TASK-122"],
       "status": "pending"
     },
     {
@@ -3024,7 +3024,7 @@
         "Учитывает события шоу (союзы, конфликты, предательства)",
         "UI: отдельный блок 'Эпилог' после финала"
       ],
-      "dependencies": ["TASK-123"],
+      "dependencies": ["TASK-127", "TASK-123"],
       "status": "pending"
     },
     {
@@ -3048,7 +3048,7 @@
         "Можно проверять: currentTurn >= totalTurns - charactersCount",
         "Или проверять: это последний ход конкретного персонажа в фазе"
       ],
-      "dependencies": ["TASK-104"],
+      "dependencies": ["TASK-127", "TASK-104"],
       "status": "pending"
     },
     {
@@ -3077,7 +3077,7 @@
         "7. Примеры: формат с ресурсами, формат с предметами"
       ],
       "output": "docs/PRD-side-effects.md",
-      "dependencies": [],
+      "dependencies": ["TASK-127"],
       "status": "pending"
     },
     {
