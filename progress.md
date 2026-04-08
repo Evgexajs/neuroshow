@@ -2801,3 +2801,31 @@ Added a template information panel to the Debug UI that displays template name, 
 
 **Тесты:** npm run lint (warnings only), npm run typecheck (passed), validation tests (42 passed)
 **Заметки:** Логика выбора триггеров реализована в Orchestrator, а не HostModule, так как Orchestrator управляет потоком ходов. Seeded random обеспечивает воспроизводимость при replay. Существующие падения в unit-тестах оркестратора не связаны с этими изменениями.
+
+## [2026-04-08] TASK-117: Детекция ничьей в голосовании
+**Статус:** done
+**Время:** ~30 минут
+**Изменения:**
+- src/types/primitives.ts — добавлено поле tiebreakerMode?: 'revote' | 'duel' | 'random' в DecisionConfig
+- src/types/enums.ts — добавлен tiebreaker_start в EventType enum
+- src/modules/voting/decision-phase.ts — модифицирован runRevelation():
+  - При ничье (leaders.length > 1) создаётся событие tiebreaker_start с финалистами
+  - Поддержка режимов: random (случайный выбор), default (первый получивший голос)
+  - Режимы 'revote' и 'duel' подготовлены для TASK-118/119
+- web/debug-ui/app.ts — добавлена обработка tiebreaker_start события:
+  - Функция addTiebreakerPhase() добавляет динамическую фазу в UI
+  - Показывает финалистов и режим тайбрейкера
+  - Добавлено поле metadata в ShowEvent interface
+- web/debug-ui/styles.css — добавлены стили для .phase-item.tiebreaker:
+  - Оранжевая рамка и подсветка (border-color: #ff9f43)
+  - Специальный блок .phase-finalists для показа финалистов
+
+**Acceptance Criteria:**
+1. В runRevelation определяется ничья (2+ кандидата с макс. голосами) ✓
+2. Добавлено поле tiebreakerMode в DecisionConfig ✓
+3. При ничьей создаётся событие 'tiebreaker_start' с финалистами ✓
+4. В revelation указывается что была ничья ✓ (tiebreakerUsed: true)
+5. UI: новый блок фазы 'Переголосование' / 'Tiebreaker' в Template & Phases ✓
+
+**Тесты:** npm run lint (warnings only), npm run typecheck (passed), npm run build:ui (passed)
+**Заметки:** Существующие падения в unit-тестах оркестратора не связаны с этими изменениями. Режимы 'revote' и 'duel' будут реализованы в TASK-118/119.

@@ -308,6 +308,27 @@ body {
   box-shadow: 0 0 10px rgba(0, 217, 255, 0.3);
 }
 
+.phase-item.tiebreaker {
+  border-color: #ff9f43;
+  background-color: rgba(255, 159, 67, 0.1);
+  box-shadow: 0 0 10px rgba(255, 159, 67, 0.3);
+}
+
+.phase-item.tiebreaker .phase-type {
+  background-color: #ff9f43;
+  color: #1a1a1a;
+  font-weight: 600;
+}
+
+.phase-item.tiebreaker .phase-finalists {
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  background-color: rgba(255, 159, 67, 0.15);
+  border-radius: 4px;
+  font-size: 0.8rem;
+  color: #ff9f43;
+}
+
 .phase-header {
   display: flex;
   justify-content: space-between;

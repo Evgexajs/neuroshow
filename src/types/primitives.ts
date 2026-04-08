@@ -43,6 +43,7 @@ export interface DecisionConfig {
   revealMoment: 'after_all' | 'after_each';
   format: 'choice' | 'free_text' | 'ranking';
   options: string[] | null;
+  tiebreakerMode?: 'revote' | 'duel' | 'random';
 }
 
 /**

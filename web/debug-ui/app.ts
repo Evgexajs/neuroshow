@@ -13,6 +13,7 @@ interface ShowEvent {
   type?: string;
   content?: string;
   audienceIds?: string[];
+  metadata?: Record<string, unknown>;
 }
 
 interface Character {
@@ -616,6 +617,60 @@ function updatePhaseProgress(phaseId: string): void {
 }
 
 /**
+ * Add dynamic tiebreaker phase to phases list
+ */
+function addTiebreakerPhase(event: ShowEvent): void {
+  const phasesListEl = document.getElementById('phases-list');
+  if (!phasesListEl) return;
+
+  // Extract finalists from event metadata
+  const metadata = event.metadata as { finalists?: string[]; tiebreakerMode?: string } | undefined;
+  const finalists = metadata?.finalists ?? [];
+  const mode = metadata?.tiebreakerMode ?? 'random';
+
+  // Check if tiebreaker phase already exists
+  const existingTiebreaker = phasesListEl.querySelector('.phase-item.tiebreaker');
+  if (existingTiebreaker) {
+    return; // Don't add duplicate
+  }
+
+  // Create tiebreaker phase element
+  const phaseEl = document.createElement('div');
+  phaseEl.className = 'phase-item tiebreaker current';
+  phaseEl.dataset.phaseId = 'tiebreaker-dynamic';
+
+  // Format mode for display
+  const modeLabels: Record<string, string> = {
+    revote: 'Переголосование',
+    duel: 'Дуэль',
+    random: 'Случайный выбор',
+  };
+  const modeLabel = modeLabels[mode] ?? mode;
+
+  phaseEl.innerHTML = `
+    <div class="phase-header">
+      <span class="phase-name">Переголосование</span>
+      <span class="phase-type">TIEBREAKER</span>
+    </div>
+    <div class="phase-details">
+      <div class="phase-turns">
+        <span>Режим: ${escapeHtml(modeLabel)}</span>
+      </div>
+    </div>
+    <div class="phase-finalists">
+      Финалисты: ${finalists.map((f) => escapeHtml(f)).join(', ')}
+    </div>
+  `;
+
+  // Remove 'current' class from other phases
+  const allPhases = phasesListEl.querySelectorAll('.phase-item');
+  allPhases.forEach((p) => p.classList.remove('current'));
+
+  // Add tiebreaker phase at the end
+  phasesListEl.appendChild(phaseEl);
+}
+
+/**
  * Format status for display
  */
 function formatStatus(status: CharacterStatus): string {
@@ -720,6 +775,11 @@ async function connect(showId: string): Promise<void> {
       if (showEvent.type === 'phase_start' && showEvent.phaseId) {
         currentPhaseId = showEvent.phaseId;
         renderTemplateInfo();
+      }
+
+      // Handle tiebreaker_start event - add dynamic tiebreaker phase to UI
+      if (showEvent.type === 'tiebreaker_start') {
+        addTiebreakerPhase(showEvent);
       }
     } catch (err) {
       console.error('Failed to parse event:', err);

@@ -466,15 +466,54 @@ export class DecisionPhaseHandler {
     if (leaders.length === 1) {
       winner = leaders[0]!;
     } else if (leaders.length > 1) {
-      // Use first-voter tiebreaker: the candidate who received their first vote earliest wins
+      // Tie detected - emit tiebreaker_start event
       tiebreakerUsed = true;
-      for (const candidate of voteOrder) {
-        if (leaders.includes(candidate)) {
-          winner = candidate;
-          break;
+
+      const tiebreakerContent = isRussian
+        ? `Ничья! Финалисты: ${leaders.join(', ')}. Требуется переголосование.`
+        : `Tie detected! Finalists: ${leaders.join(', ')}. Tiebreaker required.`;
+
+      const tiebreakerStartEvent: Omit<ShowEvent, 'sequenceNumber'> = {
+        id: generateId(),
+        showId,
+        timestamp: Date.now(),
+        phaseId,
+        type: EventType.tiebreaker_start,
+        channel: ChannelType.PUBLIC,
+        visibility: ChannelType.PUBLIC,
+        senderId: '', // System event
+        receiverIds: allCharacterIds,
+        audienceIds: allCharacterIds,
+        content: tiebreakerContent,
+        metadata: {
+          finalists: leaders,
+          voteCounts: Object.fromEntries(voteCounts),
+          tiebreakerMode: decisionConfig.tiebreakerMode ?? 'random',
+        },
+        seed,
+      };
+
+      await this.eventJournal.append(tiebreakerStartEvent);
+
+      // Resolve tie based on tiebreakerMode (default: first-voter for backward compatibility)
+      // Note: 'revote' and 'duel' modes will be implemented in TASK-118/119
+      // For now, fall back to first-voter or random
+      const mode = decisionConfig.tiebreakerMode ?? 'random';
+      if (mode === 'random') {
+        // Random selection among finalists
+        const randomIndex = Math.floor(Math.random() * leaders.length);
+        winner = leaders[randomIndex]!;
+        tiebreakerRule = isRussian ? 'случайный выбор' : 'random selection';
+      } else {
+        // Default: first-voter tiebreaker
+        for (const candidate of voteOrder) {
+          if (leaders.includes(candidate)) {
+            winner = candidate;
+            break;
+          }
         }
+        tiebreakerRule = isRussian ? 'первый получивший голос' : 'first to receive a vote';
       }
-      tiebreakerRule = isRussian ? 'первый получивший голос' : 'first to receive a vote';
     }
 
     if (decisionConfig.revealMoment === 'after_all') {

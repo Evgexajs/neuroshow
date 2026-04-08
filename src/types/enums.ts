@@ -14,6 +14,7 @@ export enum EventType {
   channel_change = 'channel_change',
   decision = 'decision',
   revelation = 'revelation',
+  tiebreaker_start = 'tiebreaker_start',
   private_injection = 'private_injection', // Non-MVP (structurally supported in MVP)
   system = 'system',
 }
