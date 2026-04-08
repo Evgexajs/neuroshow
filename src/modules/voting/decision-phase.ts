@@ -10,7 +10,7 @@ import { EventType, ChannelType } from '../../types/enums.js';
 import { DecisionConfig } from '../../types/primitives.js';
 import { generateId } from '../../utils/id.js';
 import { logger } from '../../utils/logger.js';
-import { DecisionCallback } from './types.js';
+import { DecisionCallback, RevelationResult } from './types.js';
 
 /**
  * DecisionPhaseHandler - manages decision/voting phase logic
@@ -380,8 +380,9 @@ export class DecisionPhaseHandler {
 
   /**
    * Run revelation phase - reveal voting results
+   * Returns tiebreakerNeeded with finalists if revote mode and tie detected
    */
-  async runRevelation(showId: string, decisionConfig: DecisionConfig): Promise<void> {
+  async runRevelation(showId: string, decisionConfig: DecisionConfig): Promise<RevelationResult> {
     // Get show info for phase and seed
     const showRecord = await this.store.getShow(showId);
     if (!showRecord) {
@@ -393,7 +394,7 @@ export class DecisionPhaseHandler {
     // Get all characters for this show (for audienceIds)
     const characters = await this.store.getCharacters(showId);
     if (characters.length === 0) {
-      return;
+      return {};
     }
     const allCharacterIds = characters.map((c) => c.characterId);
 
@@ -425,7 +426,7 @@ export class DecisionPhaseHandler {
     );
 
     if (decisionEvents.length === 0) {
-      return;
+      return {};
     }
 
     // Count votes for each candidate
@@ -468,6 +469,7 @@ export class DecisionPhaseHandler {
     } else if (leaders.length > 1) {
       // Tie detected - emit tiebreaker_start event
       tiebreakerUsed = true;
+      const mode = decisionConfig.tiebreakerMode ?? 'random';
 
       const tiebreakerContent = isRussian
         ? `Ничья! Финалисты: ${leaders.join(', ')}. Требуется переголосование.`
@@ -488,17 +490,19 @@ export class DecisionPhaseHandler {
         metadata: {
           finalists: leaders,
           voteCounts: Object.fromEntries(voteCounts),
-          tiebreakerMode: decisionConfig.tiebreakerMode ?? 'random',
+          tiebreakerMode: mode,
         },
         seed,
       };
 
       await this.eventJournal.append(tiebreakerStartEvent);
 
-      // Resolve tie based on tiebreakerMode (default: first-voter for backward compatibility)
-      // Note: 'revote' and 'duel' modes will be implemented in TASK-118/119
-      // For now, fall back to first-voter or random
-      const mode = decisionConfig.tiebreakerMode ?? 'random';
+      // For revote mode, return finalists and let orchestrator call runTiebreaker
+      if (mode === 'revote') {
+        return { tiebreakerNeeded: leaders };
+      }
+
+      // For other modes, resolve tie immediately
       if (mode === 'random') {
         // Random selection among finalists
         const randomIndex = Math.floor(Math.random() * leaders.length);
@@ -681,6 +685,357 @@ export class DecisionPhaseHandler {
 
       await this.eventJournal.append(summaryEvent);
     }
+
+    return {};
+  }
+
+  /**
+   * Run tiebreaker revote between finalists
+   * Only non-finalists vote, only for finalists
+   * If still tied, random selection is used
+   */
+  async runTiebreaker(
+    showId: string,
+    finalists: string[],
+    _decisionConfig: DecisionConfig,
+    callCharacter: DecisionCallback
+  ): Promise<void> {
+    // Get show info
+    const showRecord = await this.store.getShow(showId);
+    if (!showRecord) {
+      throw new Error(`Show ${showId} not found`);
+    }
+    const phaseId = showRecord.currentPhaseId ?? '';
+    const seed = showRecord.seed;
+
+    // Get all characters
+    const characters = await this.store.getCharacters(showId);
+    if (characters.length === 0) {
+      return;
+    }
+
+    // Get character definitions from configSnapshot
+    const configSnapshot = JSON.parse(showRecord.configSnapshot) as Record<string, unknown>;
+    const characterDefinitions = configSnapshot.characterDefinitions as
+      | Array<{ id: string; name: string; responseConstraints?: { language?: string } }>
+      | undefined;
+
+    // Build name map and reverse map
+    const nameMap = new Map<string, string>(); // id -> name
+    const idMap = new Map<string, string>(); // name -> id
+    let isRussian = false;
+    if (characterDefinitions) {
+      for (const def of characterDefinitions) {
+        nameMap.set(def.id, def.name);
+        idMap.set(def.name, def.id);
+        if (def.responseConstraints?.language === 'ru') {
+          isRussian = true;
+        }
+      }
+    }
+
+    const allCharacterIds = characters.map((c) => c.characterId);
+
+    // Convert finalist names to IDs if needed
+    const finalistIds = new Set<string>();
+    for (const f of finalists) {
+      // Check if it's already an ID
+      if (nameMap.has(f)) {
+        finalistIds.add(f);
+      } else if (idMap.has(f)) {
+        finalistIds.add(idMap.get(f)!);
+      } else {
+        // Treat as name and try to find
+        finalistIds.add(f);
+      }
+    }
+
+    // Get voters (non-finalists only)
+    const voters = characters.filter((c) => {
+      const name = nameMap.get(c.characterId) ?? c.characterId;
+      return !finalistIds.has(c.characterId) && !finalists.includes(name);
+    });
+
+    if (voters.length === 0) {
+      // No voters available - use random selection
+      const randomIndex = Math.floor(Math.random() * finalists.length);
+      const winner = finalists[randomIndex]!;
+      await this.emitTiebreakerResult(
+        showId,
+        phaseId,
+        seed,
+        winner,
+        finalists,
+        new Map(),
+        isRussian,
+        allCharacterIds,
+        'no_voters_random'
+      );
+      return;
+    }
+
+    // Collect revotes
+    const revoteDecisions: Array<{ characterId: string; decision: string }> = [];
+
+    for (const voter of voters) {
+      const voterName = nameMap.get(voter.characterId) ?? voter.characterId;
+
+      // Build tiebreaker trigger
+      const trigger = this.buildTiebreakerTrigger(finalists, voterName, isRussian);
+
+      // Emit host_trigger for this revote
+      const triggerEvent: Omit<ShowEvent, 'sequenceNumber'> = {
+        id: generateId(),
+        showId,
+        timestamp: Date.now(),
+        phaseId,
+        type: EventType.host_trigger,
+        channel: ChannelType.PUBLIC,
+        visibility: ChannelType.PUBLIC,
+        senderId: '',
+        receiverIds: [voter.characterId],
+        audienceIds: [voter.characterId],
+        content: trigger,
+        metadata: {
+          tiebreakerRevote: true,
+          finalists,
+        },
+        seed,
+      };
+      await this.eventJournal.append(triggerEvent);
+
+      // Call character for revote
+      const response = await callCharacter(voter.characterId, trigger, []);
+
+      // Validate decision - must be one of the finalists
+      const rawValue = response.decisionValue ?? response.text;
+      const decisionValue = this.validateTiebreakerVote(
+        rawValue,
+        response.text,
+        finalists,
+        voterName
+      );
+
+      revoteDecisions.push({
+        characterId: voter.characterId,
+        decision: decisionValue,
+      });
+
+      // Create decision event for revote
+      const decisionEvent: Omit<ShowEvent, 'sequenceNumber'> = {
+        id: generateId(),
+        showId,
+        timestamp: Date.now(),
+        phaseId,
+        type: EventType.decision,
+        channel: ChannelType.PRIVATE,
+        visibility: ChannelType.PRIVATE,
+        senderId: voter.characterId,
+        receiverIds: [voter.characterId],
+        audienceIds: [voter.characterId],
+        content: response.text,
+        metadata: {
+          decisionValue,
+          tiebreakerRevote: true,
+          finalists,
+        },
+        seed,
+      };
+      await this.eventJournal.append(decisionEvent);
+    }
+
+    // Count revote results
+    const voteCounts = new Map<string, number>();
+    for (const d of revoteDecisions) {
+      if (d.decision && d.decision !== 'invalid') {
+        const count = voteCounts.get(d.decision) ?? 0;
+        voteCounts.set(d.decision, count + 1);
+      }
+    }
+
+    // Find winner
+    let maxVotes = 0;
+    for (const count of voteCounts.values()) {
+      if (count > maxVotes) {
+        maxVotes = count;
+      }
+    }
+
+    const leaders: string[] = [];
+    for (const [candidate, count] of voteCounts.entries()) {
+      if (count === maxVotes) {
+        leaders.push(candidate);
+      }
+    }
+
+    let winner: string;
+    let rule: string;
+
+    if (leaders.length === 1) {
+      winner = leaders[0]!;
+      rule = 'revote';
+    } else if (leaders.length > 1) {
+      // Still a tie - random selection
+      const randomIndex = Math.floor(Math.random() * leaders.length);
+      winner = leaders[randomIndex]!;
+      rule = isRussian ? 'случайный выбор после ничьей' : 'random after tie';
+    } else {
+      // No valid votes - random from original finalists
+      const randomIndex = Math.floor(Math.random() * finalists.length);
+      winner = finalists[randomIndex]!;
+      rule = isRussian ? 'случайный выбор (нет голосов)' : 'random (no votes)';
+    }
+
+    // Emit tiebreaker_result
+    await this.emitTiebreakerResult(
+      showId,
+      phaseId,
+      seed,
+      winner,
+      finalists,
+      voteCounts,
+      isRussian,
+      allCharacterIds,
+      rule
+    );
+  }
+
+  /**
+   * Build trigger for tiebreaker revote
+   */
+  private buildTiebreakerTrigger(
+    finalists: string[],
+    voterName: string,
+    isRussian: boolean
+  ): string {
+    const parts: string[] = [];
+
+    if (isRussian) {
+      parts.push('ПЕРЕГОЛОСОВАНИЕ! Была ничья между финалистами.');
+      parts.push('');
+      parts.push(`Ты — ${voterName}. Голосуй за ОДНОГО из финалистов.`);
+      parts.push('');
+      parts.push(`Финалисты: ${finalists.join(', ')}`);
+      parts.push('');
+      parts.push('ПРАВИЛА:');
+      parts.push('- Выбери ОДНОГО из финалистов выше');
+      parts.push('- В поле "decisionValue" укажи ИМЯ выбранного финалиста');
+      if (finalists.length > 0) {
+        parts.push(`Пример: "decisionValue": "${finalists[0]}"`);
+      }
+    } else {
+      parts.push('REVOTE! There was a tie between finalists.');
+      parts.push('');
+      parts.push(`You are ${voterName}. Vote for ONE of the finalists.`);
+      parts.push('');
+      parts.push(`Finalists: ${finalists.join(', ')}`);
+      parts.push('');
+      parts.push('RULES:');
+      parts.push('- Choose ONE of the finalists above');
+      parts.push('- In the "decisionValue" field, enter the NAME of your chosen finalist');
+      if (finalists.length > 0) {
+        parts.push(`Example: "decisionValue": "${finalists[0]}"`);
+      }
+    }
+
+    return parts.join('\n');
+  }
+
+  /**
+   * Validate tiebreaker vote - must be one of the finalists
+   */
+  private validateTiebreakerVote(
+    rawValue: string,
+    responseText: string,
+    finalists: string[],
+    voterName: string
+  ): string {
+    const normalizedValue = rawValue?.trim() ?? '';
+
+    // Check if matches a finalist (case-insensitive)
+    const matchedFinalist = finalists.find(
+      (f) => f.toLowerCase() === normalizedValue.toLowerCase()
+    );
+    if (matchedFinalist) {
+      return matchedFinalist;
+    }
+
+    // Try to extract from response text
+    const textLower = responseText.toLowerCase();
+    for (const finalist of finalists) {
+      if (textLower.includes(finalist.toLowerCase())) {
+        logger.info(
+          `[Tiebreaker] Extracted finalist "${finalist}" from ${voterName}'s response text.`
+        );
+        return finalist;
+      }
+    }
+
+    logger.warn(
+      `[Tiebreaker] ${voterName} provided invalid vote: "${normalizedValue}". ` +
+        `Valid finalists: [${finalists.join(', ')}]. Marking as 'invalid'.`
+    );
+    return 'invalid';
+  }
+
+  /**
+   * Emit tiebreaker_result event with the final winner
+   */
+  private async emitTiebreakerResult(
+    showId: string,
+    phaseId: string,
+    seed: string,
+    winner: string,
+    finalists: string[],
+    voteCounts: Map<string, number>,
+    isRussian: boolean,
+    audienceIds: string[],
+    rule: string
+  ): Promise<void> {
+    const voteCountsArray = Array.from(voteCounts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .map(([candidate, count]) => {
+        const voteWord = this.getVoteWord(count, isRussian);
+        return `${candidate} - ${count} ${voteWord}`;
+      });
+
+    let content: string;
+    if (isRussian) {
+      if (voteCountsArray.length > 0) {
+        content = `Результаты переголосования: ${voteCountsArray.join(', ')}. Победитель: ${winner}!`;
+      } else {
+        content = `Победитель по правилу "${rule}": ${winner}!`;
+      }
+    } else {
+      if (voteCountsArray.length > 0) {
+        content = `Revote results: ${voteCountsArray.join(', ')}. Winner: ${winner}!`;
+      } else {
+        content = `Winner by rule "${rule}": ${winner}!`;
+      }
+    }
+
+    const resultEvent: Omit<ShowEvent, 'sequenceNumber'> = {
+      id: generateId(),
+      showId,
+      timestamp: Date.now(),
+      phaseId,
+      type: EventType.tiebreaker_result,
+      channel: ChannelType.PUBLIC,
+      visibility: ChannelType.PUBLIC,
+      senderId: '',
+      receiverIds: audienceIds,
+      audienceIds,
+      content,
+      metadata: {
+        winner,
+        finalists,
+        voteCounts: Object.fromEntries(voteCounts),
+        rule,
+      },
+      seed,
+    };
+
+    await this.eventJournal.append(resultEvent);
   }
 
   /**
@@ -706,5 +1061,194 @@ export class DecisionPhaseHandler {
       return 'голоса';
     }
     return 'голосов';
+  }
+
+  /**
+   * Run duel tiebreaker - finalists give final speeches, then revote
+   * Each finalist gets 1 turn to convince others why they deserve to win
+   * After speeches, runs revote
+   */
+  async runDuelTiebreaker(
+    showId: string,
+    finalists: string[],
+    decisionConfig: DecisionConfig,
+    callCharacter: DecisionCallback
+  ): Promise<void> {
+    // Get show info
+    const showRecord = await this.store.getShow(showId);
+    if (!showRecord) {
+      throw new Error(`Show ${showId} not found`);
+    }
+    const phaseId = showRecord.currentPhaseId ?? '';
+    const seed = showRecord.seed;
+
+    // Get all characters
+    const characters = await this.store.getCharacters(showId);
+    if (characters.length === 0) {
+      return;
+    }
+
+    // Get character definitions from configSnapshot
+    const configSnapshot = JSON.parse(showRecord.configSnapshot) as Record<string, unknown>;
+    const characterDefinitions = configSnapshot.characterDefinitions as
+      | Array<{ id: string; name: string; responseConstraints?: { language?: string } }>
+      | undefined;
+
+    // Build name map and reverse map
+    const nameMap = new Map<string, string>(); // id -> name
+    const idMap = new Map<string, string>(); // name -> id
+    let isRussian = false;
+    if (characterDefinitions) {
+      for (const def of characterDefinitions) {
+        nameMap.set(def.id, def.name);
+        idMap.set(def.name, def.id);
+        if (def.responseConstraints?.language === 'ru') {
+          isRussian = true;
+        }
+      }
+    }
+
+    const allCharacterIds = characters.map((c) => c.characterId);
+
+    // Convert finalist names to IDs if needed
+    const finalistIds = new Set<string>();
+    for (const f of finalists) {
+      if (nameMap.has(f)) {
+        finalistIds.add(f);
+      } else if (idMap.has(f)) {
+        finalistIds.add(idMap.get(f)!);
+      } else {
+        finalistIds.add(f);
+      }
+    }
+
+    // Get finalist characters for the duel speeches
+    const finalistCharacters = characters.filter((c) => {
+      const name = nameMap.get(c.characterId) ?? c.characterId;
+      return finalistIds.has(c.characterId) || finalists.includes(name);
+    });
+
+    // Emit duel start event
+    const duelStartContent = isRussian
+      ? `ФИНАЛЬНАЯ ДУЭЛЬ! Финалисты ${finalists.join(' и ')} получают возможность убедить остальных голосовать за них.`
+      : `FINAL DUEL! Finalists ${finalists.join(' and ')} get a chance to convince others to vote for them.`;
+
+    const duelStartEvent: Omit<ShowEvent, 'sequenceNumber'> = {
+      id: generateId(),
+      showId,
+      timestamp: Date.now(),
+      phaseId,
+      type: EventType.tiebreaker_start,
+      channel: ChannelType.PUBLIC,
+      visibility: ChannelType.PUBLIC,
+      senderId: '',
+      receiverIds: allCharacterIds,
+      audienceIds: allCharacterIds,
+      content: duelStartContent,
+      metadata: {
+        finalists,
+        tiebreakerMode: 'duel',
+        isDuel: true,
+      },
+      seed,
+    };
+    await this.eventJournal.append(duelStartEvent);
+
+    // Each finalist gets 1 turn to give their final speech
+    for (const finalist of finalistCharacters) {
+      const finalistName = nameMap.get(finalist.characterId) ?? finalist.characterId;
+
+      // Build duel speech trigger
+      const trigger = this.buildDuelSpeechTrigger(finalistName, finalists, isRussian);
+
+      // Emit host_trigger for this finalist
+      const triggerEvent: Omit<ShowEvent, 'sequenceNumber'> = {
+        id: generateId(),
+        showId,
+        timestamp: Date.now(),
+        phaseId,
+        type: EventType.host_trigger,
+        channel: ChannelType.PUBLIC,
+        visibility: ChannelType.PUBLIC,
+        senderId: '',
+        receiverIds: [finalist.characterId],
+        audienceIds: [finalist.characterId],
+        content: trigger,
+        metadata: {
+          duelSpeech: true,
+          finalists,
+        },
+        seed,
+      };
+      await this.eventJournal.append(triggerEvent);
+
+      // Call character for their duel speech
+      const response = await callCharacter(finalist.characterId, trigger, []);
+
+      // Create duel_speech event (public so everyone hears it)
+      const duelSpeechEvent: Omit<ShowEvent, 'sequenceNumber'> = {
+        id: generateId(),
+        showId,
+        timestamp: Date.now(),
+        phaseId,
+        type: EventType.duel_speech,
+        channel: ChannelType.PUBLIC,
+        visibility: ChannelType.PUBLIC,
+        senderId: finalist.characterId,
+        receiverIds: allCharacterIds,
+        audienceIds: allCharacterIds,
+        content: response.text,
+        metadata: {
+          duelSpeech: true,
+          finalistName,
+          finalists,
+        },
+        seed,
+      };
+      await this.eventJournal.append(duelSpeechEvent);
+    }
+
+    // After duel speeches, run revote
+    await this.runTiebreaker(showId, finalists, decisionConfig, callCharacter);
+  }
+
+  /**
+   * Build trigger for duel speech
+   */
+  private buildDuelSpeechTrigger(
+    finalistName: string,
+    finalists: string[],
+    isRussian: boolean
+  ): string {
+    const parts: string[] = [];
+    const otherFinalists = finalists.filter((f) => f !== finalistName);
+
+    if (isRussian) {
+      parts.push('ФИНАЛЬНАЯ ДУЭЛЬ!');
+      parts.push('');
+      parts.push(`Ты — ${finalistName}. Это твой последний шанс.`);
+      parts.push(`Ты в финале против: ${otherFinalists.join(', ')}`);
+      parts.push('');
+      parts.push('Убеди остальных почему ты достоин победы.');
+      parts.push('');
+      parts.push('ВАЖНО:');
+      parts.push('- Это РЕЧЬ, а не голосование');
+      parts.push('- У тебя только один ход — используй его убедительно');
+      parts.push('- После всех речей будет переголосование');
+    } else {
+      parts.push('FINAL DUEL!');
+      parts.push('');
+      parts.push(`You are ${finalistName}. This is your last chance.`);
+      parts.push(`You are in the final against: ${otherFinalists.join(', ')}`);
+      parts.push('');
+      parts.push('Convince the others why you deserve to win.');
+      parts.push('');
+      parts.push('IMPORTANT:');
+      parts.push('- This is a SPEECH, not a vote');
+      parts.push('- You have only one turn — use it persuasively');
+      parts.push('- After all speeches, there will be a revote');
+    }
+
+    return parts.join('\n');
   }
 }

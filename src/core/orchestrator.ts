@@ -1276,7 +1276,30 @@ export class Orchestrator {
 
     // Run revelation at the end
     const votingModuleForRevelation = await this.getVotingModule();
-    await votingModuleForRevelation.runRevelation(showId, decisionConfig);
+    const revelationResult = await votingModuleForRevelation.runRevelation(showId, decisionConfig);
+
+    // If tiebreaker revote is needed, run it
+    if (revelationResult.tiebreakerNeeded && revelationResult.tiebreakerNeeded.length > 0) {
+      const tiebreakerCallback = async (
+        characterId: string,
+        trigger: string,
+        _previousDecisions: Array<{ characterId: string; decision: string }>
+      ) => {
+        if (this.stopped) {
+          return { text: '', intent: CharacterIntent.end_turn };
+        }
+        if (this.mode === 'DEBUG') {
+          await this.waitForStep();
+        }
+        return this.processCharacterTurn(showId, characterId, trigger, { skipSpeechEvent: true });
+      };
+      await votingModuleForRevelation.runTiebreaker(
+        showId,
+        revelationResult.tiebreakerNeeded,
+        decisionConfig,
+        tiebreakerCallback
+      );
+    }
 
     // Update show status to completed
     await this.store.updateShow(showId, {
@@ -1423,7 +1446,17 @@ export class Orchestrator {
       await votingModule.runDecisionPhase(showId, decisionConfig, decisionCallback);
 
       // Run Revelation
-      await votingModule.runRevelation(showId, decisionConfig);
+      const revelationResult = await votingModule.runRevelation(showId, decisionConfig);
+
+      // If tiebreaker revote is needed, run it
+      if (revelationResult.tiebreakerNeeded && revelationResult.tiebreakerNeeded.length > 0) {
+        await votingModule.runTiebreaker(
+          showId,
+          revelationResult.tiebreakerNeeded,
+          decisionConfig,
+          decisionCallback
+        );
+      }
     }
 
     // Create 'system' event with graceful_finish: true
@@ -1679,7 +1712,30 @@ export class Orchestrator {
 
     // Run revelation at the end
     const votingModuleForRevelation = await this.getVotingModule();
-    await votingModuleForRevelation.runRevelation(showId, decisionConfig);
+    const revelationResult = await votingModuleForRevelation.runRevelation(showId, decisionConfig);
+
+    // If tiebreaker revote is needed, run it
+    if (revelationResult.tiebreakerNeeded && revelationResult.tiebreakerNeeded.length > 0) {
+      const tiebreakerCallback = async (
+        characterId: string,
+        trigger: string,
+        _previousDecisions: Array<{ characterId: string; decision: string }>
+      ) => {
+        if (this.stopped) {
+          return { text: '', intent: CharacterIntent.end_turn };
+        }
+        if (this.mode === 'DEBUG') {
+          await this.waitForStep();
+        }
+        return this.processCharacterTurn(showId, characterId, trigger, { skipSpeechEvent: true });
+      };
+      await votingModuleForRevelation.runTiebreaker(
+        showId,
+        revelationResult.tiebreakerNeeded,
+        decisionConfig,
+        tiebreakerCallback
+      );
+    }
 
     // Update show status to completed
     await this.store.updateShow(showId, {

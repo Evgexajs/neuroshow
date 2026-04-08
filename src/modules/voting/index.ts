@@ -7,7 +7,7 @@ import { IStore } from '../../types/interfaces/store.interface.js';
 import { EventJournal } from '../../core/event-journal.js';
 import { DecisionConfig } from '../../types/primitives.js';
 import { DecisionPhaseHandler } from './decision-phase.js';
-import { IVotingModule, DecisionCallback } from './types.js';
+import { IVotingModule, DecisionCallback, RevelationResult } from './types.js';
 
 export const VOTING_MODULE_NAME = 'voting';
 
@@ -54,10 +54,36 @@ export class VotingModule implements IVotingModule {
    * Run revelation phase - reveal voting results
    * @see DecisionPhaseHandler.runRevelation
    */
-  async runRevelation(showId: string, decisionConfig: DecisionConfig): Promise<void> {
+  async runRevelation(showId: string, decisionConfig: DecisionConfig): Promise<RevelationResult> {
     return this.handler.runRevelation(showId, decisionConfig);
+  }
+
+  /**
+   * Run tiebreaker revote between finalists
+   * @see DecisionPhaseHandler.runTiebreaker
+   */
+  async runTiebreaker(
+    showId: string,
+    finalists: string[],
+    decisionConfig: DecisionConfig,
+    callCharacter: DecisionCallback
+  ): Promise<void> {
+    return this.handler.runTiebreaker(showId, finalists, decisionConfig, callCharacter);
+  }
+
+  /**
+   * Run duel tiebreaker - finalists give speeches, then revote
+   * @see DecisionPhaseHandler.runDuelTiebreaker
+   */
+  async runDuelTiebreaker(
+    showId: string,
+    finalists: string[],
+    decisionConfig: DecisionConfig,
+    callCharacter: DecisionCallback
+  ): Promise<void> {
+    return this.handler.runDuelTiebreaker(showId, finalists, decisionConfig, callCharacter);
   }
 }
 
 // Re-export types for convenience
-export { IVotingModule, DecisionCallback } from './types.js';
+export { IVotingModule, DecisionCallback, RevelationResult } from './types.js';

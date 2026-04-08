@@ -15,6 +15,8 @@ export enum EventType {
   decision = 'decision',
   revelation = 'revelation',
   tiebreaker_start = 'tiebreaker_start',
+  tiebreaker_result = 'tiebreaker_result',
+  duel_speech = 'duel_speech', // Final duel speech before revote
   private_injection = 'private_injection', // Non-MVP (structurally supported in MVP)
   system = 'system',
 }

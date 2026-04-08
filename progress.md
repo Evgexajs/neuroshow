@@ -2829,3 +2829,34 @@ Added a template information panel to the Debug UI that displays template name, 
 
 **Тесты:** npm run lint (warnings only), npm run typecheck (passed), npm run build:ui (passed)
 **Заметки:** Существующие падения в unit-тестах оркестратора не связаны с этими изменениями. Режимы 'revote' и 'duel' будут реализованы в TASK-118/119.
+
+## [2026-04-08] TASK-118: Tiebreaker режим revote (переголосование)
+**Статус:** done
+**Время:** ~40 минут
+**Изменения:**
+- src/types/enums.ts — добавлен tiebreaker_result в EventType enum
+- src/modules/voting/types.ts — добавлены:
+  - RevelationResult interface (tiebreakerNeeded?: string[])
+  - runTiebreaker() в IVotingModule interface
+  - Изменён return type runRevelation() на Promise<RevelationResult>
+- src/modules/voting/decision-phase.ts — добавлены методы:
+  - runTiebreaker(showId, finalists, decisionConfig, callCharacter) — основной метод переголосования
+  - buildTiebreakerTrigger() — триггер для голосования (RU/EN)
+  - validateTiebreakerVote() — валидация голоса (только финалисты)
+  - emitTiebreakerResult() — событие с результатом
+  - runRevelation() теперь возвращает { tiebreakerNeeded } для режима revote
+- src/modules/voting/index.ts — добавлен runTiebreaker(), экспорт RevelationResult
+- src/core/orchestrator.ts — интеграция runTiebreaker в 3 местах:
+  - runShow() — после runRevelation проверяет tiebreakerNeeded и вызывает runTiebreaker
+  - executeShowRun() — аналогично
+  - gracefulFinish() — аналогично
+
+**Acceptance Criteria:**
+1. runTiebreaker(finalists) запускает переголосование ✓
+2. Голосовать можно только за финалистов ✓ (validateTiebreakerVote)
+3. Финалисты НЕ голосуют (только остальные) ✓ (voters filtering by finalistIds)
+4. Если опять ничья — random между финалистами ✓ (leaders.length > 1 → random)
+5. Событие tiebreaker_result с итогом ✓ (emitTiebreakerResult)
+
+**Тесты:** npm run lint (warnings only), npm run typecheck (passed), host-module tests (50 passed)
+**Заметки:** Существующие падения в unit-тестах оркестратора не связаны с этими изменениями (проблемы с mock adapter). Режим duel будет реализован в TASK-119.
