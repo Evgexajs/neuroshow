@@ -20,7 +20,7 @@ import { ModelAdapter } from '../types/adapter.js';
 import { logger } from '../utils/logger.js';
 import { CharacterDefinition } from '../types/character.js';
 import { SpeakFrequency } from '../types/enums.js';
-import { Relationship, RelationshipType } from '../types/primitives.js';
+import { Relationship, RelationshipType, SecretMissionType } from '../types/primitives.js';
 import { generateId } from '../utils/id.js';
 import {
   validateCreateShowRequest,
@@ -34,6 +34,7 @@ interface GenerateCharactersOptions {
   count: number;
   theme?: string;
   generateRelationships?: boolean;
+  generateSecretMissions?: boolean;
 }
 
 /**
@@ -48,7 +49,7 @@ interface GenerateCharactersResult {
  * Generate characters using OpenAI API
  */
 async function generateCharactersWithOpenAI(options: GenerateCharactersOptions): Promise<GenerateCharactersResult> {
-  const { count, theme, generateRelationships = false } = options;
+  const { count, theme, generateRelationships = false, generateSecretMissions = false } = options;
   const client = new OpenAI({ apiKey: config.openaiApiKey });
 
   const themeContext = theme
@@ -78,6 +79,30 @@ async function generateCharactersWithOpenAI(options: GenerateCharactersOptions):
 - family: родственники
 - colleagues: коллеги, работали вместе
 - secret: тайная связь (шпион, информатор, должник)`
+    : '';
+
+  const secretMissionsPrompt = generateSecretMissions
+    ? `
+
+Также создай секретные задания для 30-50% персонажей. Это скрытые цели, которые персонаж будет преследовать во время шоу.
+Добавь в JSON массив "secretMissions":
+{
+  "secretMissions": [
+    {
+      "type": "rivalry" | "hidden_alliance" | "betrayal" | "information" | "manipulation",
+      "characterIndex": 0,
+      "description": "Описание задания (1-2 предложения)",
+      "targetIndices": [1]
+    }
+  ]
+}
+Где characterIndex - индекс персонажа-исполнителя, targetIndices - индексы персонажей-целей (опционально).
+Типы заданий:
+- rivalry: "Не дай {имя} победить любой ценой"
+- hidden_alliance: "У тебя тайный союз с {имя}, помоги ему победить"
+- betrayal: "В решающий момент предай своего союзника"
+- information: "Узнай секрет {имя} и используй против него"
+- manipulation: "Заставь {имя} поссориться с {имя2}"`
     : '';
 
   const prompt = `Сгенерируй ${count} уникальных персонажей для интерактивного шоу-дискуссии.
@@ -122,6 +147,7 @@ ${themeContext}
   ]
 }
 ${relationshipsPrompt}
+${secretMissionsPrompt}
 
 ВАЖНО: Персонажи должны быть разнообразными - не делай их похожими друг на друга!
 Используй разные speakFrequency: хотя бы один "low", хотя бы один "high", остальные "medium".`;
@@ -243,6 +269,49 @@ ${relationshipsPrompt}
       });
 
     logger.info(`Parsed ${relationships.length} relationships from OpenAI response`);
+  }
+
+  // Parse and assign secret missions if requested
+  if (generateSecretMissions && parsed.secretMissions && Array.isArray(parsed.secretMissions)) {
+    interface RawSecretMission {
+      type: string;
+      characterIndex: number;
+      description: string;
+      targetIndices?: number[];
+    }
+
+    for (const mission of parsed.secretMissions as RawSecretMission[]) {
+      // Validate character index
+      if (
+        mission.characterIndex === undefined ||
+        mission.characterIndex < 0 ||
+        mission.characterIndex >= characters.length
+      ) {
+        continue;
+      }
+
+      const character = characters[mission.characterIndex]!;
+
+      // Convert target indices to target IDs
+      const targetIds: string[] = [];
+      if (mission.targetIndices && Array.isArray(mission.targetIndices)) {
+        for (const idx of mission.targetIndices) {
+          if (idx >= 0 && idx < characters.length && idx !== mission.characterIndex) {
+            targetIds.push(characters[idx]!.id);
+          }
+        }
+      }
+
+      // Assign the secret mission to the character
+      character.startingPrivateContext.secretMission = {
+        type: mission.type as SecretMissionType,
+        description: mission.description,
+        targetIds: targetIds.length > 0 ? targetIds : undefined,
+      };
+    }
+
+    const assignedCount = characters.filter((c) => c.startingPrivateContext.secretMission).length;
+    logger.info(`Assigned ${assignedCount} secret missions to characters`);
   }
 
   return { characters, relationships };
@@ -572,14 +641,15 @@ export async function createServer(): Promise<{
 
   // POST /generate/characters - Generate random characters via OpenAI
   app.post('/generate/characters', async (request: FastifyRequest, reply: FastifyReply) => {
-    const { count = 5, theme, generateRelationships = false } = request.body as {
+    const { count = 5, theme, generateRelationships = false, generateSecretMissions = false } = request.body as {
       count?: number;
       theme?: string;
       generateRelationships?: boolean;
+      generateSecretMissions?: boolean;
     };
 
     logger.info(
-      `POST /generate/characters - count: ${count}, theme: ${theme ?? 'none'}, generateRelationships: ${generateRelationships}`
+      `POST /generate/characters - count: ${count}, theme: ${theme ?? 'none'}, generateRelationships: ${generateRelationships}, generateSecretMissions: ${generateSecretMissions}`
     );
 
     // Validate count
@@ -600,7 +670,7 @@ export async function createServer(): Promise<{
     }
 
     try {
-      const result = await generateCharactersWithOpenAI({ count, theme, generateRelationships });
+      const result = await generateCharactersWithOpenAI({ count, theme, generateRelationships, generateSecretMissions });
       logger.info(`Successfully generated ${result.characters.length} characters via OpenAI`);
 
       if (result.characters.length === 0) {

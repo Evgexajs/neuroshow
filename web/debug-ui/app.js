@@ -39,6 +39,8 @@ const generateStatus = document.getElementById('generate-status');
 const tokenBudgetInput = document.getElementById('token-budget-input');
 const generateRelationshipsCheckbox = document.getElementById('generate-relationships-checkbox');
 const relationshipsList = document.getElementById('relationships-list');
+const generateMissionsCheckbox = document.getElementById('generate-missions-checkbox');
+const secretMissionsList = document.getElementById('secret-missions-list');
 // History Modal Elements
 const showHistoryBtn = document.getElementById('show-history-btn');
 const showHistoryModal = document.getElementById('show-history-modal');
@@ -849,6 +851,10 @@ function resetModalState() {
     relationshipsList.classList.add('hidden');
     relationshipsList.innerHTML = '';
     generateRelationshipsCheckbox.checked = false;
+    // Clear secret missions
+    secretMissionsList.classList.add('hidden');
+    secretMissionsList.innerHTML = '';
+    generateMissionsCheckbox.checked = false;
 }
 /**
  * Open the history modal and load shows
@@ -1236,6 +1242,45 @@ function renderRelationships(chars) {
     }
 }
 /**
+ * Render secret missions in the UI
+ */
+function renderSecretMissions(chars) {
+    // Find characters with secret missions
+    const charsWithMissions = chars.filter((c) => c.startingPrivateContext?.secretMission);
+    if (charsWithMissions.length === 0) {
+        secretMissionsList.classList.add('hidden');
+        return;
+    }
+    // Build name map for display
+    const nameMap = new Map();
+    for (const char of chars) {
+        nameMap.set(char.id, char.name);
+    }
+    secretMissionsList.classList.remove('hidden');
+    secretMissionsList.innerHTML = '<h4>Secret Missions:</h4>';
+    for (const char of charsWithMissions) {
+        const mission = char.startingPrivateContext.secretMission;
+        const item = document.createElement('div');
+        item.className = 'secret-mission-item';
+        const charSpan = document.createElement('span');
+        charSpan.className = 'secret-mission-character';
+        charSpan.textContent = char.name;
+        const typeSpan = document.createElement('span');
+        typeSpan.className = 'secret-mission-type';
+        typeSpan.textContent = `[${mission.type.replace('_', ' ')}]`;
+        const descSpan = document.createElement('span');
+        const targetNames = mission.targetIds
+            ?.map((id) => nameMap.get(id) ?? id)
+            .join(', ');
+        const targetInfo = targetNames ? ` (targets: ${targetNames})` : '';
+        descSpan.textContent = `${mission.description}${targetInfo}`;
+        item.appendChild(charSpan);
+        item.appendChild(typeSpan);
+        item.appendChild(descSpan);
+        secretMissionsList.appendChild(item);
+    }
+}
+/**
  * Handle template selection change
  */
 function handleTemplateChange() {
@@ -1300,16 +1345,22 @@ async function handleGenerateCharacters() {
         ? Math.min(selectedTemplate.maxParticipants, 5)
         : 5;
     const generateRelationships = generateRelationshipsCheckbox.checked;
+    const generateSecretMissions = generateMissionsCheckbox.checked;
     generateBtn.disabled = true;
-    generateStatus.textContent = generateRelationships
-        ? 'Generating characters with relationships...'
+    const features = [];
+    if (generateRelationships)
+        features.push('relationships');
+    if (generateSecretMissions)
+        features.push('secret missions');
+    generateStatus.textContent = features.length > 0
+        ? `Generating characters with ${features.join(' and ')}...`
         : 'Generating characters...';
     generateStatus.classList.remove('hidden', 'error');
     try {
         const response = await fetch('/generate/characters', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ count, theme: theme || undefined, generateRelationships }),
+            body: JSON.stringify({ count, theme: theme || undefined, generateRelationships, generateSecretMissions }),
         });
         if (!response.ok) {
             const errorData = await response.json();
@@ -1339,10 +1390,18 @@ async function handleGenerateCharacters() {
         validateCharacterSelection();
         // Render relationships if any
         renderRelationships(generatedChars);
-        const relText = generatedRelationships.length > 0
-            ? ` + ${generatedRelationships.length} relationships`
-            : '';
-        generateStatus.textContent = `Generated ${generatedChars.length} characters${relText}`;
+        // Render secret missions if any
+        renderSecretMissions(generatedChars);
+        const extras = [];
+        if (generatedRelationships.length > 0) {
+            extras.push(`${generatedRelationships.length} relationships`);
+        }
+        const missionsCount = generatedChars.filter((c) => c.startingPrivateContext?.secretMission).length;
+        if (missionsCount > 0) {
+            extras.push(`${missionsCount} secret missions`);
+        }
+        const extrasText = extras.length > 0 ? ` + ${extras.join(', ')}` : '';
+        generateStatus.textContent = `Generated ${generatedChars.length} characters${extrasText}`;
         setTimeout(() => {
             generateStatus.classList.add('hidden');
         }, 3000);

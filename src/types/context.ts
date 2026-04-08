@@ -6,7 +6,7 @@
  * ContextLayers: Data structure for Context Builder
  */
 
-import { AllianceRecord, WildcardRecord } from './primitives.js';
+import { AllianceRecord, WildcardRecord, SecretMission } from './primitives.js';
 import { EventSummary } from './events.js';
 
 /**
@@ -31,6 +31,9 @@ export interface PrivateContext {
 
   /** Wildcards that can be revealed strategically */
   wildcards: WildcardRecord[];
+
+  /** Secret mission assigned to this character (optional, 30-50% of characters get one) */
+  secretMission?: SecretMission;
 }
 
 /**

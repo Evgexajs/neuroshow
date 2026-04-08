@@ -66,6 +66,25 @@ export interface DayConfig {
 }
 
 /**
+ * Type of secret mission for a character
+ */
+export type SecretMissionType =
+  | 'rivalry'        // "Не дай {name} победить"
+  | 'hidden_alliance' // "У тебя тайный союз с {name}"
+  | 'betrayal'       // "В финале предай своего союзника"
+  | 'information'    // "Узнай секрет {name} и используй против него"
+  | 'manipulation';  // "Заставь {name} поссориться с {name2}"
+
+/**
+ * Secret mission assigned to a character
+ */
+export interface SecretMission {
+  type: SecretMissionType;
+  description: string;
+  targetIds?: string[]; // Character IDs involved in the mission
+}
+
+/**
  * Type of relationship between characters
  */
 export type RelationshipType =

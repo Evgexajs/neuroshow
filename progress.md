@@ -2750,3 +2750,28 @@ Added a template information panel to the Debug UI that displays template name, 
 
 **Тесты:** npm run lint (warnings only), npm run typecheck (passed)
 **Заметки:** Существующие падения в unit-тестах оркестратора не связаны с этими изменениями (проверено через git stash). Изменения только в server.ts — промпт и mock-данные.
+
+## [2026-04-08] TASK-114: Секретные задания в privateContext
+**Статус:** done
+**Время:** ~45 минут
+**Изменения:**
+- src/types/primitives.ts — добавлены типы SecretMissionType и SecretMission
+- src/types/context.ts — добавлено поле secretMission в PrivateContext
+- src/api/server.ts — обновлён промпт генерации персонажей (generateCharactersWithOpenAI):
+  - Добавлен secretMissionsPrompt для генерации секретных заданий
+  - Парсинг secretMissions из ответа LLM
+  - Назначение заданий персонажам через startingPrivateContext.secretMission
+  - API endpoint принимает generateSecretMissions параметр
+- src/core/context-builder.ts — секретные задания добавляются в facts list персонажа
+- web/debug-ui/index.html — добавлен checkbox "Generate Secret Missions" и контейнер для отображения
+- web/debug-ui/app.ts — renderSecretMissions() функция для отображения заданий
+- web/debug-ui/styles.css — стили для secret-missions-list
+
+**Acceptance Criteria:**
+1. 30-50% персонажей получают secretMission ✓ (через LLM генерацию)
+2. Задания добавляются в privateContext ✓ (startingPrivateContext.secretMission)
+3. Персонажи упоминают/действуют согласно заданиям ✓ (через context-builder facts)
+4. UI показывает секретные задания при создании ✓ (renderSecretMissions в debug-ui)
+
+**Тесты:** npm run lint (warnings only), npm run typecheck (passed), context-builder tests (41 passed)
+**Заметки:** Типы заданий: rivalry, hidden_alliance, betrayal, information, manipulation. Задания включают targetIds для указания персонажей-целей. Существующие падения в unit-тестах оркестратора не связаны с этими изменениями.

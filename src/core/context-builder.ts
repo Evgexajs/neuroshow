@@ -125,6 +125,16 @@ export class ContextBuilder {
       }
     }
 
+    // Add secret mission if assigned
+    if (privateContext.secretMission) {
+      const mission = privateContext.secretMission;
+      const targetNames = mission.targetIds
+        ?.map((id) => nameMap?.get(id) ?? id)
+        .join(', ');
+      const targetInfo = targetNames ? ` (цели: ${targetNames})` : '';
+      facts.push(`[Секретное задание] ${mission.description}${targetInfo}`);
+    }
+
     // Add unrevealed wildcards
     for (const wildcard of privateContext.wildcards) {
       if (!wildcard.isRevealed) {
