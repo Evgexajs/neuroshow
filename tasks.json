@@ -2856,6 +2856,55 @@
       "note": "Это пост-MVP фича, связана с TASK-111 (LLM-ведущий)",
       "dependencies": ["TASK-111"],
       "status": "blocked"
+    },
+    {
+      "id": "TASK-117",
+      "category": "feature",
+      "priority": "high",
+      "description": "Механика разрешения ничьей в голосовании (tiebreaker)",
+      "problem": "При равном количестве голосов побеждает 'первый получивший голос' — это скучно и нечестно",
+      "tiebreaker_options": [
+        {
+          "type": "revote",
+          "description": "Переголосование только между лидерами",
+          "implementation": "Новый раунд decision phase с ограниченным списком кандидатов",
+          "complexity": "medium"
+        },
+        {
+          "type": "duel_discussion",
+          "description": "Финалисты получают по 1 реплике чтобы убедить остальных",
+          "implementation": "Мини-фаза: только лидеры говорят, потом revote",
+          "complexity": "medium"
+        },
+        {
+          "type": "host_decision",
+          "description": "LLM-ведущий выбирает победителя с объяснением",
+          "implementation": "Требует TASK-111 (LLM-ведущий)",
+          "complexity": "blocked",
+          "dependencies": ["TASK-111"]
+        },
+        {
+          "type": "sudden_death",
+          "description": "Вопрос от ведущего — кто лучше ответит, тот победил",
+          "implementation": "Требует TASK-111",
+          "complexity": "blocked"
+        }
+      ],
+      "mvp_solution": "revote — самое простое и честное",
+      "acceptance_criteria": [
+        "При ничьей в голосовании запускается tiebreaker",
+        "По умолчанию: revote между лидерами",
+        "В revelation указывается что была ничья и как она разрешена",
+        "Конфиг: tiebreakerMode в DecisionConfig (revote | duel | random)"
+      ],
+      "implementation": [
+        "В runRevelation проверять на ничью",
+        "Если ничья — вызвать runTiebreaker(finalists)",
+        "runTiebreaker запускает мини decision phase только для голосования",
+        "Если опять ничья — random или повтор"
+      ],
+      "dependencies": [],
+      "status": "pending"
     }
   ]
 }
