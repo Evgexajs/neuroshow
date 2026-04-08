@@ -2861,50 +2861,79 @@
       "id": "TASK-117",
       "category": "feature",
       "priority": "high",
-      "description": "Механика разрешения ничьей в голосовании (tiebreaker)",
-      "problem": "При равном количестве голосов побеждает 'первый получивший голос' — это скучно и нечестно",
-      "tiebreaker_options": [
-        {
-          "type": "revote",
-          "description": "Переголосование только между лидерами",
-          "implementation": "Новый раунд decision phase с ограниченным списком кандидатов",
-          "complexity": "medium"
-        },
-        {
-          "type": "duel_discussion",
-          "description": "Финалисты получают по 1 реплике чтобы убедить остальных",
-          "implementation": "Мини-фаза: только лидеры говорят, потом revote",
-          "complexity": "medium"
-        },
-        {
-          "type": "host_decision",
-          "description": "LLM-ведущий выбирает победителя с объяснением",
-          "implementation": "Требует TASK-111 (LLM-ведущий)",
-          "complexity": "blocked",
-          "dependencies": ["TASK-111"]
-        },
-        {
-          "type": "sudden_death",
-          "description": "Вопрос от ведущего — кто лучше ответит, тот победил",
-          "implementation": "Требует TASK-111",
-          "complexity": "blocked"
-        }
-      ],
-      "mvp_solution": "revote — самое простое и честное",
+      "description": "Детекция ничьей в голосовании",
+      "problem": "При равном количестве голосов нет механики определения — просто выбирается первый",
       "acceptance_criteria": [
-        "При ничьей в голосовании запускается tiebreaker",
-        "По умолчанию: revote между лидерами",
-        "В revelation указывается что была ничья и как она разрешена",
-        "Конфиг: tiebreakerMode в DecisionConfig (revote | duel | random)"
+        "В runRevelation определять ничью (2+ кандидата с макс. голосами)",
+        "Добавить поле tiebreakerMode в DecisionConfig: 'revote' | 'duel' | 'random'",
+        "При ничьей создавать событие 'tiebreaker_start' с финалистами",
+        "В revelation указывать что была ничья"
       ],
       "implementation": [
-        "В runRevelation проверять на ничью",
-        "Если ничья — вызвать runTiebreaker(finalists)",
-        "runTiebreaker запускает мини decision phase только для голосования",
-        "Если опять ничья — random или повтор"
+        "После подсчёта голосов проверить: есть ли несколько лидеров",
+        "Если да — не объявлять победителя сразу, вызвать tiebreaker"
       ],
       "dependencies": [],
       "status": "pending"
+    },
+    {
+      "id": "TASK-118",
+      "category": "feature",
+      "priority": "high",
+      "description": "Tiebreaker: режим revote (переголосование)",
+      "problem": "Нужен механизм разрешения ничьей через повторное голосование",
+      "solution": "Запустить мини decision phase только между финалистами",
+      "acceptance_criteria": [
+        "runTiebreaker(finalists) запускает переголосование",
+        "Голосовать можно только за финалистов",
+        "Финалисты НЕ голосуют (только остальные)",
+        "Если опять ничья — random между финалистами",
+        "Событие 'tiebreaker_result' с итогом"
+      ],
+      "implementation": [
+        "Создать метод runRevote(showId, finalistIds)",
+        "Использовать тот же buildDecisionTrigger но с ограниченным списком",
+        "После revote — объявить победителя"
+      ],
+      "dependencies": ["TASK-117"],
+      "status": "pending"
+    },
+    {
+      "id": "TASK-119",
+      "category": "feature",
+      "priority": "medium",
+      "description": "Tiebreaker: режим duel (финальная речь)",
+      "problem": "Revote может быть скучным — хочется драмы",
+      "solution": "Финалисты получают по 1 реплике чтобы убедить остальных, потом revote",
+      "acceptance_criteria": [
+        "При duel mode: сначала мини-фаза речей финалистов",
+        "Каждый финалист получает 1 ход с триггером 'Убеди остальных почему ты достоин победы'",
+        "После речей — revote",
+        "UI показывает что это финальная дуэль"
+      ],
+      "implementation": [
+        "runDuelTiebreaker(showId, finalistIds)",
+        "Фаза: 1 ход на финалиста",
+        "Потом вызвать runRevote"
+      ],
+      "dependencies": ["TASK-118"],
+      "status": "pending"
+    },
+    {
+      "id": "TASK-120",
+      "category": "feature",
+      "priority": "low",
+      "description": "Tiebreaker: режим host_decision (решение ведущего)",
+      "problem": "Хочется чтобы LLM-ведущий мог драматично выбрать победителя",
+      "solution": "LLM-ведущий анализирует шоу и выбирает победителя с объяснением",
+      "acceptance_criteria": [
+        "При host_decision mode: вызвать LLM-ведущего",
+        "Промпт: 'Проанализируй шоу и выбери победителя между {finalists}'",
+        "Ведущий объясняет выбор (2-3 предложения)",
+        "Событие 'host_decision' с объяснением"
+      ],
+      "dependencies": ["TASK-111"],
+      "status": "blocked"
     }
   ]
 }
