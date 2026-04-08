@@ -2608,3 +2608,29 @@ Added a template information panel to the Debug UI that displays template name, 
 5. Промпты и persona: стиль ведущего, tone of voice ✓
 6. UI: отображение реплик ведущего, отличие от system events ✓
 7. Конфиг: hostEnabled, hostPersona, hostBudget, interventionRules ✓
+
+## TASK-127: PRD для модульной архитектуры backend
+
+**Date:** 2026-04-08
+
+**Summary:** Создан PRD документ для модульной архитектуры backend. Документ определяет границы ядра vs модулей, описывает IModule interface, registry pattern, коммуникацию через events/hooks и порядок миграции.
+
+**Changes:**
+
+- docs/PRD-modular-architecture.md — новый PRD документ (8 секций + 2 appendix):
+  1. Цели модульной архитектуры (проблемы, метрики)
+  2. Определение границы ЯДРО vs МОДУЛЬ (критерии)
+  3. Что остаётся в ядре и ПОЧЕМУ
+  4. Extraction plan: orchestrator.ts методы → какой модуль
+  5. Контракт модуля (IModule interface)
+  6. Регистрация модулей (Registry pattern)
+  7. Коммуникация (events / hooks)
+  8. Порядок миграции (5 фаз)
+  - Appendix A: Полный список методов orchestrator.ts и host-module.ts
+  - Appendix B: Глоссарий терминов
+
+**Acceptance Criteria:**
+1. Файл docs/PRD-modular-architecture.md создан ✓
+2. Описаны критерии что является ядром ✓ (раздел 2.1)
+3. Список: orchestrator.ts методы → какой модуль ✓ (раздел 4 + Appendix A)
+4. Описан IModule interface ✓ (раздел 5 с примерами)
