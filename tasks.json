@@ -2855,7 +2855,7 @@
       ],
       "note": "Это пост-MVP фича, связана с TASK-111 (LLM-ведущий)",
       "dependencies": ["TASK-111"],
-      "status": "pending"
+      "status": "blocked"
     }
   ]
 }
