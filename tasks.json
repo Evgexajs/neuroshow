@@ -2718,13 +2718,21 @@
         }
       },
       "prompt_addition": "Для 2-3 пар персонажей создай предысторию отношений. Некоторые связи публичные (все знают), некоторые приватные (знают только участники). Формат: relationships: [{type, participants, visibility, description}]",
+      "ui_controls": [
+        "Checkbox 'Генерировать связи между персонажами' в форме генерации",
+        "По умолчанию выключен",
+        "При включении добавляет prompt_addition к запросу генерации"
+      ],
       "ui_display": [
         "В карточке персонажа показывать иконки связей",
         "При наведении — tooltip с описанием связи",
         "Публичные связи видны всем, приватные — только при развороте карточки"
       ],
       "acceptance_criteria": [
-        "generateCharactersWithOpenAI возвращает массив relationships",
+        "В UI есть checkbox 'Генерировать связи' при генерации персонажей",
+        "Checkbox передаёт параметр generateRelationships: true в API",
+        "generateCharactersWithOpenAI принимает опцию generateRelationships",
+        "Если true — добавляет prompt_addition и парсит relationships из ответа",
         "Relationships сохраняются в configSnapshot шоу",
         "UI показывает связи между персонажами при создании шоу",
         "Приватные связи добавляются в privateContext участников",
