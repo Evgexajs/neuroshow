@@ -1315,8 +1315,9 @@ async function handleCreateShow() {
     createError.classList.add('hidden');
     // Build characters array with full character data
     const selectedChars = availableCharacters.filter((c) => selectedCharacterIds.has(c.id));
-    // Build request body with optional tokenBudget
+    // Build request body with optional tokenBudget and theme
     const tokenBudgetValue = tokenBudgetInput.value.trim();
+    const themeValue = themeInput.value.trim();
     const requestBody = {
         formatId: selectedTemplate,
         characters: selectedChars,
@@ -1326,6 +1327,9 @@ async function handleCreateShow() {
         if (!isNaN(parsedBudget) && parsedBudget > 0) {
             requestBody.tokenBudget = parsedBudget;
         }
+    }
+    if (themeValue) {
+        requestBody.theme = themeValue;
     }
     try {
         const response = await fetch('/shows', {

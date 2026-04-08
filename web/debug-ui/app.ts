@@ -1587,12 +1587,14 @@ async function handleCreateShow(): Promise<void> {
     selectedCharacterIds.has(c.id)
   );
 
-  // Build request body with optional tokenBudget
+  // Build request body with optional tokenBudget and theme
   const tokenBudgetValue = tokenBudgetInput.value.trim();
+  const themeValue = themeInput.value.trim();
   const requestBody: {
     formatId: typeof selectedTemplate;
     characters: typeof selectedChars;
     tokenBudget?: number;
+    theme?: string;
   } = {
     formatId: selectedTemplate,
     characters: selectedChars,
@@ -1603,6 +1605,10 @@ async function handleCreateShow(): Promise<void> {
     if (!isNaN(parsedBudget) && parsedBudget > 0) {
       requestBody.tokenBudget = parsedBudget;
     }
+  }
+
+  if (themeValue) {
+    requestBody.theme = themeValue;
   }
 
   try {
