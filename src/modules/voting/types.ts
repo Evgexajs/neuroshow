@@ -103,4 +103,18 @@ export interface IVotingModule extends IModule {
     winnerName: string,
     callCharacter: DecisionCallback
   ): Promise<void>;
+
+  /**
+   * Run loser reactions - each loser reacts to the result
+   * Creates loser_reaction events for each non-winner
+   *
+   * @param showId - Show ID
+   * @param winnerName - Name of the winner
+   * @param callCharacter - Callback to invoke LLM for each loser
+   */
+  runLoserReactions(
+    showId: string,
+    winnerName: string,
+    callCharacter: DecisionCallback
+  ): Promise<void>;
 }

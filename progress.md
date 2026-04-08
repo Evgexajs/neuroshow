@@ -2940,3 +2940,26 @@ Added a template information panel to the Debug UI that displays template name, 
 
 **Тесты:** npm run lint (warnings only), npm run typecheck (passed), npm run build:ui (passed)
 **Заметки:** Существующие падения в тестах связаны с disk I/O error (см. CLAUDE.md).
+
+## [2026-04-08] TASK-123: Финал: реакции проигравших
+**Статус:** done
+**Время:** ~20 минут
+**Изменения:**
+- src/types/enums.ts — добавлен loser_reaction в EventType enum
+- src/modules/voting/types.ts:
+  - IVotingModule расширен методом runLoserReactions(showId, winnerName, callCharacter)
+- src/modules/voting/decision-phase.ts:
+  - Добавлен метод runLoserReactions() — вызывает каждого проигравшего с триггером для реакции
+  - Триггер RU: "Ты не победил. Выскажи свою реакцию — поздравь победителя или выскажи разочарование. Ответь КРАТКО (1-2 предложения)."
+  - Триггер EN: "You didn't win. React to the result — congratulate the winner or share your disappointment. Keep it SHORT (1-2 sentences)."
+  - runTiebreaker() вызывает runLoserReactions() после runWinnerSpeech()
+- src/modules/voting/index.ts — экспорт runLoserReactions через VotingModule
+- src/core/orchestrator.ts — после runWinnerSpeech() вызывает runLoserReactions() (2 места)
+
+**Acceptance Criteria:**
+1. Каждый проигравший получает 1 ход ✓ (цикл по всем не-победителям)
+2. Реакции разные: поздравления, разочарование, обида, философия ✓ (триггер позволяет разные реакции)
+3. Короткие реплики (1-2 предложения) ✓ (триггер явно указывает "КРАТКО (1-2 предложения)")
+
+**Тесты:** npm run lint (warnings only), npm run typecheck (passed), npm run build (passed)
+**Заметки:** События loser_reaction создаются для всех участников кроме победителя. Каждый получает host_trigger и создаёт loser_reaction событие.

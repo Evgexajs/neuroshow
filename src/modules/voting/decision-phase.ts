@@ -982,6 +982,9 @@ export class DecisionPhaseHandler {
 
     // Run winner speech
     await this.runWinnerSpeech(showId, winner, callCharacter);
+
+    // Run loser reactions
+    await this.runLoserReactions(showId, winner, callCharacter);
   }
 
   /**
@@ -1443,5 +1446,123 @@ export class DecisionPhaseHandler {
       seed,
     };
     await this.eventJournal.append(winnerSpeechEvent);
+  }
+
+  /**
+   * Run loser reactions - each loser reacts to the result
+   * Creates loser_reaction events for each non-winner
+   */
+  async runLoserReactions(
+    showId: string,
+    winnerName: string,
+    callCharacter: DecisionCallback
+  ): Promise<void> {
+    // Get show info
+    const showRecord = await this.store.getShow(showId);
+    if (!showRecord) {
+      throw new Error(`Show ${showId} not found`);
+    }
+    const phaseId = showRecord.currentPhaseId ?? '';
+    const seed = showRecord.seed;
+
+    // Get all characters
+    const characters = await this.store.getCharacters(showId);
+    if (characters.length === 0) {
+      return;
+    }
+
+    // Get character definitions from configSnapshot
+    const configSnapshot = JSON.parse(showRecord.configSnapshot) as Record<string, unknown>;
+    const characterDefinitions = configSnapshot.characterDefinitions as
+      | Array<{ id: string; name: string; responseConstraints?: { language?: string } }>
+      | undefined;
+
+    // Build name map and reverse map
+    const nameMap = new Map<string, string>(); // id -> name
+    const idMap = new Map<string, string>(); // name -> id
+    let isRussian = false;
+    if (characterDefinitions) {
+      for (const def of characterDefinitions) {
+        nameMap.set(def.id, def.name);
+        idMap.set(def.name, def.id);
+        if (def.responseConstraints?.language === 'ru') {
+          isRussian = true;
+        }
+      }
+    }
+
+    const allCharacterIds = characters.map((c) => c.characterId);
+
+    // Find winner character ID
+    let winnerId: string | undefined;
+    if (idMap.has(winnerName)) {
+      winnerId = idMap.get(winnerName);
+    } else if (nameMap.has(winnerName)) {
+      winnerId = winnerName;
+    }
+
+    // Get losers (everyone except winner)
+    const loserIds = allCharacterIds.filter((id) => id !== winnerId);
+
+    if (loserIds.length === 0) {
+      return;
+    }
+
+    // Build loser reaction trigger
+    const trigger = isRussian
+      ? `Ты не победил. Выскажи свою реакцию — поздравь победителя или выскажи разочарование. Ответь КРАТКО (1-2 предложения).`
+      : `You didn't win. React to the result — congratulate the winner or share your disappointment. Keep it SHORT (1-2 sentences).`;
+
+    // Process each loser
+    for (const loserId of loserIds) {
+      const loserName = nameMap.get(loserId) ?? loserId;
+
+      // Emit host_trigger for the loser
+      const triggerEvent: Omit<ShowEvent, 'sequenceNumber'> = {
+        id: generateId(),
+        showId,
+        timestamp: Date.now(),
+        phaseId,
+        type: EventType.host_trigger,
+        channel: ChannelType.PUBLIC,
+        visibility: ChannelType.PUBLIC,
+        senderId: '',
+        receiverIds: [loserId],
+        audienceIds: [loserId],
+        content: trigger,
+        metadata: {
+          loserReaction: true,
+          loser: loserName,
+          winner: winnerName,
+        },
+        seed,
+      };
+      await this.eventJournal.append(triggerEvent);
+
+      // Call loser for their reaction
+      const response = await callCharacter(loserId, trigger, []);
+
+      // Create loser_reaction event
+      const loserReactionEvent: Omit<ShowEvent, 'sequenceNumber'> = {
+        id: generateId(),
+        showId,
+        timestamp: Date.now(),
+        phaseId,
+        type: EventType.loser_reaction,
+        channel: ChannelType.PUBLIC,
+        visibility: ChannelType.PUBLIC,
+        senderId: loserId,
+        receiverIds: allCharacterIds,
+        audienceIds: allCharacterIds,
+        content: response.text,
+        metadata: {
+          loserReaction: true,
+          loser: loserName,
+          winner: winnerName,
+        },
+        seed,
+      };
+      await this.eventJournal.append(loserReactionEvent);
+    }
   }
 }

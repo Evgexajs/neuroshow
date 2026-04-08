@@ -21,6 +21,7 @@ export enum EventType {
   system = 'system',
   winner_announcement = 'winner_announcement', // Dramatic winner announcement
   winner_speech = 'winner_speech', // Winner's victory speech
+  loser_reaction = 'loser_reaction', // Loser's reaction after winner announcement
 }
 
 /**

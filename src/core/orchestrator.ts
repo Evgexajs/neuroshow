@@ -1331,6 +1331,13 @@ export class Orchestrator {
         revelationResult.winner,
         winnerSpeechCallback
       );
+
+      // Run loser reactions
+      await votingModuleForRevelation.runLoserReactions(
+        showId,
+        revelationResult.winner,
+        winnerSpeechCallback
+      );
     }
 
     // Update show status to completed
@@ -1804,6 +1811,13 @@ export class Orchestrator {
       };
 
       await votingModuleForRevelation.runWinnerSpeech(
+        showId,
+        revelationResult.winner,
+        winnerSpeechCallback
+      );
+
+      // Run loser reactions
+      await votingModuleForRevelation.runLoserReactions(
         showId,
         revelationResult.winner,
         winnerSpeechCallback

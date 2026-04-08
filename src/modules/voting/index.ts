@@ -95,6 +95,18 @@ export class VotingModule implements IVotingModule {
   ): Promise<void> {
     return this.handler.runWinnerSpeech(showId, winnerName, callCharacter);
   }
+
+  /**
+   * Run loser reactions - each loser reacts to the result
+   * @see DecisionPhaseHandler.runLoserReactions
+   */
+  async runLoserReactions(
+    showId: string,
+    winnerName: string,
+    callCharacter: DecisionCallback
+  ): Promise<void> {
+    return this.handler.runLoserReactions(showId, winnerName, callCharacter);
+  }
 }
 
 // Re-export types for convenience
