@@ -33,6 +33,8 @@ export interface Phase {
   completionCondition: string;
   dayIndex?: number;
   slotLabel?: string;
+  /** Provocative conflict triggers for creating tension (30-50% chance to use instead of triggerTemplate) */
+  conflictTriggers?: string[];
 }
 
 /**

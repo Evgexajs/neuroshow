@@ -2775,3 +2775,29 @@ Added a template information panel to the Debug UI that displays template name, 
 
 **Тесты:** npm run lint (warnings only), npm run typecheck (passed), context-builder tests (41 passed)
 **Заметки:** Типы заданий: rivalry, hidden_alliance, betrayal, information, manipulation. Задания включают targetIds для указания персонажей-целей. Существующие падения в unit-тестах оркестратора не связаны с этими изменениями.
+
+## [2026-04-08] TASK-115: Провокационные триггеры фаз
+**Статус:** done
+**Время:** ~30 минут
+**Изменения:**
+- src/types/template.ts — добавлено поле conflictTriggers?: string[] в Phase interface
+- src/validation/schemas.ts — добавлена валидация conflictTriggers в phaseSchema
+- src/formats/coalition.json — добавлены 6 conflictTriggers в фазу переговоров:
+  - "Кто-то из вас сказал неправду. Пора выяснить кто."
+  - "Ресурсов хватит только на троих. Кто здесь лишний?"
+  - "Сейчас каждый назовёт того, кому НЕ доверяет."
+  - "Один из вас работает против группы. Обсудите кто."
+  - "Пора раскрыть карты. Кто готов сделать первый шаг?"
+  - "Союзы рушатся. Кто предаст первым?"
+- src/core/orchestrator.ts — добавлен метод selectTrigger():
+  - Seeded random на основе show seed + turn index для воспроизводимости
+  - 40% шанс использовать conflictTrigger (в диапазоне 30-50%)
+  - Интеграция в runPhase() и runPhaseWithDebug()
+
+**Acceptance Criteria:**
+1. В formats/*.json добавлены conflictTriggers ✓ (coalition.json, фаза переговоров)
+2. HostModule случайно использует провокационные триггеры ✓ (через Orchestrator.selectTrigger, 40% шанс)
+3. Персонажи реагируют на провокации ✓ (триггеры передаются в LLM через processCharacterTurn)
+
+**Тесты:** npm run lint (warnings only), npm run typecheck (passed), validation tests (42 passed)
+**Заметки:** Логика выбора триггеров реализована в Orchestrator, а не HostModule, так как Orchestrator управляет потоком ходов. Seeded random обеспечивает воспроизводимость при replay. Существующие падения в unit-тестах оркестратора не связаны с этими изменениями.

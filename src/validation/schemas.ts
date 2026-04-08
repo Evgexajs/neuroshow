@@ -163,6 +163,7 @@ export const phaseSchema = z.object({
   completionCondition: sanitizedString(500),
   dayIndex: z.number().int().nonnegative().optional(),
   slotLabel: sanitizedString(100).optional(),
+  conflictTriggers: z.array(sanitizedString(5000)).optional(),
 });
 
 /**

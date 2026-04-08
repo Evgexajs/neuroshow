@@ -356,9 +356,10 @@ export class Orchestrator {
 
         // Add turn/phase progress info for the model (TASK-104)
         const phaseInfo = `Сейчас фаза «${phase.name}», ход ${this.turnIndex + 1} из примерно ${totalTurns}.`;
-        // Trigger template only for first round, but always include phase info
+        // Trigger template only for first round (may include conflict trigger), but always include phase info
+        const selectedTrigger = this.selectTrigger(phase, seed, this.turnIndex);
         const trigger = round === 0
-          ? `${phaseInfo}\n\n${phase.triggerTemplate ?? ''}`
+          ? `${phaseInfo}\n\n${selectedTrigger}`
           : phaseInfo;
 
         // Process character turn
@@ -422,6 +423,41 @@ export class Orchestrator {
 
     // Default: complete when turns are done
     return currentTurn >= totalTurns;
+  }
+
+  /**
+   * Select trigger for a turn (may use conflict trigger with 30-50% probability)
+   * Uses seeded random for reproducibility.
+   *
+   * @param phase - Phase configuration
+   * @param seed - Show seed for reproducibility
+   * @param turnIndex - Current turn index (used to vary randomness per turn)
+   * @returns Selected trigger string
+   */
+  private selectTrigger(phase: Phase, seed: string, turnIndex: number): string {
+    // If no conflict triggers defined, use regular template
+    if (!phase.conflictTriggers || phase.conflictTriggers.length === 0) {
+      return phase.triggerTemplate ?? '';
+    }
+
+    // Seeded random based on show seed + turn index for reproducibility
+    const seedNum = parseInt(seed, 10) || 0;
+    let currentSeed = seedNum + turnIndex * 1000;
+    const seededRandom = (): number => {
+      currentSeed = (currentSeed * 1103515245 + 12345) & 0x7fffffff;
+      return currentSeed / 0x7fffffff;
+    };
+
+    // 40% chance to use conflict trigger (middle of 30-50% range)
+    const useConflict = seededRandom() < 0.4;
+
+    if (useConflict) {
+      // Select random conflict trigger
+      const index = Math.floor(seededRandom() * phase.conflictTriggers.length);
+      return phase.conflictTriggers[index] ?? phase.triggerTemplate ?? '';
+    }
+
+    return phase.triggerTemplate ?? '';
   }
 
   /**
@@ -533,9 +569,10 @@ export class Orchestrator {
 
         // Add turn/phase progress info for the model (TASK-104)
         const phaseInfo = `Сейчас фаза «${phase.name}», ход ${this.turnIndex + 1} из примерно ${totalTurns}.`;
-        // Trigger template only for first round, but always include phase info
+        // Trigger template only for first round (may include conflict trigger), but always include phase info
+        const selectedTrigger = this.selectTrigger(phase, seed, this.turnIndex);
         const trigger = round === 0
-          ? `${phaseInfo}\n\n${phase.triggerTemplate ?? ''}`
+          ? `${phaseInfo}\n\n${selectedTrigger}`
           : phaseInfo;
 
         // Process character turn
