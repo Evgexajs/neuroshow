@@ -2744,7 +2744,7 @@
         "Проверь что связи видны в UI",
         "Создай шоу и проверь что персонажи знают о своих связях"
       ],
-      "dependencies": ["TASK-127"],
+      "dependencies": ["TASK-130"],
       "status": "pending"
     },
     {
@@ -2771,7 +2771,7 @@
         "В motivationPrompt персонажей есть конкурентные элементы",
         "Минимум 2 персонажа имеют противоположные цели"
       ],
-      "dependencies": ["TASK-127"],
+      "dependencies": ["TASK-130"],
       "status": "pending"
     },
     {
@@ -2800,7 +2800,7 @@
         "Персонажи упоминают/действуют согласно заданиям",
         "UI показывает секретные задания при создании"
       ],
-      "dependencies": ["TASK-127"],
+      "dependencies": ["TASK-130"],
       "status": "pending"
     },
     {
@@ -2828,7 +2828,7 @@
         "HostModule случайно использует провокационные триггеры",
         "Персонажи реагируют на провокации (обвинения, защита)"
       ],
-      "dependencies": ["TASK-127"],
+      "dependencies": ["TASK-130"],
       "status": "pending"
     },
     {
@@ -2854,7 +2854,7 @@
         "Триггерить по условиям или случайно"
       ],
       "note": "Это пост-MVP фича, связана с TASK-111 (LLM-ведущий)",
-      "dependencies": ["TASK-127", "TASK-111"],
+      "dependencies": ["TASK-131", "TASK-111"],
       "status": "blocked"
     },
     {
@@ -2880,7 +2880,7 @@
         "Если да — не объявлять победителя сразу, вызвать tiebreaker",
         "Создать динамическую фазу 'tiebreaker' в UI"
       ],
-      "dependencies": ["TASK-127"],
+      "dependencies": ["TASK-130"],
       "status": "pending"
     },
     {
@@ -2902,7 +2902,7 @@
         "Использовать тот же buildDecisionTrigger но с ограниченным списком",
         "После revote — объявить победителя"
       ],
-      "dependencies": ["TASK-127", "TASK-117"],
+      "dependencies": ["TASK-131", "TASK-117"],
       "status": "pending"
     },
     {
@@ -2923,7 +2923,7 @@
         "Фаза: 1 ход на финалиста",
         "Потом вызвать runRevote"
       ],
-      "dependencies": ["TASK-127", "TASK-118"],
+      "dependencies": ["TASK-131", "TASK-118"],
       "status": "pending"
     },
     {
@@ -2939,7 +2939,7 @@
         "Ведущий объясняет выбор (2-3 предложения)",
         "Событие 'host_decision' с объяснением"
       ],
-      "dependencies": ["TASK-127", "TASK-111"],
+      "dependencies": ["TASK-131", "TASK-111"],
       "status": "blocked"
     },
     {
@@ -2959,7 +2959,7 @@
         "Текст драматичный, с паузами (...)",
         "UI выделяет это событие особым стилем"
       ],
-      "dependencies": ["TASK-127"],
+      "dependencies": ["TASK-130"],
       "status": "pending"
     },
     {
@@ -2979,7 +2979,7 @@
         "Речь содержит благодарности и/или планы",
         "UI: речь выделена как особое событие"
       ],
-      "dependencies": ["TASK-127", "TASK-121"],
+      "dependencies": ["TASK-131", "TASK-121"],
       "status": "pending"
     },
     {
@@ -2999,7 +2999,7 @@
         "Реакции разные: поздравления, разочарование, обида, философия",
         "Короткие реплики (1-2 предложения)"
       ],
-      "dependencies": ["TASK-127", "TASK-122"],
+      "dependencies": ["TASK-131", "TASK-122"],
       "status": "pending"
     },
     {
@@ -3024,7 +3024,7 @@
         "Учитывает события шоу (союзы, конфликты, предательства)",
         "UI: отдельный блок 'Эпилог' после финала"
       ],
-      "dependencies": ["TASK-127", "TASK-123"],
+      "dependencies": ["TASK-131", "TASK-123"],
       "status": "pending"
     },
     {
@@ -3048,7 +3048,7 @@
         "Можно проверять: currentTurn >= totalTurns - charactersCount",
         "Или проверять: это последний ход конкретного персонажа в фазе"
       ],
-      "dependencies": ["TASK-127", "TASK-104"],
+      "dependencies": ["TASK-131", "TASK-104"],
       "status": "pending"
     },
     {
@@ -3077,52 +3077,31 @@
         "7. Примеры: формат с ресурсами, формат с предметами"
       ],
       "output": "docs/PRD-side-effects.md",
-      "dependencies": ["TASK-127"],
+      "dependencies": ["TASK-130"],
       "status": "pending"
     },
     {
       "id": "TASK-127",
       "category": "architecture",
       "priority": "critical",
-      "description": "PRD + рефакторинг: модульная архитектура с изолированными модулями",
-      "problem": "Всё в src/core/ — монолит. При росте функционала будет хаос. Нужна изоляция модулей с собственным API.",
-      "blocking": "Эта таска должна быть выполнена ПЕРЕД всеми pending feature-тасками (113-126)",
-      "deliverables": [
-        "docs/PRD-modular-architecture.md",
-        "Рефакторинг структуры src/modules/",
-        "Шаблон для новых модулей"
-      ],
-      "proposed_structure": {
-        "src/core/": "Ядро: orchestrator, event-journal, host-module (минимум)",
-        "src/modules/relationships/": "TASK-112 — генерация связей",
-        "src/modules/tiebreaker/": "TASK-117-120 — разрешение ничьей",
-        "src/modules/finale/": "TASK-121-124 — финальные механики",
-        "src/modules/conflicts/": "TASK-113-115 — конфликтные механики",
-        "src/modules/side-effects/": "TASK-126 — действия в мире",
-        "src/modules/llm-host/": "TASK-111 — LLM-ведущий"
-      },
-      "module_template": {
-        "index.ts": "Публичный API модуля (export interface IModule)",
-        "types.ts": "Типы модуля",
-        "tasks.json": "Таски относящиеся к этому модулю",
-        "README.md": "Документация модуля",
-        "*.ts": "Внутренняя реализация"
-      },
+      "description": "PRD: модульная архитектура backend (только документ)",
+      "problem": "Нужен документ с чётким определением границ core/modules перед рефакторингом",
+      "deliverables": ["docs/PRD-modular-architecture.md"],
       "prd_sections": [
         "1. Цели модульной архитектуры",
-        "2. Структура модуля (файлы, контракты)",
-        "3. Регистрация модулей в ядре (DI / Registry)",
-        "4. Коммуникация между модулями (events / interfaces)",
-        "5. Тестирование модулей изолированно",
-        "6. Миграция существующего кода",
-        "7. Шаблон создания нового модуля"
+        "2. Определение границы ЯДРО vs МОДУЛЬ (критерии)",
+        "3. Что остаётся в ядре и ПОЧЕМУ (orchestrator, event-bus, storage, api)",
+        "4. Extraction plan: что из orchestrator.ts куда уходит",
+        "5. Контракт модуля (IModule interface)",
+        "6. Регистрация модулей (Registry pattern)",
+        "7. Коммуникация (events / hooks)",
+        "8. Порядок миграции"
       ],
       "acceptance_criteria": [
-        "PRD написан и утверждён",
-        "Создана структура src/modules/ с шаблоном",
-        "Хотя бы 1 модуль вынесен как пример (например tiebreaker)",
-        "Каждый модуль имеет свой tasks.json",
-        "README с инструкцией как создать новый модуль"
+        "Файл docs/PRD-modular-architecture.md создан",
+        "Описаны критерии что является ядром",
+        "Список: orchestrator.ts методы → какой модуль",
+        "Описан IModule interface"
       ],
       "dependencies": [],
       "status": "pending"
@@ -3131,14 +3110,71 @@
       "id": "TASK-128",
       "category": "architecture",
       "priority": "critical",
-      "description": "PRD + рефакторинг: модульная архитектура для Frontend/UI",
-      "problem": "Весь UI в одном app.ts (1600+ строк). При росте фич будет хаос. Нужна изоляция UI компонентов.",
-      "blocking": "Эта таска должна быть выполнена ВМЕСТЕ с TASK-127",
+      "description": "Module registry: создать систему регистрации модулей в ядре",
+      "problem": "Нужна инфраструктура для подключения модулей к ядру",
       "deliverables": [
-        "docs/PRD-frontend-architecture.md",
-        "Рефакторинг структуры web/debug-ui/",
-        "Шаблон для UI компонентов"
+        "src/core/module-registry.ts",
+        "src/core/types/module.ts (IModule interface)"
       ],
+      "acceptance_criteria": [
+        "Создан IModule interface с методами: init(), dispose(), name",
+        "Создан ModuleRegistry класс с методами: register(), getModule(), getAllModules()",
+        "Orchestrator использует registry (import, но пока без модулей)",
+        "npm run typecheck проходит"
+      ],
+      "dependencies": ["TASK-127"],
+      "status": "pending"
+    },
+    {
+      "id": "TASK-129",
+      "category": "architecture",
+      "priority": "critical",
+      "description": "Extract: вынести voting логику из orchestrator в модуль",
+      "problem": "Нужен первый реальный модуль как пример паттерна",
+      "deliverables": [
+        "src/modules/voting/index.ts",
+        "src/modules/voting/types.ts",
+        "src/modules/voting/decision-phase.ts"
+      ],
+      "what_to_extract": [
+        "processDecisionPhase() → modules/voting/",
+        "Логика номинаций и голосования",
+        "Decision-related промпты"
+      ],
+      "acceptance_criteria": [
+        "Модуль voting реализует IModule",
+        "Orchestrator вызывает voting через registry",
+        "Decision phase работает как раньше (регрессии нет)",
+        "npm test проходит"
+      ],
+      "dependencies": ["TASK-128"],
+      "status": "pending"
+    },
+    {
+      "id": "TASK-130",
+      "category": "architecture",
+      "priority": "high",
+      "description": "Шаблон модуля + README для создания новых модулей",
+      "problem": "Нужна документация и пример для создания новых модулей",
+      "deliverables": [
+        "src/modules/_template/ (копируемый шаблон)",
+        "src/modules/README.md"
+      ],
+      "acceptance_criteria": [
+        "Папка _template с index.ts, types.ts, README.md",
+        "README.md описывает как создать новый модуль",
+        "Шаблон содержит пример IModule реализации"
+      ],
+      "dependencies": ["TASK-129"],
+      "status": "pending"
+    },
+    {
+      "id": "TASK-131",
+      "category": "architecture",
+      "priority": "high",
+      "description": "PRD: модульная архитектура для Frontend/UI",
+      "problem": "Весь UI в одном app.ts (1600+ строк). При росте фич будет хаос. Нужна изоляция UI компонентов.",
+      "deliverables": ["docs/PRD-frontend-architecture.md"],
       "proposed_structure": {
         "web/debug-ui/": "Корень UI",
         "web/debug-ui/core/": "Ядро: state, api, events, router",
@@ -3146,34 +3182,22 @@
         "web/debug-ui/components/event-feed/": "Лента событий",
         "web/debug-ui/components/character-cards/": "Карточки персонажей",
         "web/debug-ui/components/phase-panel/": "Панель фаз",
-        "web/debug-ui/components/control-panel/": "Панель управления",
-        "web/debug-ui/components/tiebreaker/": "UI для переголосования",
-        "web/debug-ui/components/finale/": "UI для финала"
-      },
-      "component_template": {
-        "index.ts": "Экспорт компонента",
-        "render.ts": "Рендер HTML",
-        "handlers.ts": "Event handlers",
-        "styles.css": "Стили компонента (опционально)",
-        "types.ts": "Типы компонента"
+        "web/debug-ui/components/control-panel/": "Панель управления"
       },
       "prd_sections": [
         "1. Цели модульной UI архитектуры",
         "2. Структура компонента (файлы, контракты)",
         "3. State management (глобальный vs локальный)",
         "4. Коммуникация между компонентами",
-        "5. Стили: CSS modules vs глобальные",
-        "6. Миграция app.ts на компоненты",
-        "7. Шаблон создания нового компонента"
+        "5. Миграция app.ts на компоненты",
+        "6. Шаблон создания нового компонента"
       ],
       "acceptance_criteria": [
-        "PRD написан и утверждён",
-        "Создана структура web/debug-ui/components/",
-        "Хотя бы 1 компонент вынесен как пример",
-        "app.ts использует компоненты через импорты",
-        "README с инструкцией как создать компонент"
+        "Файл docs/PRD-frontend-architecture.md создан",
+        "Описана структура компонентов",
+        "Описан план миграции app.ts"
       ],
-      "dependencies": [],
+      "dependencies": ["TASK-130"],
       "status": "pending"
     }
   ]
