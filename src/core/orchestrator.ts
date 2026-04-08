@@ -1310,6 +1310,27 @@ export class Orchestrator {
           tiebreakerCallback
         );
       }
+    } else if (revelationResult.winner) {
+      // Winner determined without tiebreaker - run winner speech
+      const winnerSpeechCallback = async (
+        characterId: string,
+        trigger: string,
+        _previousDecisions: Array<{ characterId: string; decision: string }>
+      ) => {
+        if (this.stopped) {
+          return { text: '', intent: CharacterIntent.end_turn };
+        }
+        if (this.mode === 'DEBUG') {
+          await this.waitForStep();
+        }
+        return this.processCharacterTurn(showId, characterId, trigger, { skipSpeechEvent: true });
+      };
+
+      await votingModuleForRevelation.runWinnerSpeech(
+        showId,
+        revelationResult.winner,
+        winnerSpeechCallback
+      );
     }
 
     // Update show status to completed
@@ -1766,6 +1787,27 @@ export class Orchestrator {
           tiebreakerCallback
         );
       }
+    } else if (revelationResult.winner) {
+      // Winner determined without tiebreaker - run winner speech
+      const winnerSpeechCallback = async (
+        characterId: string,
+        trigger: string,
+        _previousDecisions: Array<{ characterId: string; decision: string }>
+      ) => {
+        if (this.stopped) {
+          return { text: '', intent: CharacterIntent.end_turn };
+        }
+        if (this.mode === 'DEBUG') {
+          await this.waitForStep();
+        }
+        return this.processCharacterTurn(showId, characterId, trigger, { skipSpeechEvent: true });
+      };
+
+      await votingModuleForRevelation.runWinnerSpeech(
+        showId,
+        revelationResult.winner,
+        winnerSpeechCallback
+      );
     }
 
     // Update show status to completed

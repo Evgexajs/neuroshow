@@ -83,6 +83,18 @@ export class VotingModule implements IVotingModule {
   ): Promise<void> {
     return this.handler.runDuelTiebreaker(showId, finalists, decisionConfig, callCharacter);
   }
+
+  /**
+   * Run winner speech - winner gives victory speech after announcement
+   * @see DecisionPhaseHandler.runWinnerSpeech
+   */
+  async runWinnerSpeech(
+    showId: string,
+    winnerName: string,
+    callCharacter: DecisionCallback
+  ): Promise<void> {
+    return this.handler.runWinnerSpeech(showId, winnerName, callCharacter);
+  }
 }
 
 // Re-export types for convenience

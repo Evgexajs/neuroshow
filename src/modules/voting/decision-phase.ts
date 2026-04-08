@@ -497,8 +497,8 @@ export class DecisionPhaseHandler {
 
       await this.eventJournal.append(tiebreakerStartEvent);
 
-      // For revote mode, return finalists and let orchestrator call runTiebreaker
-      if (mode === 'revote') {
+      // For revote or duel mode, return finalists and let orchestrator call appropriate handler
+      if (mode === 'revote' || mode === 'duel') {
         return { tiebreakerNeeded: leaders };
       }
 
@@ -714,7 +714,7 @@ export class DecisionPhaseHandler {
       }
     }
 
-    return {};
+    return winner ? { winner } : {};
   }
 
   /**
@@ -799,6 +799,34 @@ export class DecisionPhaseHandler {
         allCharacterIds,
         'no_voters_random'
       );
+
+      // Emit dramatic winner announcement
+      const dramaticContent = isRussian
+        ? `Голоса подсчитаны... Напряжение нарастает... Победитель сегодняшнего шоу — ${winner}!`
+        : `The votes are in... The tension builds... The winner of today's show is — ${winner}!`;
+
+      const announcementEvent: Omit<ShowEvent, 'sequenceNumber'> = {
+        id: generateId(),
+        showId,
+        timestamp: Date.now(),
+        phaseId,
+        type: EventType.winner_announcement,
+        channel: ChannelType.PUBLIC,
+        visibility: ChannelType.PUBLIC,
+        senderId: '',
+        receiverIds: allCharacterIds,
+        audienceIds: allCharacterIds,
+        content: dramaticContent,
+        metadata: {
+          winner,
+          tiebreakerUsed: true,
+        },
+        seed,
+      };
+      await this.eventJournal.append(announcementEvent);
+
+      // Run winner speech
+      await this.runWinnerSpeech(showId, winner, callCharacter);
       return;
     }
 
@@ -926,6 +954,34 @@ export class DecisionPhaseHandler {
       allCharacterIds,
       rule
     );
+
+    // Emit dramatic winner announcement
+    const dramaticContent = isRussian
+      ? `Голоса подсчитаны... Напряжение нарастает... Победитель сегодняшнего шоу — ${winner}!`
+      : `The votes are in... The tension builds... The winner of today's show is — ${winner}!`;
+
+    const announcementEvent: Omit<ShowEvent, 'sequenceNumber'> = {
+      id: generateId(),
+      showId,
+      timestamp: Date.now(),
+      phaseId,
+      type: EventType.winner_announcement,
+      channel: ChannelType.PUBLIC,
+      visibility: ChannelType.PUBLIC,
+      senderId: '',
+      receiverIds: allCharacterIds,
+      audienceIds: allCharacterIds,
+      content: dramaticContent,
+      metadata: {
+        winner,
+        tiebreakerUsed: true,
+      },
+      seed,
+    };
+    await this.eventJournal.append(announcementEvent);
+
+    // Run winner speech
+    await this.runWinnerSpeech(showId, winner, callCharacter);
   }
 
   /**
@@ -1278,5 +1334,114 @@ export class DecisionPhaseHandler {
     }
 
     return parts.join('\n');
+  }
+
+  /**
+   * Run winner speech - winner gives victory speech after announcement
+   * Creates winner_speech event with gratitude and plans
+   */
+  async runWinnerSpeech(
+    showId: string,
+    winnerName: string,
+    callCharacter: DecisionCallback
+  ): Promise<void> {
+    // Get show info
+    const showRecord = await this.store.getShow(showId);
+    if (!showRecord) {
+      throw new Error(`Show ${showId} not found`);
+    }
+    const phaseId = showRecord.currentPhaseId ?? '';
+    const seed = showRecord.seed;
+
+    // Get all characters
+    const characters = await this.store.getCharacters(showId);
+    if (characters.length === 0) {
+      return;
+    }
+
+    // Get character definitions from configSnapshot
+    const configSnapshot = JSON.parse(showRecord.configSnapshot) as Record<string, unknown>;
+    const characterDefinitions = configSnapshot.characterDefinitions as
+      | Array<{ id: string; name: string; responseConstraints?: { language?: string } }>
+      | undefined;
+
+    // Build name map and reverse map
+    const nameMap = new Map<string, string>(); // id -> name
+    const idMap = new Map<string, string>(); // name -> id
+    let isRussian = false;
+    if (characterDefinitions) {
+      for (const def of characterDefinitions) {
+        nameMap.set(def.id, def.name);
+        idMap.set(def.name, def.id);
+        if (def.responseConstraints?.language === 'ru') {
+          isRussian = true;
+        }
+      }
+    }
+
+    const allCharacterIds = characters.map((c) => c.characterId);
+
+    // Find winner character ID
+    let winnerId: string | undefined;
+    if (idMap.has(winnerName)) {
+      winnerId = idMap.get(winnerName);
+    } else if (nameMap.has(winnerName)) {
+      winnerId = winnerName;
+    }
+
+    if (!winnerId) {
+      logger.warn(`Winner ${winnerName} not found in characters`);
+      return;
+    }
+
+    // Build winner speech trigger
+    const trigger = isRussian
+      ? `Ты победил! Скажи свою победную речь — поблагодари, поделись планами на будущее.`
+      : `You won! Give your victory speech — express gratitude, share your plans for the future.`;
+
+    // Emit host_trigger for the winner
+    const triggerEvent: Omit<ShowEvent, 'sequenceNumber'> = {
+      id: generateId(),
+      showId,
+      timestamp: Date.now(),
+      phaseId,
+      type: EventType.host_trigger,
+      channel: ChannelType.PUBLIC,
+      visibility: ChannelType.PUBLIC,
+      senderId: '',
+      receiverIds: [winnerId],
+      audienceIds: [winnerId],
+      content: trigger,
+      metadata: {
+        winnerSpeech: true,
+        winner: winnerName,
+      },
+      seed,
+    };
+    await this.eventJournal.append(triggerEvent);
+
+    // Call winner for their victory speech
+    const response = await callCharacter(winnerId, trigger, []);
+
+    // Create winner_speech event
+    const winnerSpeechEvent: Omit<ShowEvent, 'sequenceNumber'> = {
+      id: generateId(),
+      showId,
+      timestamp: Date.now(),
+      phaseId,
+      type: EventType.winner_speech,
+      channel: ChannelType.PUBLIC,
+      visibility: ChannelType.PUBLIC,
+      senderId: winnerId,
+      receiverIds: allCharacterIds,
+      audienceIds: allCharacterIds,
+      content: response.text,
+      metadata: {
+        winnerSpeech: true,
+        winner: winnerName,
+      },
+      seed,
+    };
+    await this.eventJournal.append(winnerSpeechEvent);
   }
 }

@@ -222,6 +222,30 @@ body {
   100% { box-shadow: 0 2px 8px rgba(255, 193, 7, 0.3); }
 }
 
+/* Winner speech - celebratory style */
+.event-item.winner-speech {
+  background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 50%, #a5d6a7 100%) !important;
+  border-left: 4px solid #4caf50 !important;
+  box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
+  animation: speech-glow 2s ease-in-out;
+}
+
+.event-item.winner-speech .event-content {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: #1b5e20;
+}
+
+.event-item.winner-speech .event-header {
+  color: #2e7d32;
+}
+
+@keyframes speech-glow {
+  0% { box-shadow: 0 0 5px rgba(76, 175, 80, 0.3); }
+  50% { box-shadow: 0 0 15px rgba(76, 175, 80, 0.5); }
+  100% { box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3); }
+}
+
 /* Phase separator */
 .phase-separator {
   display: flex;

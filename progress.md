@@ -2910,3 +2910,33 @@ Added a template information panel to the Debug UI that displays template name, 
 
 **Тесты:** npm run lint (warnings only), npm run typecheck (passed), npm run build:ui (passed)
 **Заметки:** Существующие падения в тестах связаны с disk I/O error (см. CLAUDE.md).
+
+## [2026-04-08] TASK-122: Финал: победная речь победителя
+**Статус:** done
+**Время:** ~30 минут
+**Изменения:**
+- src/types/enums.ts — добавлен winner_speech в EventType enum
+- src/modules/voting/types.ts:
+  - RevelationResult расширен полем winner?: string
+  - IVotingModule расширен методом runWinnerSpeech(showId, winnerName, callCharacter)
+- src/modules/voting/decision-phase.ts:
+  - runRevelation() возвращает winner в результате
+  - runTiebreaker() после emitTiebreakerResult создаёт winner_announcement и вызывает runWinnerSpeech
+  - Добавлен метод runWinnerSpeech() — вызывает победителя с триггером для победной речи
+  - Триггер RU: "Ты победил! Скажи свою победную речь — поблагодари, поделись планами на будущее."
+  - Триггер EN: "You won! Give your victory speech — express gratitude, share your plans for the future."
+- src/modules/voting/index.ts — экспорт runWinnerSpeech через VotingModule
+- src/core/orchestrator.ts — после runRevelation() вызывает runWinnerSpeech если есть победитель (2 места)
+- web/debug-ui/app.ts — добавлен winner-speech класс для события
+- web/debug-ui/styles.css — стиль .winner-speech:
+  - Зелёный градиентный фон (#e8f5e9 → #c8e6c9 → #a5d6a7)
+  - Зелёная левая граница (#4caf50)
+  - Анимация свечения (speech-glow keyframes)
+
+**Acceptance Criteria:**
+1. Победитель получает 1 ход после объявления ✓ (runWinnerSpeech вызывается после winner_announcement)
+2. Речь содержит благодарности и/или планы ✓ (триггер указывает "поблагодари, поделись планами")
+3. UI: речь выделена как особое событие ✓ (зелёный градиент, анимация)
+
+**Тесты:** npm run lint (warnings only), npm run typecheck (passed), npm run build:ui (passed)
+**Заметки:** Существующие падения в тестах связаны с disk I/O error (см. CLAUDE.md).

@@ -12,6 +12,8 @@ import { DecisionConfig } from '../../types/primitives.js';
 export interface RevelationResult {
   /** Finalists if tie detected and revote mode, undefined otherwise */
   tiebreakerNeeded?: string[];
+  /** Winner name if determined, undefined if tie */
+  winner?: string;
 }
 
 /**
@@ -85,6 +87,20 @@ export interface IVotingModule extends IModule {
     showId: string,
     finalists: string[],
     decisionConfig: DecisionConfig,
+    callCharacter: DecisionCallback
+  ): Promise<void>;
+
+  /**
+   * Run winner speech - winner gives victory speech after announcement
+   * Creates winner_speech event with gratitude and plans
+   *
+   * @param showId - Show ID
+   * @param winnerName - Name of the winner
+   * @param callCharacter - Callback to invoke LLM for winner
+   */
+  runWinnerSpeech(
+    showId: string,
+    winnerName: string,
     callCharacter: DecisionCallback
   ): Promise<void>;
 }
