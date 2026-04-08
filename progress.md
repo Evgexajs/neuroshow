@@ -3011,3 +3011,30 @@ Added a template information panel to the Debug UI that displays template name, 
 
 **Тесты:** npm run lint (warnings only), npm run typecheck (passed)
 **Заметки:** Логика определяет последний "раунд" ходов — когда turnIndex достигает totalTurns - charactersCount, все оставшиеся ходы являются последними для своих персонажей.
+
+## [2026-04-08] TASK-126: PRD для механики Side Effects
+**Статус:** done
+**Время:** ~15 минут
+**Изменения:**
+- docs/PRD-side-effects.md — создан PRD документ для механики Side Effects:
+  - Раздел 1: Обзор и цели — что такое Side Effects и зачем нужны
+  - Раздел 2: Типы side effects — item, resource, contract, sabotage, discovery, ability
+  - Раздел 3: Как персонаж выбирает действие — расширение CharacterResponse, intent: 'action'
+  - Раздел 4: Валидация действий — 5 уровней валидации, preconditions по типам
+  - Раздел 5: State management — WorldState структура, reconstruction from event journal
+  - Раздел 6: UI отображение действий — event types, визуальные примеры
+  - Раздел 7: Интеграция с форматами шоу — SideEffectsConfig, phase overrides
+  - Раздел 8: Примеры форматов — Auction, Survival, Mafia+
+  - Раздел 9-12: Модель данных, техническая архитектура, acceptance criteria
+
+**Acceptance Criteria:**
+1. Документ описывает типы side effects и их влияние ✓
+2. Документ описывает как персонаж выбирает действие (intent: 'action') ✓
+3. Документ описывает валидацию действий ✓
+4. Документ описывает state management для хранения состояния мира ✓
+5. Документ описывает UI отображение действий ✓
+6. Документ описывает интеграцию с форматами шоу ✓
+7. Документ содержит примеры форматов с ресурсами и предметами ✓
+
+**Тесты:** npm run lint (warnings only), npm run typecheck (passed)
+**Заметки:** Документация задача — код не изменялся. PRD следует структуре PRD-modular-architecture.md и описывает Side Effects как отдельный модуль системы.
