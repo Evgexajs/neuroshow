@@ -3126,6 +3126,55 @@
       ],
       "dependencies": [],
       "status": "pending"
+    },
+    {
+      "id": "TASK-128",
+      "category": "architecture",
+      "priority": "critical",
+      "description": "PRD + рефакторинг: модульная архитектура для Frontend/UI",
+      "problem": "Весь UI в одном app.ts (1600+ строк). При росте фич будет хаос. Нужна изоляция UI компонентов.",
+      "blocking": "Эта таска должна быть выполнена ВМЕСТЕ с TASK-127",
+      "deliverables": [
+        "docs/PRD-frontend-architecture.md",
+        "Рефакторинг структуры web/debug-ui/",
+        "Шаблон для UI компонентов"
+      ],
+      "proposed_structure": {
+        "web/debug-ui/": "Корень UI",
+        "web/debug-ui/core/": "Ядро: state, api, events, router",
+        "web/debug-ui/components/": "UI компоненты",
+        "web/debug-ui/components/event-feed/": "Лента событий",
+        "web/debug-ui/components/character-cards/": "Карточки персонажей",
+        "web/debug-ui/components/phase-panel/": "Панель фаз",
+        "web/debug-ui/components/control-panel/": "Панель управления",
+        "web/debug-ui/components/tiebreaker/": "UI для переголосования",
+        "web/debug-ui/components/finale/": "UI для финала"
+      },
+      "component_template": {
+        "index.ts": "Экспорт компонента",
+        "render.ts": "Рендер HTML",
+        "handlers.ts": "Event handlers",
+        "styles.css": "Стили компонента (опционально)",
+        "types.ts": "Типы компонента"
+      },
+      "prd_sections": [
+        "1. Цели модульной UI архитектуры",
+        "2. Структура компонента (файлы, контракты)",
+        "3. State management (глобальный vs локальный)",
+        "4. Коммуникация между компонентами",
+        "5. Стили: CSS modules vs глобальные",
+        "6. Миграция app.ts на компоненты",
+        "7. Шаблон создания нового компонента"
+      ],
+      "acceptance_criteria": [
+        "PRD написан и утверждён",
+        "Создана структура web/debug-ui/components/",
+        "Хотя бы 1 компонент вынесен как пример",
+        "app.ts использует компоненты через импорты",
+        "README с инструкцией как создать компонент"
+      ],
+      "dependencies": [],
+      "status": "pending"
     }
   ]
 }
