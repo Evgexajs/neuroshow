@@ -37,6 +37,8 @@ const themeInput = document.getElementById('theme-input');
 const generateBtn = document.getElementById('generate-btn');
 const generateStatus = document.getElementById('generate-status');
 const tokenBudgetInput = document.getElementById('token-budget-input');
+const generateRelationshipsCheckbox = document.getElementById('generate-relationships-checkbox');
+const relationshipsList = document.getElementById('relationships-list');
 // History Modal Elements
 const showHistoryBtn = document.getElementById('show-history-btn');
 const showHistoryModal = document.getElementById('show-history-modal');
@@ -84,6 +86,7 @@ let availableTemplates = [];
 let availableCharacters = [];
 let selectedTemplate = null;
 const selectedCharacterIds = new Set();
+let generatedRelationships = [];
 // Show config state (template + phases)
 let showConfig = null;
 const phaseTurnCounts = new Map();
@@ -841,6 +844,11 @@ function resetModalState() {
     tokenBudgetInput.value = '';
     generateStatus.classList.add('hidden');
     generateStatus.classList.remove('error');
+    // Clear relationships
+    generatedRelationships = [];
+    relationshipsList.classList.add('hidden');
+    relationshipsList.innerHTML = '';
+    generateRelationshipsCheckbox.checked = false;
 }
 /**
  * Open the history modal and load shows
@@ -1194,6 +1202,40 @@ function renderCharacterCheckboxes() {
     }
 }
 /**
+ * Render relationships in the UI
+ */
+function renderRelationships(chars) {
+    if (generatedRelationships.length === 0) {
+        relationshipsList.classList.add('hidden');
+        return;
+    }
+    // Build name map for display
+    const nameMap = new Map();
+    for (const char of chars) {
+        nameMap.set(char.id, char.name);
+    }
+    relationshipsList.classList.remove('hidden');
+    relationshipsList.innerHTML = '<h4>Generated Relationships:</h4>';
+    for (const rel of generatedRelationships) {
+        const item = document.createElement('div');
+        item.className = 'relationship-item';
+        const name1 = nameMap.get(rel.participantIds[0]) ?? rel.participantIds[0];
+        const name2 = nameMap.get(rel.participantIds[1]) ?? rel.participantIds[1];
+        const typeSpan = document.createElement('span');
+        typeSpan.className = 'relationship-type';
+        typeSpan.textContent = rel.type.replace('_', ' ');
+        const visibilitySpan = document.createElement('span');
+        visibilitySpan.className = `relationship-visibility ${rel.visibility}`;
+        visibilitySpan.textContent = rel.visibility;
+        const descSpan = document.createElement('span');
+        descSpan.textContent = `${name1} & ${name2}: ${rel.description}`;
+        item.appendChild(typeSpan);
+        item.appendChild(visibilitySpan);
+        item.appendChild(descSpan);
+        relationshipsList.appendChild(item);
+    }
+}
+/**
  * Handle template selection change
  */
 function handleTemplateChange() {
@@ -1257,29 +1299,34 @@ async function handleGenerateCharacters() {
     const count = selectedTemplate
         ? Math.min(selectedTemplate.maxParticipants, 5)
         : 5;
+    const generateRelationships = generateRelationshipsCheckbox.checked;
     generateBtn.disabled = true;
-    generateStatus.textContent = 'Generating characters...';
+    generateStatus.textContent = generateRelationships
+        ? 'Generating characters with relationships...'
+        : 'Generating characters...';
     generateStatus.classList.remove('hidden', 'error');
     try {
         const response = await fetch('/generate/characters', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ count, theme: theme || undefined }),
+            body: JSON.stringify({ count, theme: theme || undefined, generateRelationships }),
         });
         if (!response.ok) {
             const errorData = await response.json();
             throw new Error(errorData.error ?? `HTTP ${response.status}`);
         }
-        const generatedCharacters = await response.json();
+        const result = await response.json();
+        const generatedChars = result.characters;
+        generatedRelationships = result.relationships ?? [];
         // Add generated characters to available characters
         // Replace any previously generated characters (those without a file source)
         const existingFileCharacters = availableCharacters.filter((c) => !c.id.includes('-') || c.id.length < 30);
-        availableCharacters = [...existingFileCharacters, ...generatedCharacters];
+        availableCharacters = [...existingFileCharacters, ...generatedChars];
         // Re-render checkboxes
         renderCharacterCheckboxes();
         // Auto-select generated characters
         selectedCharacterIds.clear();
-        for (const char of generatedCharacters) {
+        for (const char of generatedChars) {
             selectedCharacterIds.add(char.id);
         }
         // Check all generated character checkboxes
@@ -1290,7 +1337,12 @@ async function handleGenerateCharacters() {
         });
         // Validate selection
         validateCharacterSelection();
-        generateStatus.textContent = `Generated ${generatedCharacters.length} characters`;
+        // Render relationships if any
+        renderRelationships(generatedChars);
+        const relText = generatedRelationships.length > 0
+            ? ` + ${generatedRelationships.length} relationships`
+            : '';
+        generateStatus.textContent = `Generated ${generatedChars.length} characters${relText}`;
         setTimeout(() => {
             generateStatus.classList.add('hidden');
         }, 3000);
@@ -1315,7 +1367,7 @@ async function handleCreateShow() {
     createError.classList.add('hidden');
     // Build characters array with full character data
     const selectedChars = availableCharacters.filter((c) => selectedCharacterIds.has(c.id));
-    // Build request body with optional tokenBudget and theme
+    // Build request body with optional tokenBudget, theme, and relationships
     const tokenBudgetValue = tokenBudgetInput.value.trim();
     const themeValue = themeInput.value.trim();
     const requestBody = {
@@ -1330,6 +1382,12 @@ async function handleCreateShow() {
     }
     if (themeValue) {
         requestBody.theme = themeValue;
+    }
+    // Include relationships if generated
+    if (generatedRelationships.length > 0) {
+        // Filter relationships to only include those for selected characters
+        const selectedIds = new Set(selectedChars.map((c) => c.id));
+        requestBody.relationships = generatedRelationships.filter((rel) => selectedIds.has(rel.participantIds[0]) && selectedIds.has(rel.participantIds[1]));
     }
     try {
         const response = await fetch('/shows', {

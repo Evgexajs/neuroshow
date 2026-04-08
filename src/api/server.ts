@@ -20,6 +20,7 @@ import { ModelAdapter } from '../types/adapter.js';
 import { logger } from '../utils/logger.js';
 import { CharacterDefinition } from '../types/character.js';
 import { SpeakFrequency } from '../types/enums.js';
+import { Relationship, RelationshipType } from '../types/primitives.js';
 import { generateId } from '../utils/id.js';
 import {
   validateCreateShowRequest,
@@ -27,14 +28,57 @@ import {
 } from '../validation/schemas.js';
 
 /**
+ * Options for character generation
+ */
+interface GenerateCharactersOptions {
+  count: number;
+  theme?: string;
+  generateRelationships?: boolean;
+}
+
+/**
+ * Result of character generation
+ */
+interface GenerateCharactersResult {
+  characters: CharacterDefinition[];
+  relationships: Relationship[];
+}
+
+/**
  * Generate characters using OpenAI API
  */
-async function generateCharactersWithOpenAI(count: number, theme?: string): Promise<CharacterDefinition[]> {
+async function generateCharactersWithOpenAI(options: GenerateCharactersOptions): Promise<GenerateCharactersResult> {
+  const { count, theme, generateRelationships = false } = options;
   const client = new OpenAI({ apiKey: config.openaiApiKey });
 
   const themeContext = theme
     ? `Сеттинг/тема персонажей: "${theme}". Все персонажи должны соответствовать этой теме.`
     : 'Персонажи могут быть из любого сеттинга - современность, фэнтези, научная фантастика, историческая эпоха и т.д.';
+
+  const relationshipsPrompt = generateRelationships
+    ? `
+
+Также создай 2-3 связи между персонажами (relationships). Некоторые связи публичные (все знают), некоторые приватные (знают только участники).
+Добавь в JSON массив "relationships":
+{
+  "relationships": [
+    {
+      "type": "romantic_history" | "friendship" | "rivalry" | "family" | "colleagues" | "secret",
+      "participants": [0, 1],
+      "visibility": "public" | "private",
+      "description": "Описание связи (1-2 предложения)"
+    }
+  ]
+}
+Где participants - индексы персонажей в массиве characters (0, 1, 2...).
+Типы связей:
+- romantic_history: бывшие партнёры, романтическая история
+- friendship: старые друзья, хорошие знакомые
+- rivalry: конкуренты, соперники
+- family: родственники
+- colleagues: коллеги, работали вместе
+- secret: тайная связь (шпион, информатор, должник)`
+    : '';
 
   const prompt = `Сгенерируй ${count} уникальных персонажей для интерактивного шоу-дискуссии.
 
@@ -61,6 +105,7 @@ ${themeContext}
     }
   ]
 }
+${relationshipsPrompt}
 
 ВАЖНО: Персонажи должны быть разнообразными - не делай их похожими друг на друга!
 Используй разные speakFrequency: хотя бы один "low", хотя бы один "high", остальные "medium".`;
@@ -110,8 +155,8 @@ ${themeContext}
     boundaryRules?: string[];
   }
 
-  // Convert to CharacterDefinition format
-  return (rawCharacters as RawCharacter[]).map((char) => ({
+  // Convert to CharacterDefinition format and generate IDs
+  const characters: CharacterDefinition[] = (rawCharacters as RawCharacter[]).map((char) => ({
     id: generateId(),
     name: char.name,
     publicCard: char.publicCard,
@@ -131,12 +176,66 @@ ${themeContext}
       language: 'ru',
     },
   }));
+
+  // Parse relationships if requested
+  let relationships: Relationship[] = [];
+  if (generateRelationships && parsed.relationships && Array.isArray(parsed.relationships)) {
+    interface RawRelationship {
+      type: string;
+      participants: number[];
+      visibility: string;
+      description: string;
+    }
+
+    relationships = (parsed.relationships as RawRelationship[])
+      .filter((rel) => {
+        // Validate relationship has valid participant indices
+        if (!rel.participants || rel.participants.length !== 2) return false;
+        const [idx1, idx2] = rel.participants;
+        return (
+          idx1 !== undefined &&
+          idx2 !== undefined &&
+          idx1 >= 0 &&
+          idx1 < characters.length &&
+          idx2 >= 0 &&
+          idx2 < characters.length
+        );
+      })
+      .map((rel) => {
+        const idx1 = rel.participants[0] as number;
+        const idx2 = rel.participants[1] as number;
+        // Filter guarantees these indices are valid
+        const char1 = characters[idx1]!;
+        const char2 = characters[idx2]!;
+        const participantIds: [string, string] = [char1.id, char2.id];
+
+        // For private relationships, only participants know
+        // For public relationships, everyone knows
+        const knownBy =
+          rel.visibility === 'private'
+            ? participantIds
+            : characters.map((c) => c.id);
+
+        return {
+          id: generateId(),
+          type: rel.type as RelationshipType,
+          participantIds,
+          visibility: rel.visibility as 'public' | 'private',
+          description: rel.description,
+          knownBy,
+        };
+      });
+
+    logger.info(`Parsed ${relationships.length} relationships from OpenAI response`);
+  }
+
+  return { characters, relationships };
 }
 
 /**
  * Generate mock characters as fallback when OpenAI is unavailable
  */
-function generateMockCharacters(count: number, theme?: string): CharacterDefinition[] {
+function generateMockCharacters(count: number, theme?: string): GenerateCharactersResult {
   const themePrefix = theme ? `[${theme}] ` : '';
 
   const mockTemplates = [
@@ -234,7 +333,7 @@ function generateMockCharacters(count: number, theme?: string): CharacterDefinit
 
   const selected = mockTemplates.slice(0, count);
 
-  return selected.map((template) => ({
+  const characters = selected.map((template) => ({
     id: generateId(),
     name: themePrefix + template.name,
     publicCard: template.publicCard,
@@ -254,6 +353,8 @@ function generateMockCharacters(count: number, theme?: string): CharacterDefinit
       language: 'ru',
     },
   }));
+
+  return { characters, relationships: [] };
 }
 
 /**
@@ -445,9 +546,15 @@ export async function createServer(): Promise<{
 
   // POST /generate/characters - Generate random characters via OpenAI
   app.post('/generate/characters', async (request: FastifyRequest, reply: FastifyReply) => {
-    const { count = 5, theme } = request.body as { count?: number; theme?: string };
+    const { count = 5, theme, generateRelationships = false } = request.body as {
+      count?: number;
+      theme?: string;
+      generateRelationships?: boolean;
+    };
 
-    logger.info(`POST /generate/characters - count: ${count}, theme: ${theme ?? 'none'}`);
+    logger.info(
+      `POST /generate/characters - count: ${count}, theme: ${theme ?? 'none'}, generateRelationships: ${generateRelationships}`
+    );
 
     // Validate count
     if (count < 1 || count > 10) {
@@ -461,29 +568,29 @@ export async function createServer(): Promise<{
     if (!hasOpenAIKey) {
       logger.info('No OpenAI API key, using mock characters');
       // Fallback: generate mock characters
-      const characters = generateMockCharacters(count, theme);
-      logger.info(`Generated ${characters.length} mock characters`);
-      return reply.send(characters);
+      const result = generateMockCharacters(count, theme);
+      logger.info(`Generated ${result.characters.length} mock characters`);
+      return reply.send(result);
     }
 
     try {
-      const characters = await generateCharactersWithOpenAI(count, theme);
-      logger.info(`Successfully generated ${characters.length} characters via OpenAI`);
+      const result = await generateCharactersWithOpenAI({ count, theme, generateRelationships });
+      logger.info(`Successfully generated ${result.characters.length} characters via OpenAI`);
 
-      if (characters.length === 0) {
+      if (result.characters.length === 0) {
         logger.warn('OpenAI returned empty array, falling back to mock');
-        const mockCharacters = generateMockCharacters(count, theme);
-        return reply.send(mockCharacters);
+        const mockResult = generateMockCharacters(count, theme);
+        return reply.send(mockResult);
       }
 
-      return reply.send(characters);
+      return reply.send(result);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       logger.error(`OpenAI character generation failed: ${errorMessage}`, err);
       // Fallback to mock on error
-      const characters = generateMockCharacters(count, theme);
-      logger.info(`Fallback: generated ${characters.length} mock characters`);
-      return reply.send(characters);
+      const result = generateMockCharacters(count, theme);
+      logger.info(`Fallback: generated ${result.characters.length} mock characters`);
+      return reply.send(result);
     }
   });
 
@@ -808,7 +915,7 @@ export async function createServer(): Promise<{
       });
     }
 
-    const { formatId, characters, seed, tokenBudget, theme } = validation.data;
+    const { formatId, characters, seed, tokenBudget, theme, relationships } = validation.data;
 
     // Validate character count against template limits
     if (characters.length < formatId.minParticipants) {
@@ -855,7 +962,8 @@ export async function createServer(): Promise<{
         characters as Array<import('../types/character.js').CharacterDefinition & { modelAdapterId?: string }>,
         seed,
         tokenBudget,
-        backstory
+        backstory,
+        relationships as import('../types/primitives.js').Relationship[] | undefined
       );
 
       // Return response

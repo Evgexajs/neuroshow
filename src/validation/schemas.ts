@@ -100,6 +100,18 @@ export const privateChannelRulesSchema = z.object({
 });
 
 /**
+ * Relationship schema - describes pre-show relationships between characters
+ */
+export const relationshipSchema = z.object({
+  id: nonEmptySanitizedString(100),
+  type: z.enum(['romantic_history', 'friendship', 'rivalry', 'family', 'colleagues', 'secret']),
+  participantIds: z.tuple([nonEmptySanitizedString(100), nonEmptySanitizedString(100)]),
+  visibility: z.enum(['public', 'private']),
+  description: sanitizedString(1000),
+  knownBy: z.array(nonEmptySanitizedString(100)),
+});
+
+/**
  * DayConfig schema
  */
 export const dayConfigSchema = z.object({
@@ -216,6 +228,7 @@ export const createShowRequestSchema = z.object({
   seed: z.number().int().optional(),
   tokenBudget: z.number().int().positive().max(10000000).optional(),
   theme: sanitizedString(2000).optional(),
+  relationships: z.array(relationshipSchema).optional(),
 });
 
 /**

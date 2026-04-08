@@ -10,7 +10,7 @@ import { CharacterDefinition } from '../types/character.js';
 import { Show } from '../types/runtime.js';
 import { ShowEvent } from '../types/events.js';
 import { ShowStatus, BudgetMode, EventType, ChannelType } from '../types/enums.js';
-import { PrivateChannelRules, DecisionConfig } from '../types/primitives.js';
+import { PrivateChannelRules, DecisionConfig, Relationship } from '../types/primitives.js';
 import { CharacterResponse } from '../types/adapter.js';
 import { generateId } from '../utils/id.js';
 import { config } from '../config.js';
@@ -48,6 +48,7 @@ export class HostModule {
    * @param seed - Optional seed for reproducibility
    * @param tokenBudget - Optional token budget (defaults to config.tokenBudgetPerShow)
    * @param backstory - Optional show backstory (generated or provided)
+   * @param relationships - Optional relationships between characters
    * @returns Initialized Show object
    */
   async initializeShow(
@@ -55,7 +56,8 @@ export class HostModule {
     characters: Array<CharacterDefinition & { modelAdapterId?: string }>,
     seed?: number,
     tokenBudget?: number,
-    backstory?: string
+    backstory?: string,
+    relationships?: Relationship[]
   ): Promise<Show> {
     const showId = generateId();
     const showSeed = seed ?? Math.floor(Math.random() * 2147483647);
@@ -85,6 +87,8 @@ export class HostModule {
       })),
       // Store backstory if provided
       backstory,
+      // Store relationships between characters
+      relationships: relationships ?? [],
     };
 
     // Create show record with 'created' status (will change to 'running' when started)

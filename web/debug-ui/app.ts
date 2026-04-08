@@ -49,6 +49,15 @@ interface PhaseConfig {
   allowedChannels: string[];
 }
 
+interface Relationship {
+  id: string;
+  type: string;
+  participantIds: [string, string];
+  visibility: 'public' | 'private';
+  description: string;
+  knownBy: string[];
+}
+
 interface ShowConfig {
   templateId: string;
   templateName: string;
@@ -112,6 +121,8 @@ const themeInput = document.getElementById('theme-input') as HTMLInputElement;
 const generateBtn = document.getElementById('generate-btn') as HTMLButtonElement;
 const generateStatus = document.getElementById('generate-status') as HTMLDivElement;
 const tokenBudgetInput = document.getElementById('token-budget-input') as HTMLInputElement;
+const generateRelationshipsCheckbox = document.getElementById('generate-relationships-checkbox') as HTMLInputElement;
+const relationshipsList = document.getElementById('relationships-list') as HTMLDivElement;
 
 // History Modal Elements
 const showHistoryBtn = document.getElementById('show-history-btn') as HTMLButtonElement;
@@ -166,6 +177,7 @@ let availableTemplates: ShowFormatTemplate[] = [];
 let availableCharacters: CharacterDefinition[] = [];
 let selectedTemplate: ShowFormatTemplate | null = null;
 const selectedCharacterIds: Set<string> = new Set();
+let generatedRelationships: Relationship[] = [];
 
 // Show config state (template + phases)
 let showConfig: ShowConfig | null = null;
@@ -1023,6 +1035,11 @@ function resetModalState(): void {
   tokenBudgetInput.value = '';
   generateStatus.classList.add('hidden');
   generateStatus.classList.remove('error');
+  // Clear relationships
+  generatedRelationships = [];
+  relationshipsList.classList.add('hidden');
+  relationshipsList.innerHTML = '';
+  generateRelationshipsCheckbox.checked = false;
 }
 
 // ==================== History Modal ====================
@@ -1444,6 +1461,49 @@ function renderCharacterCheckboxes(): void {
 }
 
 /**
+ * Render relationships in the UI
+ */
+function renderRelationships(chars: CharacterDefinition[]): void {
+  if (generatedRelationships.length === 0) {
+    relationshipsList.classList.add('hidden');
+    return;
+  }
+
+  // Build name map for display
+  const nameMap = new Map<string, string>();
+  for (const char of chars) {
+    nameMap.set(char.id, char.name);
+  }
+
+  relationshipsList.classList.remove('hidden');
+  relationshipsList.innerHTML = '<h4>Generated Relationships:</h4>';
+
+  for (const rel of generatedRelationships) {
+    const item = document.createElement('div');
+    item.className = 'relationship-item';
+
+    const name1 = nameMap.get(rel.participantIds[0]) ?? rel.participantIds[0];
+    const name2 = nameMap.get(rel.participantIds[1]) ?? rel.participantIds[1];
+
+    const typeSpan = document.createElement('span');
+    typeSpan.className = 'relationship-type';
+    typeSpan.textContent = rel.type.replace('_', ' ');
+
+    const visibilitySpan = document.createElement('span');
+    visibilitySpan.className = `relationship-visibility ${rel.visibility}`;
+    visibilitySpan.textContent = rel.visibility;
+
+    const descSpan = document.createElement('span');
+    descSpan.textContent = `${name1} & ${name2}: ${rel.description}`;
+
+    item.appendChild(typeSpan);
+    item.appendChild(visibilitySpan);
+    item.appendChild(descSpan);
+    relationshipsList.appendChild(item);
+  }
+}
+
+/**
  * Handle template selection change
  */
 function handleTemplateChange(): void {
@@ -1512,16 +1572,19 @@ async function handleGenerateCharacters(): Promise<void> {
   const count = selectedTemplate
     ? Math.min(selectedTemplate.maxParticipants, 5)
     : 5;
+  const generateRelationships = generateRelationshipsCheckbox.checked;
 
   generateBtn.disabled = true;
-  generateStatus.textContent = 'Generating characters...';
+  generateStatus.textContent = generateRelationships
+    ? 'Generating characters with relationships...'
+    : 'Generating characters...';
   generateStatus.classList.remove('hidden', 'error');
 
   try {
     const response = await fetch('/generate/characters', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ count, theme: theme || undefined }),
+      body: JSON.stringify({ count, theme: theme || undefined, generateRelationships }),
     });
 
     if (!response.ok) {
@@ -1529,7 +1592,13 @@ async function handleGenerateCharacters(): Promise<void> {
       throw new Error(errorData.error ?? `HTTP ${response.status}`);
     }
 
-    const generatedCharacters: CharacterDefinition[] = await response.json();
+    const result = await response.json() as {
+      characters: CharacterDefinition[];
+      relationships: Relationship[];
+    };
+
+    const generatedChars = result.characters;
+    generatedRelationships = result.relationships ?? [];
 
     // Add generated characters to available characters
     // Replace any previously generated characters (those without a file source)
@@ -1537,14 +1606,14 @@ async function handleGenerateCharacters(): Promise<void> {
       !c.id.includes('-') || c.id.length < 30
     );
 
-    availableCharacters = [...existingFileCharacters, ...generatedCharacters];
+    availableCharacters = [...existingFileCharacters, ...generatedChars];
 
     // Re-render checkboxes
     renderCharacterCheckboxes();
 
     // Auto-select generated characters
     selectedCharacterIds.clear();
-    for (const char of generatedCharacters) {
+    for (const char of generatedChars) {
       selectedCharacterIds.add(char.id);
     }
 
@@ -1558,7 +1627,13 @@ async function handleGenerateCharacters(): Promise<void> {
     // Validate selection
     validateCharacterSelection();
 
-    generateStatus.textContent = `Generated ${generatedCharacters.length} characters`;
+    // Render relationships if any
+    renderRelationships(generatedChars);
+
+    const relText = generatedRelationships.length > 0
+      ? ` + ${generatedRelationships.length} relationships`
+      : '';
+    generateStatus.textContent = `Generated ${generatedChars.length} characters${relText}`;
     setTimeout(() => {
       generateStatus.classList.add('hidden');
     }, 3000);
@@ -1587,7 +1662,7 @@ async function handleCreateShow(): Promise<void> {
     selectedCharacterIds.has(c.id)
   );
 
-  // Build request body with optional tokenBudget and theme
+  // Build request body with optional tokenBudget, theme, and relationships
   const tokenBudgetValue = tokenBudgetInput.value.trim();
   const themeValue = themeInput.value.trim();
   const requestBody: {
@@ -1595,6 +1670,7 @@ async function handleCreateShow(): Promise<void> {
     characters: typeof selectedChars;
     tokenBudget?: number;
     theme?: string;
+    relationships?: Relationship[];
   } = {
     formatId: selectedTemplate,
     characters: selectedChars,
@@ -1609,6 +1685,16 @@ async function handleCreateShow(): Promise<void> {
 
   if (themeValue) {
     requestBody.theme = themeValue;
+  }
+
+  // Include relationships if generated
+  if (generatedRelationships.length > 0) {
+    // Filter relationships to only include those for selected characters
+    const selectedIds = new Set(selectedChars.map((c) => c.id));
+    requestBody.relationships = generatedRelationships.filter(
+      (rel) =>
+        selectedIds.has(rel.participantIds[0]) && selectedIds.has(rel.participantIds[1])
+    );
   }
 
   try {

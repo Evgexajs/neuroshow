@@ -64,3 +64,26 @@ export interface DayConfig {
   label: string;
   phaseIds: string[];
 }
+
+/**
+ * Type of relationship between characters
+ */
+export type RelationshipType =
+  | 'romantic_history'
+  | 'friendship'
+  | 'rivalry'
+  | 'family'
+  | 'colleagues'
+  | 'secret';
+
+/**
+ * Relationship between characters (pre-show history)
+ */
+export interface Relationship {
+  id: string;
+  type: RelationshipType;
+  participantIds: [string, string];
+  visibility: 'public' | 'private';
+  description: string;
+  knownBy: string[];
+}

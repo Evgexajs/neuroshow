@@ -26,6 +26,8 @@ export {
   DecisionConfig,
   PrivateChannelRules,
   DayConfig,
+  RelationshipType,
+  Relationship,
 } from './primitives.js';
 
 // Events

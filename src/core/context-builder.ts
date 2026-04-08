@@ -12,7 +12,7 @@ import { PromptPackage, ModelAdapter } from '../types/adapter.js';
 import { CharacterDefinition } from '../types/character.js';
 import { Show } from '../types/runtime.js';
 import { ShowFormatTemplate } from '../types/template.js';
-import { ResponseConstraints } from '../types/primitives.js';
+import { ResponseConstraints, Relationship } from '../types/primitives.js';
 
 /**
  * ContextBuilder assembles context layers for character prompts
@@ -92,6 +92,36 @@ export class ContextBuilder {
       if (alliance.isActive) {
         const partnerName = nameMap?.get(alliance.partnerId) ?? alliance.partnerId;
         facts.push(`[Alliance] Partner: ${partnerName}, Agreement: ${alliance.agreement}`);
+      }
+    }
+
+    // Add relationships from configSnapshot
+    if (showRecord) {
+      const configSnapshot = JSON.parse(showRecord.configSnapshot) as Record<string, unknown>;
+      const relationships = configSnapshot.relationships as Relationship[] | undefined;
+      if (relationships && relationships.length > 0) {
+        for (const rel of relationships) {
+          // Check if this character knows about the relationship
+          const characterKnows = rel.knownBy.includes(characterId);
+          if (!characterKnows) continue;
+
+          // Get the other participant's name
+          const otherParticipantId = rel.participantIds[0] === characterId
+            ? rel.participantIds[1]
+            : rel.participantIds[0];
+          const otherName = nameMap?.get(otherParticipantId) ?? otherParticipantId;
+
+          // Format relationship based on visibility
+          if (rel.visibility === 'public') {
+            facts.push(`[Relationship - Public] ${rel.description} (с ${otherName})`);
+          } else {
+            // Private relationship - character is a participant
+            const isParticipant = rel.participantIds.includes(characterId);
+            if (isParticipant) {
+              facts.push(`[Relationship - Private] ${rel.description} (ме��ду тобой и ${otherName})`);
+            }
+          }
+        }
       }
     }
 

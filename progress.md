@@ -2700,3 +2700,30 @@ Added a template information panel to the Debug UI that displays template name, 
 6. Шаблон создания нового компонента — структура папки с примерами
 
 **Заметки:** PRD следует формату PRD-modular-architecture.md для backend. Включает полную таблицу маппинга всех 60+ функций из app.ts на будущие компоненты. Приложение B содержит сравнение с backend модульной архитектурой.
+
+## [2026-04-08] TASK-112: Генерация связей между персонажами (relationships)
+**Статус:** done
+**Время:** ~45 минут
+**Изменения:**
+- src/types/primitives.ts — добавлены RelationshipType и Relationship интерфейсы
+- src/types/index.ts — экспорт новых типов
+- src/api/server.ts — обновлён generateCharactersWithOpenAI для поддержки generateRelationships, обновлён endpoint POST /generate/characters
+- src/core/host-module.ts — initializeShow теперь принимает relationships параметр и сохраняет в configSnapshot
+- src/core/context-builder.ts — buildFactsList добавляет relationships в факты персонажей (public всем видны, private только участникам)
+- src/validation/schemas.ts — добавлен relationshipSchema, обновлён createShowRequestSchema
+- web/debug-ui/index.html — добавлен checkbox "Generate Relationships" и div для списка связей
+- web/debug-ui/styles.css — стили для checkbox, relationships-list, relationship-item, visibility badges
+- web/debug-ui/app.ts — добавлен Relationship интерфейс, обработка checkbox, renderRelationships(), передача relationships в POST /shows
+
+**Acceptance Criteria:**
+1. В UI есть checkbox 'Генерировать связи' при генерации персонажей ✓
+2. Checkbox передаёт параметр generateRelationships: true в API ✓
+3. generateCharactersWithOpenAI принимает опцию generateRelationships ✓
+4. Если true — добавляет prompt_addition и парсит relationships из ответа ✓
+5. Relationships сохраняются в configSnapshot шоу ✓
+6. UI показывает связи между персонажами при создании шоу ✓
+7. Приватные связи добавляются в privateContext участников ✓ (через context-builder facts)
+8. Публичные связи добавляются в общий контекст ✓ (через context-builder facts всем персонажам)
+
+**Тесты:** npm run lint (0 errors), npm run typecheck (passed), host-module и context-builder тесты (82 passed)
+**Заметки:** Типы связей: romantic_history, friendship, rivalry, family, colleagues, secret. Видимость: public (все знают) или private (знают только участники). При создании шоу связи фильтруются только для выбранных персонажей.
