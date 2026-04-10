@@ -30,8 +30,16 @@ export class SqliteStore implements IStore {
     this.db.pragma('journal_mode = WAL');
     // FULL synchronous ensures data is written to disk immediately
     this.db.pragma('synchronous = FULL');
-    // Auto-checkpoint after 100 pages (~400KB) instead of default 1000
-    this.db.pragma('wal_autocheckpoint = 100');
+    // Auto-checkpoint after every page to prevent data loss on crash
+    this.db.pragma('wal_autocheckpoint = 1');
+  }
+
+  /**
+   * Force immediate WAL checkpoint (synchronous)
+   * Call after critical writes to ensure data is persisted
+   */
+  private checkpoint(): void {
+    this.db.pragma('wal_checkpoint(PASSIVE)');
   }
 
   /**
@@ -172,6 +180,8 @@ export class SqliteStore implements IStore {
       show.configSnapshot,
       show.replayAvailable ? 1 : 0
     );
+    // Ensure show is persisted to disk immediately
+    this.checkpoint();
     return show.id;
   }
 
@@ -224,6 +234,8 @@ export class SqliteStore implements IStore {
     values.push(id);
     const stmt = this.db.prepare(`UPDATE shows SET ${fields.join(', ')} WHERE id = ?`);
     stmt.run(...values);
+    // Ensure updates are persisted to disk immediately
+    this.checkpoint();
   }
 
   async listShows(status?: ShowStatus): Promise<ShowRecord[]> {
@@ -341,6 +353,9 @@ export class SqliteStore implements IStore {
       event.metadata ? JSON.stringify(event.metadata) : null,
       event.seed
     );
+
+    // Ensure event is persisted to disk immediately
+    this.checkpoint();
 
     return sequenceNumber;
   }
