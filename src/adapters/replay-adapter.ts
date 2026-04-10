@@ -6,8 +6,8 @@
  * Results in identical output to the original show run.
  */
 
-import { ModelAdapter, PromptPackage, CharacterResponse, TokenEstimate } from '../types/adapter.js';
-import { IStore, LlmCallRecord } from '../types/interfaces/store.interface.js';
+import type { ModelAdapter, PromptPackage, CharacterResponse, TokenEstimate } from '../types/adapter.js';
+import type { IStore, LlmCallRecord } from '../types/interfaces/store.interface.js';
 
 /**
  * Replay adapter that returns stored LLM responses

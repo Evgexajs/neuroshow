@@ -21,8 +21,8 @@ import { SqliteStore } from '../../src/storage/sqlite-store.js';
 import { ContextBuilder } from '../../src/core/context-builder.js';
 import { Orchestrator } from '../../src/core/orchestrator.js';
 import { MockAdapter } from '../../src/adapters/mock-adapter.js';
-import { ShowFormatTemplate } from '../../src/types/template.js';
-import { CharacterDefinition } from '../../src/types/character.js';
+import type { ShowFormatTemplate } from '../../src/types/template.js';
+import type { CharacterDefinition } from '../../src/types/character.js';
 import { BudgetMode, EventType, PhaseType, SpeakFrequency, ChannelType } from '../../src/types/enums.js';
 import * as fs from 'fs';
 

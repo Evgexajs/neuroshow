@@ -6,7 +6,7 @@
  * Generates personality-aware Russian responses with variable length.
  */
 
-import { ModelAdapter, PromptPackage, CharacterResponse, TokenEstimate } from '../types/adapter.js';
+import type { ModelAdapter, PromptPackage, CharacterResponse, TokenEstimate } from '../types/adapter.js';
 import { CharacterIntent } from '../types/enums.js';
 import { logger } from '../utils/logger.js';
 

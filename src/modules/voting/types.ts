@@ -2,9 +2,9 @@
  * Types for the voting module
  */
 
-import { IModule } from '../../core/types/module.js';
-import { CharacterResponse } from '../../types/adapter.js';
-import { DecisionConfig } from '../../types/primitives.js';
+import type { IModule } from '../../core/types/module.js';
+import type { CharacterResponse } from '../../types/adapter.js';
+import type { DecisionConfig } from '../../types/primitives.js';
 
 /**
  * Result of runRevelation - indicates if tiebreaker is needed

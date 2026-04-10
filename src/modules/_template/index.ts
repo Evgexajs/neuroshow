@@ -9,9 +9,9 @@
  * 5. Register module in orchestrator (see README.md)
  */
 
-import { IStore } from '../../types/interfaces/store.interface.js';
-import { EventJournal } from '../../core/event-journal.js';
-import { ITemplateModule } from './types.js';
+import type { IStore } from '../../types/interfaces/store.interface.js';
+import type { EventJournal } from '../../core/event-journal.js';
+import type { ITemplateModule } from './types.js';
 
 /** Module name for registry lookup - CUSTOMIZE THIS */
 export const TEMPLATE_MODULE_NAME = 'template';
@@ -71,4 +71,4 @@ export class TemplateModule implements ITemplateModule {
 }
 
 // Re-export types for convenient imports
-export { ITemplateModule } from './types.js';
+export type { ITemplateModule } from './types.js';

@@ -3,11 +3,11 @@
  * Extracted from HostModule as first example of modular architecture
  */
 
-import { IStore } from '../../types/interfaces/store.interface.js';
-import { EventJournal } from '../../core/event-journal.js';
-import { DecisionConfig } from '../../types/primitives.js';
+import type { IStore } from '../../types/interfaces/store.interface.js';
+import type { EventJournal } from '../../core/event-journal.js';
+import type { DecisionConfig } from '../../types/primitives.js';
 import { DecisionPhaseHandler } from './decision-phase.js';
-import { IVotingModule, DecisionCallback, RevelationResult } from './types.js';
+import type { IVotingModule, DecisionCallback, RevelationResult } from './types.js';
 
 export const VOTING_MODULE_NAME = 'voting';
 
@@ -122,4 +122,4 @@ export class VotingModule implements IVotingModule {
 }
 
 // Re-export types for convenience
-export { IVotingModule, DecisionCallback, RevelationResult } from './types.js';
+export type { IVotingModule, DecisionCallback, RevelationResult } from './types.js';

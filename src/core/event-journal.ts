@@ -4,8 +4,8 @@
  */
 
 import { EventEmitter } from 'events';
-import { ShowEvent } from '../types/events.js';
-import { IStore, ShowRecord, ShowCharacterRecord } from '../types/interfaces/store.interface.js';
+import type { ShowEvent } from '../types/events.js';
+import type { IStore, ShowRecord, ShowCharacterRecord } from '../types/interfaces/store.interface.js';
 
 /**
  * Export format for show journal

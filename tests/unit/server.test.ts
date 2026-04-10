@@ -1,10 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { createServer, AppDependencies } from '../../src/api/server.js';
-import { FastifyInstance } from 'fastify';
-import { ShowFormatTemplate } from '../../src/types/template.js';
-import { CharacterDefinition } from '../../src/types/character.js';
+import type { AppDependencies } from '../../src/api/server.js';
+import { createServer } from '../../src/api/server.js';
+import type { FastifyInstance } from 'fastify';
+import type { ShowFormatTemplate } from '../../src/types/template.js';
+import type { CharacterDefinition } from '../../src/types/character.js';
 import { PhaseType, ChannelType, SpeakFrequency, EventType } from '../../src/types/enums.js';
-import { PrivateContext } from '../../src/types/context.js';
+import type { PrivateContext } from '../../src/types/context.js';
 import { generateId } from '../../src/utils/id.js';
 import * as fs from 'fs';
 

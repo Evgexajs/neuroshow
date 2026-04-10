@@ -3,15 +3,15 @@
  * Based on PRD.md - Host Module responsibilities
  */
 
-import { IStore, ShowRecord, ShowCharacterRecord, TokenBudgetRecord } from '../types/interfaces/store.interface.js';
-import { EventJournal } from './event-journal.js';
-import { ShowFormatTemplate, Phase } from '../types/template.js';
-import { CharacterDefinition } from '../types/character.js';
-import { Show } from '../types/runtime.js';
-import { ShowEvent } from '../types/events.js';
+import type { IStore, ShowRecord, ShowCharacterRecord, TokenBudgetRecord } from '../types/interfaces/store.interface.js';
+import type { EventJournal } from './event-journal.js';
+import type { ShowFormatTemplate, Phase } from '../types/template.js';
+import type { CharacterDefinition } from '../types/character.js';
+import type { Show } from '../types/runtime.js';
+import type { ShowEvent } from '../types/events.js';
 import { ShowStatus, BudgetMode, EventType, ChannelType } from '../types/enums.js';
-import { PrivateChannelRules, DecisionConfig, Relationship } from '../types/primitives.js';
-import { CharacterResponse } from '../types/adapter.js';
+import type { PrivateChannelRules, DecisionConfig, Relationship } from '../types/primitives.js';
+import type { CharacterResponse } from '../types/adapter.js';
 import { generateId } from '../utils/id.js';
 import { config } from '../config.js';
 import { logger } from '../utils/logger.js';

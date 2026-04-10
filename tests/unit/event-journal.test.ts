@@ -5,8 +5,8 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { EventJournal } from '../../src/core/event-journal.js';
-import { IStore } from '../../src/types/interfaces/store.interface.js';
-import { ShowEvent } from '../../src/types/events.js';
+import type { IStore } from '../../src/types/interfaces/store.interface.js';
+import type { ShowEvent } from '../../src/types/events.js';
 import { EventType, ChannelType } from '../../src/types/enums.js';
 
 // Create a mock store implementing IStore

@@ -3,14 +3,14 @@
  * Handles voting, validation, and revelation
  */
 
-import { IStore } from '../../types/interfaces/store.interface.js';
-import { EventJournal } from '../../core/event-journal.js';
-import { ShowEvent } from '../../types/events.js';
+import type { IStore } from '../../types/interfaces/store.interface.js';
+import type { EventJournal } from '../../core/event-journal.js';
+import type { ShowEvent } from '../../types/events.js';
 import { EventType, ChannelType } from '../../types/enums.js';
-import { DecisionConfig } from '../../types/primitives.js';
+import type { DecisionConfig } from '../../types/primitives.js';
 import { generateId } from '../../utils/id.js';
 import { logger } from '../../utils/logger.js';
-import { DecisionCallback, RevelationResult } from './types.js';
+import type { DecisionCallback, RevelationResult } from './types.js';
 
 /**
  * DecisionPhaseHandler - manages decision/voting phase logic

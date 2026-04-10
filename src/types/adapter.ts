@@ -7,9 +7,9 @@
  * ModelAdapter: Interface for LLM providers
  */
 
-import { ContextLayers } from './context.js';
-import { ResponseConstraints } from './primitives.js';
-import { CharacterIntent } from './enums.js';
+import type { ContextLayers } from './context.js';
+import type { ResponseConstraints } from './primitives.js';
+import type { CharacterIntent } from './enums.js';
 
 /**
  * Package sent to ModelAdapter for LLM call

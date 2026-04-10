@@ -10,10 +10,11 @@
  */
 
 import OpenAI from 'openai';
-import { IStore } from '../types/interfaces/store.interface.js';
-import { EventJournal } from './event-journal.js';
-import { EventSummary, ShowEvent } from '../types/events.js';
-import { SummaryConfig, ContextSummary, DEFAULT_SUMMARY_CONFIG } from '../types/summary.js';
+import type { IStore } from '../types/interfaces/store.interface.js';
+import type { EventJournal } from './event-journal.js';
+import type { EventSummary, ShowEvent } from '../types/events.js';
+import type { SummaryConfig, ContextSummary} from '../types/summary.js';
+import { DEFAULT_SUMMARY_CONFIG } from '../types/summary.js';
 import { EventType } from '../types/enums.js';
 
 /**

@@ -3,16 +3,16 @@
  * Based on PRD.md - Context Builder pattern
  */
 
-import { EventJournal } from './event-journal.js';
-import { SummaryMemory } from './summary-memory.js';
-import { IStore } from '../types/interfaces/store.interface.js';
+import type { EventJournal } from './event-journal.js';
+import type { SummaryMemory } from './summary-memory.js';
+import type { IStore } from '../types/interfaces/store.interface.js';
 import { EventType } from '../types/enums.js';
-import { EventSummary } from '../types/events.js';
-import { PromptPackage, ModelAdapter } from '../types/adapter.js';
-import { CharacterDefinition } from '../types/character.js';
-import { Show } from '../types/runtime.js';
-import { ShowFormatTemplate } from '../types/template.js';
-import { ResponseConstraints, Relationship } from '../types/primitives.js';
+import type { EventSummary } from '../types/events.js';
+import type { PromptPackage, ModelAdapter } from '../types/adapter.js';
+import type { CharacterDefinition } from '../types/character.js';
+import type { Show } from '../types/runtime.js';
+import type { ShowFormatTemplate } from '../types/template.js';
+import type { ResponseConstraints, Relationship } from '../types/primitives.js';
 
 /**
  * ContextBuilder assembles context layers for character prompts

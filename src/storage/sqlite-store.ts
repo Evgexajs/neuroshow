@@ -6,17 +6,17 @@
  */
 
 import Database from 'better-sqlite3';
-import {
+import type {
   IStore,
   ShowRecord,
   ShowCharacterRecord,
   LlmCallRecord,
   TokenBudgetRecord,
 } from '../types/interfaces/store.interface.js';
-import { ShowEvent } from '../types/events.js';
-import { ShowStatus, BudgetMode } from '../types/enums.js';
-import { PrivateContext } from '../types/context.js';
-import { ContextSummary } from '../types/summary.js';
+import type { ShowEvent } from '../types/events.js';
+import type { ShowStatus, BudgetMode } from '../types/enums.js';
+import type { PrivateContext } from '../types/context.js';
+import type { ContextSummary } from '../types/summary.js';
 
 /**
  * SQLite-based storage implementation

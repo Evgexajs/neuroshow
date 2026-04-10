@@ -7,9 +7,9 @@
 
 import OpenAI from 'openai';
 import { encoding_for_model, type Tiktoken, type TiktokenModel } from 'tiktoken';
-import { ModelAdapter, PromptPackage, CharacterResponse, TokenEstimate } from '../types/adapter.js';
+import type { ModelAdapter, PromptPackage, CharacterResponse, TokenEstimate } from '../types/adapter.js';
 import { CharacterIntent } from '../types/enums.js';
-import { IStore, LlmCallRecord } from '../types/interfaces/store.interface.js';
+import type { IStore, LlmCallRecord } from '../types/interfaces/store.interface.js';
 import { generateId } from '../utils/id.js';
 
 /** Error codes that trigger retry */

@@ -5,7 +5,7 @@
  * Replace "Template" with your module name (e.g., "Auction", "Chat").
  */
 
-import { IModule } from '../../core/types/module.js';
+import type { IModule } from '../../core/types/module.js';
 
 /**
  * ITemplateModule - interface for the template module

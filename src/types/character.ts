@@ -5,9 +5,9 @@
  * CharacterDefinition: Complete definition of a character for use in a show
  */
 
-import { PrivateContext } from './context.js';
-import { ResponseConstraints } from './primitives.js';
-import { SpeakFrequency } from './enums.js';
+import type { PrivateContext } from './context.js';
+import type { ResponseConstraints } from './primitives.js';
+import type { SpeakFrequency } from './enums.js';
 
 /**
  * Complete definition of a character

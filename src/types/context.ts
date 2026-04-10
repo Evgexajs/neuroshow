@@ -6,8 +6,8 @@
  * ContextLayers: Data structure for Context Builder
  */
 
-import { AllianceRecord, WildcardRecord, SecretMission } from './primitives.js';
-import { EventSummary } from './events.js';
+import type { AllianceRecord, WildcardRecord, SecretMission } from './primitives.js';
+import type { EventSummary } from './events.js';
 
 /**
  * Character's private internal state

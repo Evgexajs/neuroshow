@@ -3,24 +3,26 @@
  * Based on PRD.md - Orchestrator responsibilities
  */
 
-import { IStore } from '../types/interfaces/store.interface.js';
-import { ModelAdapter, CharacterResponse } from '../types/adapter.js';
+import type { IStore } from '../types/interfaces/store.interface.js';
+import type { ModelAdapter, CharacterResponse } from '../types/adapter.js';
 import { ModuleRegistry } from './module-registry.js';
-import { EventJournal } from './event-journal.js';
-import { HostModule } from './host-module.js';
-import { ContextBuilder } from './context-builder.js';
-import { Phase } from '../types/template.js';
-import { ShowEvent } from '../types/events.js';
-import { EventType, ChannelType, SpeakFrequency, ShowStatus, CharacterIntent, BudgetMode, PhaseType } from '../types/enums.js';
+import type { EventJournal } from './event-journal.js';
+import type { HostModule } from './host-module.js';
+import type { ContextBuilder } from './context-builder.js';
+import type { Phase } from '../types/template.js';
+import type { ShowEvent } from '../types/events.js';
+import type { SpeakFrequency} from '../types/enums.js';
+import { EventType, ChannelType, ShowStatus, CharacterIntent, BudgetMode, PhaseType } from '../types/enums.js';
 import { generateId } from '../utils/id.js';
-import { CharacterDefinition } from '../types/character.js';
-import { Show } from '../types/runtime.js';
-import { ResponseConstraints, PrivateChannelRules, DecisionConfig } from '../types/primitives.js';
+import type { CharacterDefinition } from '../types/character.js';
+import type { Show } from '../types/runtime.js';
+import type { ResponseConstraints, PrivateChannelRules, DecisionConfig } from '../types/primitives.js';
 import { logger } from '../utils/logger.js';
 import { ReplayAdapter } from '../adapters/replay-adapter.js';
 import { OpenAIAdapter } from '../adapters/openai-adapter.js';
 import { config } from '../config.js';
-import { VotingModule, IVotingModule, VOTING_MODULE_NAME } from '../modules/voting/index.js';
+import type { IVotingModule} from '../modules/voting/index.js';
+import { VotingModule, VOTING_MODULE_NAME } from '../modules/voting/index.js';
 
 /**
  * Custom error thrown when token budget is exceeded.

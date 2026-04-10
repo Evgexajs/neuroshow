@@ -4,7 +4,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { MockAdapter } from '../../src/adapters/mock-adapter.js';
-import { PromptPackage } from '../../src/types/adapter.js';
+import type { PromptPackage } from '../../src/types/adapter.js';
 import { CharacterIntent, ChannelType } from '../../src/types/enums.js';
 
 /**

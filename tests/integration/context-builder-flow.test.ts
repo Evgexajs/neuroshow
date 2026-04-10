@@ -17,8 +17,8 @@ import { ContextBuilder } from '../../src/core/context-builder.js';
 import { EventJournal } from '../../src/core/event-journal.js';
 import { SqliteStore } from '../../src/storage/sqlite-store.js';
 import { MockAdapter } from '../../src/adapters/mock-adapter.js';
-import { CharacterDefinition } from '../../src/types/character.js';
-import { Show } from '../../src/types/runtime.js';
+import type { CharacterDefinition } from '../../src/types/character.js';
+import type { Show } from '../../src/types/runtime.js';
 import { EventType, ChannelType, ShowStatus, SpeakFrequency } from '../../src/types/enums.js';
 import * as fs from 'fs';
 

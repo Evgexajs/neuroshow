@@ -7,8 +7,8 @@
  * ShowCharacter: Character instance within a show
  */
 
-import { ShowStatus, BudgetMode } from './enums.js';
-import { PrivateContext } from './context.js';
+import type { ShowStatus, BudgetMode } from './enums.js';
+import type { PrivateContext } from './context.js';
 
 /**
  * Runtime state of a show instance

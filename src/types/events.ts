@@ -6,7 +6,7 @@
  * EventSummary: Simplified version for Context Builder sliding window
  */
 
-import { EventType, ChannelType } from './enums.js';
+import type { EventType, ChannelType } from './enums.js';
 
 /**
  * Full event record in the show journal (append-only log)

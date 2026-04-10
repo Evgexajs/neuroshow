@@ -5,8 +5,8 @@
 
 import { describe, it, expect, vi } from 'vitest';
 import { OpenAIAdapter } from '../../src/adapters/openai-adapter.js';
-import { PromptPackage } from '../../src/types/adapter.js';
-import { IStore } from '../../src/types/interfaces/store.interface.js';
+import type { PromptPackage } from '../../src/types/adapter.js';
+import type { IStore } from '../../src/types/interfaces/store.interface.js';
 import { ChannelType } from '../../src/types/enums.js';
 import type { EventSummary } from '../../src/types/events.js';
 

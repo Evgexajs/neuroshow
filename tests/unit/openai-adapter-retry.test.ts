@@ -5,9 +5,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import OpenAI from 'openai';
 import { OpenAIAdapter } from '../../src/adapters/openai-adapter.js';
-import { PromptPackage } from '../../src/types/adapter.js';
+import type { PromptPackage } from '../../src/types/adapter.js';
 import { CharacterIntent } from '../../src/types/enums.js';
-import { IStore, LlmCallRecord } from '../../src/types/interfaces/store.interface.js';
+import type { IStore, LlmCallRecord } from '../../src/types/interfaces/store.interface.js';
 
 /**
  * Helper to create a test PromptPackage

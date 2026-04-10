@@ -3,7 +3,8 @@
  * Based on TASK-044 - API Server setup
  */
 
-import Fastify, { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import Fastify from 'fastify';
 import fastifyStatic from '@fastify/static';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -16,11 +17,11 @@ import { HostModule } from '../core/host-module.js';
 import { ContextBuilder } from '../core/context-builder.js';
 import { MockAdapter } from '../adapters/mock-adapter.js';
 import { Orchestrator } from '../core/orchestrator.js';
-import { ModelAdapter } from '../types/adapter.js';
+import type { ModelAdapter } from '../types/adapter.js';
 import { logger } from '../utils/logger.js';
-import { CharacterDefinition } from '../types/character.js';
+import type { CharacterDefinition } from '../types/character.js';
 import { SpeakFrequency } from '../types/enums.js';
-import { Relationship, RelationshipType, SecretMissionType } from '../types/primitives.js';
+import type { Relationship, RelationshipType, SecretMissionType } from '../types/primitives.js';
 import { generateId } from '../utils/id.js';
 import {
   validateCreateShowRequest,

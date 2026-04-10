@@ -5,8 +5,8 @@
  * Defines Phase and ShowFormatTemplate for show format configuration.
  */
 
-import { PhaseType, ChannelType } from './enums.js';
-import { DecisionConfig, PrivateChannelRules, DayConfig } from './primitives.js';
+import type { PhaseType, ChannelType } from './enums.js';
+import type { DecisionConfig, PrivateChannelRules, DayConfig } from './primitives.js';
 
 /**
  * Scoring rule for evaluating character performance (Non-MVP: structurally supported)

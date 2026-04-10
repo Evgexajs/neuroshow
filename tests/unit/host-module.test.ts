@@ -1,13 +1,14 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { HostModule, DecisionCallback } from '../../src/core/host-module.js';
+import type { DecisionCallback } from '../../src/core/host-module.js';
+import { HostModule } from '../../src/core/host-module.js';
 import { EventJournal } from '../../src/core/event-journal.js';
 import { SqliteStore } from '../../src/storage/sqlite-store.js';
-import { ShowFormatTemplate, Phase } from '../../src/types/template.js';
-import { CharacterDefinition } from '../../src/types/character.js';
+import type { ShowFormatTemplate, Phase } from '../../src/types/template.js';
+import type { CharacterDefinition } from '../../src/types/character.js';
 import { PhaseType, ChannelType, SpeakFrequency, ShowStatus, BudgetMode, EventType } from '../../src/types/enums.js';
-import { PrivateContext } from '../../src/types/context.js';
-import { PrivateChannelRules, DecisionConfig } from '../../src/types/primitives.js';
-import { CharacterResponse } from '../../src/types/adapter.js';
+import type { PrivateContext } from '../../src/types/context.js';
+import type { PrivateChannelRules, DecisionConfig } from '../../src/types/primitives.js';
+import type { CharacterResponse } from '../../src/types/adapter.js';
 import * as fs from 'fs';
 
 describe('HostModule', () => {

@@ -3,7 +3,7 @@
  * Manages module lifecycle: registration, lookup, disposal
  */
 
-import { IModule } from './types/module.js';
+import type { IModule } from './types/module.js';
 
 /**
  * ModuleRegistry provides centralized module management

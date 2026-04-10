@@ -16,8 +16,8 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { HostModule } from '../../src/core/host-module.js';
 import { EventJournal } from '../../src/core/event-journal.js';
 import { SqliteStore } from '../../src/storage/sqlite-store.js';
-import { ShowFormatTemplate, Phase } from '../../src/types/template.js';
-import { CharacterDefinition } from '../../src/types/character.js';
+import type { ShowFormatTemplate, Phase } from '../../src/types/template.js';
+import type { CharacterDefinition } from '../../src/types/character.js';
 import { EventType, ShowStatus, ChannelType, PhaseType, SpeakFrequency } from '../../src/types/enums.js';
 import * as fs from 'fs';
 

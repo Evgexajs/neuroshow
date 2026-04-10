@@ -19,7 +19,7 @@ export {
 } from './enums.js';
 
 // Primitives
-export {
+export type {
   ResponseConstraints,
   AllianceRecord,
   WildcardRecord,
@@ -31,25 +31,25 @@ export {
 } from './primitives.js';
 
 // Events
-export { ShowEvent, EventSummary } from './events.js';
+export type { ShowEvent, EventSummary } from './events.js';
 
 // Context
-export { PrivateContext, ContextLayers } from './context.js';
+export type { PrivateContext, ContextLayers } from './context.js';
 
 // Character
-export { CharacterDefinition } from './character.js';
+export type { CharacterDefinition } from './character.js';
 
 // Template
-export { Phase, ShowFormatTemplate, ScoringRule } from './template.js';
+export type { Phase, ShowFormatTemplate, ScoringRule } from './template.js';
 
 // Adapter
-export { PromptPackage, CharacterResponse, ModelAdapter, TokenEstimate } from './adapter.js';
+export type { PromptPackage, CharacterResponse, ModelAdapter, TokenEstimate } from './adapter.js';
 
 // Runtime
-export { Show, TokenBudgetState, ShowCharacter } from './runtime.js';
+export type { Show, TokenBudgetState, ShowCharacter } from './runtime.js';
 
 // Store Interface
-export {
+export type {
   IStore,
   ShowRecord,
   ShowCharacterRecord,

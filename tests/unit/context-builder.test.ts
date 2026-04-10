@@ -8,14 +8,14 @@
 import { describe, it, expect, vi } from 'vitest';
 import { ContextBuilder } from '../../src/core/context-builder.js';
 import { EventJournal } from '../../src/core/event-journal.js';
-import { IStore, ShowCharacterRecord } from '../../src/types/interfaces/store.interface.js';
-import { ShowEvent } from '../../src/types/events.js';
+import type { IStore, ShowCharacterRecord } from '../../src/types/interfaces/store.interface.js';
+import type { ShowEvent } from '../../src/types/events.js';
 import { EventType, ChannelType, SpeakFrequency, ShowStatus } from '../../src/types/enums.js';
-import { PrivateContext } from '../../src/types/context.js';
-import { CharacterDefinition } from '../../src/types/character.js';
-import { Show } from '../../src/types/runtime.js';
-import { ShowFormatTemplate } from '../../src/types/template.js';
-import { PromptPackage, ModelAdapter, TokenEstimate } from '../../src/types/adapter.js';
+import type { PrivateContext } from '../../src/types/context.js';
+import type { CharacterDefinition } from '../../src/types/character.js';
+import type { Show } from '../../src/types/runtime.js';
+import type { ShowFormatTemplate } from '../../src/types/template.js';
+import type { PromptPackage, ModelAdapter, TokenEstimate } from '../../src/types/adapter.js';
 
 // Mock store implementation
 function createMockStore(overrides: Partial<IStore> = {}): IStore {
