@@ -3107,3 +3107,34 @@ Added a template information panel to the Debug UI that displays template name, 
 
 **Тесты:** npm run test -- tests/unit/sqlite-store-host.test.ts (17 passed), npm run build (passed), npm run typecheck (passed)
 **Заметки:** Существующие тесты orchestrator.test.ts имеют 12 failed тестов, которые были сломаны ДО этой задачи (не связано с HOST-002).
+
+## [2026-04-12] HOST-003: Реализовать BudgetManager для управления бюджетом ведущего
+**Статус:** done
+**Время:** ~15 минут
+**Изменения:**
+- src/modules/llm-host/budget-manager.ts — создан класс BudgetManager:
+  - Constructor принимает IStore и LLMHostConfig
+  - initialize(showId) — создаёт запись бюджета в store с totalLimit из config
+  - consume(showId, promptTokens, completionTokens) — добавляет токены, обновляет mode
+  - getMode(showId) — возвращает текущий HostBudgetMode (normal/saving/exhausted)
+  - getRemainingPercentage(showId) — возвращает оставшийся % бюджета (0-100)
+  - getBudget(showId) — возвращает полную запись HostBudgetRecord
+  - calculateMode(budget) — приватный метод расчёта mode по порогам
+- tests/unit/llm-host/budget-manager.test.ts — создан файл с 22 юнит-тестами:
+  - Тесты initialize(): создание записи, использование hostBudget из config, lastUpdated
+  - Тесты consume(): добавление токенов, накопление, error если budget not found
+  - Тесты getMode(): возврат режима, error если budget not found
+  - Тесты getRemainingPercentage(): корректный расчёт %, 0% при полном использовании
+  - Тесты Mode threshold transitions: переключение на 70% (saving) и 90% (exhausted)
+  - Тест с кастомными порогами из config
+- docs/ai-host-tasks.json — статус HOST-003 обновлён на "done"
+
+**Acceptance Criteria:**
+1. src/modules/llm-host/budget-manager.ts создан ✓
+2. Класс BudgetManager с методами: initialize(), consume(), getMode(), getRemainingPercentage() ✓
+3. При 70% бюджета mode переключается на 'saving' ✓
+4. При 90% бюджета mode переключается на 'exhausted' ✓
+5. Юнит-тесты для пороговых значений проходят ✓
+
+**Тесты:** npm run test -- tests/unit/llm-host/budget-manager.test.ts (22 passed), npm run build (passed), npm run typecheck (passed), npm run lint (warnings only)
+**Заметки:** BudgetManager использует store методы из HOST-002. Mode рассчитывается динамически при каждом чтении на основе порогов из config. Тесты используют мок store для изоляции.

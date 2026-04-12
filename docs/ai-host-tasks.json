@@ -59,7 +59,7 @@
         "Ожидаемый результат: режимы корректно переключаются"
       ],
       "dependencies": ["HOST-002"],
-      "status": "pending"
+      "status": "done"
     },
     {
       "id": "HOST-004",
