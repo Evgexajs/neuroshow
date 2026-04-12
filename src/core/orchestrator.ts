@@ -99,6 +99,20 @@ export class Orchestrator {
   /** Optional LLM Host module for AI-powered show hosting */
   private _llmHostModule: ILLMHostModule | null = null;
 
+  /**
+   * Pending host question that requires a response from a specific character.
+   * When set, the target character will be inserted at the front of turnQueue.
+   * HOST-011: Обработка вопросов ведущего
+   */
+  private _pendingHostQuestion: {
+    /** ID of the host_trigger event containing the question */
+    eventId: string;
+    /** ID of the character who should respond */
+    targetCharacterId: string;
+    /** The question text to include in character's context */
+    questionText: string;
+  } | null = null;
+
   constructor(
     readonly store: IStore,
     readonly adapter: ModelAdapter,
@@ -117,6 +131,23 @@ export class Orchestrator {
       this.journal.on('event', (event: ShowEvent) => {
         // Use void to handle the promise without blocking
         void this._llmHostModule?.onEventAppended(event);
+
+        // HOST-011: Detect host questions that require response
+        // When host asks a question, store it so the target character goes next
+        if (
+          event.type === EventType.host_trigger &&
+          event.metadata?.requiresResponse === true &&
+          event.metadata?.targetCharacterId
+        ) {
+          this._pendingHostQuestion = {
+            eventId: event.id,
+            targetCharacterId: event.metadata.targetCharacterId as string,
+            questionText: event.content,
+          };
+          logger.debug(
+            `[Host Question] Pending question for ${event.metadata.targetCharacterId}: "${event.content.substring(0, 50)}..."`
+          );
+        }
       });
     }
   }
@@ -391,6 +422,9 @@ export class Orchestrator {
 
         // Increment turn index
         this.turnIndex++;
+
+        // HOST-011: Handle pending host question - target character goes next
+        await this.handlePendingHostQuestion(showId, charNameMap);
       }
 
       // Check completion condition after each round
@@ -482,6 +516,48 @@ export class Orchestrator {
     }
 
     return phase.triggerTemplate ?? '';
+  }
+
+  /**
+   * Handle a pending host question by giving the target character a turn to respond
+   * HOST-011: Обработка вопросов ведущего (модификация turnQueue)
+   *
+   * @param showId - Show ID
+   * @param charNameMap - Map of character IDs to names for logging
+   */
+  private async handlePendingHostQuestion(
+    showId: string,
+    charNameMap: Map<string, string>
+  ): Promise<void> {
+    if (!this._pendingHostQuestion) {
+      return;
+    }
+
+    const pendingQuestion = this._pendingHostQuestion;
+    const targetName = charNameMap.get(pendingQuestion.targetCharacterId) ?? pendingQuestion.targetCharacterId;
+
+    logger.info(
+      `[Host Question] Processing response turn for ${targetName} (question from event ${pendingQuestion.eventId})`
+    );
+
+    // Build trigger with the host's question
+    const questionTrigger = `🎤 **Ведущий обращается к тебе с вопросом:**\n\n"${pendingQuestion.questionText}"\n\nОтветь на вопрос ведущего.`;
+
+    // Process the target character's response turn
+    await this.processCharacterTurn(
+      showId,
+      pendingQuestion.targetCharacterId,
+      questionTrigger,
+      { respondingToHostQuestion: pendingQuestion.eventId }
+    );
+
+    // Increment turn index for the response turn
+    this.turnIndex++;
+
+    // Clear the pending question after processing
+    this._pendingHostQuestion = null;
+
+    logger.info(`[Host Question] ${targetName} responded, normal turn order resumes`);
   }
 
   /**
@@ -611,6 +687,9 @@ export class Orchestrator {
 
         // Increment turn index
         this.turnIndex++;
+
+        // HOST-011: Handle pending host question - target character goes next
+        await this.handlePendingHostQuestion(showId, charNameMap);
       }
 
       // Check completion condition after each round
@@ -665,7 +744,11 @@ export class Orchestrator {
     showId: string,
     characterId: string,
     trigger: string,
-    options: { skipSpeechEvent?: boolean } = {}
+    options: {
+      skipSpeechEvent?: boolean;
+      /** HOST-011: ID of host_trigger event this turn is responding to */
+      respondingToHostQuestion?: string;
+    } = {}
   ): Promise<CharacterResponse> {
     // Get show record from store
     const showRecord = await this.store.getShow(showId);
@@ -784,6 +867,18 @@ export class Orchestrator {
 
     // Record 'speech' event in journal (skip for decision phase - runDecisionPhase creates decision event)
     if (!options.skipSpeechEvent) {
+      // Build metadata, including respondingTo if this is a response to host question (HOST-011)
+      const metadata: Record<string, unknown> = {
+        intent: response.intent,
+        target: response.target,
+        decisionValue: response.decisionValue,
+      };
+
+      // HOST-011: Mark response as answering a host question
+      if (options.respondingToHostQuestion) {
+        metadata.respondingTo = options.respondingToHostQuestion;
+      }
+
       const speechEvent: Omit<ShowEvent, 'sequenceNumber'> = {
         id: generateId(),
         showId,
@@ -796,11 +891,7 @@ export class Orchestrator {
         receiverIds: audienceIds,
         audienceIds,
         content: response.text,
-        metadata: {
-          intent: response.intent,
-          target: response.target,
-          decisionValue: response.decisionValue,
-        },
+        metadata,
         seed: showRecord.seed,
       };
 

@@ -212,7 +212,7 @@
         "Ожидаемый результат: flow вопроса работает корректно"
       ],
       "dependencies": ["HOST-010"],
-      "status": "pending"
+      "status": "done"
     },
     {
       "id": "HOST-012",

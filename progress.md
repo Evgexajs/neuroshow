@@ -3374,3 +3374,34 @@ Added a template information panel to the Debug UI that displays template name, 
 
 **Тесты:** npm run test -- tests/integration/orchestrator-with-host.test.ts (12 passed), npm run typecheck (passed), npm run lint (warnings only)
 **Заметки:** Интеграция через EventJournal.on('event') позволяет LLMHostModule получать уведомления о всех событиях без модификации каждого места в Orchestrator где вызывается journal.append(). Используется void для non-blocking async вызова onEventAppended. Бюджет инициализируется в runShow() до начала выполнения фаз. Тесты мокируют config.ts для корректной работы с mock адаптером.
+
+## [2026-04-12] HOST-011: Обработка вопросов ведущего (модификация turnQueue)
+**Статус:** done
+**Время:** ~45 минут
+**Изменения:**
+- src/core/orchestrator.ts — реализация обработки вопросов ведущего:
+  - Добавлено приватное поле _pendingHostQuestion для отслеживания ожидающего ответа вопроса
+  - В constructor: при подписке на события journal.on('event') теперь детектируются host_trigger события с requiresResponse=true
+  - Когда host задаёт вопрос, targetCharacterId и questionText сохраняются в _pendingHostQuestion
+  - Добавлен метод handlePendingHostQuestion() — обрабатывает pending вопрос после каждого хода
+  - handlePendingHostQuestion вызывается в runPhase() и runDebugPhase() после каждого processCharacterTurn
+  - Target персонаж получает специальный trigger с вопросом ведущего: "🎤 Ведущий обращается к тебе с вопросом..."
+  - Расширены options для processCharacterTurn: добавлен respondingToHostQuestion?: string
+  - Если options.respondingToHostQuestion установлен, metadata речевого события включает respondingTo
+- tests/integration/host-question-flow.test.ts — создан файл с 4 интеграционными тестами:
+  - should give target character next turn after host question
+  - should include question in target character trigger
+  - should mark character response with respondingTo metadata
+  - should continue normal turn order after question response
+  - Тесты используют инъекцию host_trigger событий через перехват eventJournal.append
+- docs/ai-host-tasks.json — статус HOST-011 обновлён на "done"
+
+**Acceptance Criteria:**
+1. Когда ведущий задаёт question, targetCharacterId вставляется в начало turnQueue ✓
+2. Следующий ход - у target персонажа ✓
+3. Target получает вопрос ведущего в контексте ✓
+4. Ответ персонажа помечается metadata.respondingTo ✓
+5. Интеграционный тест: вопрос -> персонаж отвечает -> продолжается обычный порядок ✓
+
+**Тесты:** npm run test -- tests/integration/host-question-flow.test.ts (4 passed), npm run typecheck (passed), npm run lint (warnings only)
+**Заметки:** Реализация через _pendingHostQuestion state позволяет обрабатывать вопросы асинхронно: событие приходит через journal.on('event'), сохраняется в state, а после текущего хода handlePendingHostQuestion() даёт target персонажу внеочередной ход. Trigger для ответа включает текст вопроса ведущего. respondingTo в metadata позволяет связать ответ персонажа с вопросом ведущего.
