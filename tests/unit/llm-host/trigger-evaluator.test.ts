@@ -67,7 +67,7 @@ function createMockStore(): IStore & {
     getTokenBudget: vi.fn(),
     updateTokenBudget: vi.fn(),
     appendEvent: vi.fn(),
-    getEvents: vi.fn(),
+    getEvents: vi.fn().mockResolvedValue([]),
     countEvents: vi.fn(),
     getLastSequence: vi.fn(),
     countEventsByType: vi.fn(),

@@ -231,7 +231,7 @@
         "Ожидаемый результат: условные триггеры работают"
       ],
       "dependencies": ["HOST-004"],
-      "status": "pending"
+      "status": "done"
     },
     {
       "id": "HOST-013",

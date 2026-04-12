@@ -3405,3 +3405,46 @@ Added a template information panel to the Debug UI that displays template name, 
 
 **Тесты:** npm run test -- tests/integration/host-question-flow.test.ts (4 passed), npm run typecheck (passed), npm run lint (warnings only)
 **Заметки:** Реализация через _pendingHostQuestion state позволяет обрабатывать вопросы асинхронно: событие приходит через journal.on('event'), сохраняется в state, а после текущего хода handlePendingHostQuestion() даёт target персонажу внеочередной ход. Trigger для ответа включает текст вопроса ведущего. respondingTo в metadata позволяет связать ответ персонажа с вопросом ведущего.
+
+## [2026-04-12] HOST-012: Добавить silence_detected и conflict_detected триггеры
+**Статус:** done
+**Время:** ~30 минут
+**Изменения:**
+- src/modules/llm-host/conditional-triggers.ts — новый файл с условными триггерами:
+  - SilenceDetector класс: детектирует >N consecutive end_turn от одного персонажа
+  - ConflictDetector класс: детектирует конфликт через keyword/sentiment анализ
+  - ConditionalTriggerEvaluator класс: оркестрирует оба детектора
+  - parseCondition() функция: парсит condition string из InterventionRule
+  - containsKeyword() функция: проверяет наличие ключевого слова с учётом word boundaries
+  - DEFAULT_SILENCE_THRESHOLD = 3
+  - DEFAULT_CONFLICT_KEYWORDS: 6 пар противоположных фраз (согласен/не согласен, за/против, правда/ложь)
+- src/modules/llm-host/trigger-evaluator.ts — интеграция условных триггеров:
+  - Добавлен CONDITIONAL_TRIGGERS constant
+  - TriggerEvaluator.evaluate() теперь проверяет и условные триггеры для speech событий
+  - evaluateConditionalTriggers() метод вызывает ConditionalTriggerEvaluator
+  - Conditional triggers проходят cooldown проверку как обычные триггеры
+- src/modules/llm-host/types.ts — добавлен ConditionalTriggerContext интерфейс:
+  - silentCharacterId для silence_detected
+  - conflictingCharacterIds для conflict_detected
+  - matchedKeywords для conflict_detected
+  - EvaluatedTrigger расширен полем conditionalContext
+- src/modules/llm-host/index.ts:
+  - Экспортирует новые типы и функции
+  - DEFAULT_LLM_HOST_CONFIG обновлён: silence_detected rule имеет condition: consecutiveEndTurns:3
+- tests/unit/llm-host/conditional-triggers.test.ts — 27 юнит-тестов:
+  - parseCondition: 7 тестов
+  - SilenceDetector: 7 тестов (включая threshold, streak breaking, character filtering)
+  - ConflictDetector: 6 тестов (keyword matching, opposing positions, custom keywords)
+  - ConditionalTriggerEvaluator: 4 теста
+  - DEFAULT constants: 3 теста
+- tests/unit/llm-host/trigger-evaluator.test.ts — обновлён mock store с getEvents
+
+**Acceptance Criteria:**
+1. silence_detected срабатывает когда персонаж делает >N end_turn подряд ✓
+2. conflict_detected срабатывает при противоположных позициях 2+ персонажей ✓
+3. Используется простой keyword/sentiment анализ (без внешних API) ✓
+4. Триггеры настраиваются через InterventionRule.condition ✓
+5. Юнит-тесты для обоих триггеров ✓
+
+**Тесты:** npm run test -- tests/unit/llm-host/conditional-triggers.test.ts (27 passed), npm run test -- tests/unit/llm-host/ (198 passed)
+**Заметки:** Conflict detection использует word boundary matching чтобы избежать ложных срабатываний (например "согласен" как подстрока "не согласен"). Keyword pairs организованы попарно: indices 0,1 — agreement/disagreement, 2,3 — support/opposition, 4,5 — truth/lie. Condition string поддерживает формат "consecutiveEndTurns:N" и "keywords:word1,word2|word3,word4".

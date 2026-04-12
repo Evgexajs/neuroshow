@@ -3,7 +3,7 @@
  *
  * Evaluates incoming events against intervention rules:
  * - Mandatory triggers (phase_start, phase_end, revelation) always fire
- * - Conditional triggers respect cooldown periods
+ * - Conditional triggers (silence_detected, conflict_detected) respect cooldown
  * - Priority-based selection when multiple triggers match
  */
 
@@ -16,6 +16,7 @@ import type {
   EvaluatedTrigger,
   InterventionRule,
 } from './types.js';
+import { ConditionalTriggerEvaluator } from './conditional-triggers.js';
 
 /**
  * Mandatory trigger types that always fire regardless of cooldown
@@ -38,13 +39,25 @@ const EVENT_TO_TRIGGER_MAP: Partial<Record<EventType, TriggerType>> = {
 };
 
 /**
+ * Conditional trigger types that require event pattern analysis
+ */
+export const CONDITIONAL_TRIGGERS: ReadonlySet<TriggerType> = new Set([
+  'silence_detected',
+  'conflict_detected',
+]);
+
+/**
  * Evaluates events to determine if and how the LLM host should intervene
  */
 export class TriggerEvaluator {
+  private readonly conditionalEvaluator: ConditionalTriggerEvaluator;
+
   constructor(
     private readonly store: IStore,
     private readonly config: LLMHostConfig
-  ) {}
+  ) {
+    this.conditionalEvaluator = new ConditionalTriggerEvaluator(store);
+  }
 
   /**
    * Evaluate an event and determine if it triggers an intervention
@@ -53,6 +66,27 @@ export class TriggerEvaluator {
    * @returns EvaluatedTrigger if intervention should happen, null otherwise
    */
   async evaluate(event: ShowEvent): Promise<EvaluatedTrigger | null> {
+    // Try direct event-to-trigger mapping first
+    const directTrigger = await this.evaluateDirectTrigger(event);
+    if (directTrigger) {
+      return directTrigger;
+    }
+
+    // Try conditional triggers for speech events
+    const conditionalTrigger = await this.evaluateConditionalTriggers(event);
+    if (conditionalTrigger) {
+      return conditionalTrigger;
+    }
+
+    return null;
+  }
+
+  /**
+   * Evaluate direct event-to-trigger mappings (phase_start, phase_end, revelation)
+   */
+  private async evaluateDirectTrigger(
+    event: ShowEvent
+  ): Promise<EvaluatedTrigger | null> {
     // Get trigger type from event, if any
     const triggerType = this.getTriggerTypeFromEvent(event);
     if (!triggerType) {
@@ -84,6 +118,64 @@ export class TriggerEvaluator {
       rule: selectedRule,
       triggerEvent: event,
       priority: selectedRule.priority,
+    };
+  }
+
+  /**
+   * Evaluate conditional triggers (silence_detected, conflict_detected)
+   * These require pattern analysis of multiple events
+   */
+  private async evaluateConditionalTriggers(
+    event: ShowEvent
+  ): Promise<EvaluatedTrigger | null> {
+    // Only process speech events for conditional triggers
+    if (event.type !== EventType.speech) {
+      return null;
+    }
+
+    // Find enabled conditional trigger rules
+    const conditionalRules = this.config.interventionRules.filter(
+      (rule) => rule.enabled && CONDITIONAL_TRIGGERS.has(rule.trigger)
+    );
+
+    if (conditionalRules.length === 0) {
+      return null;
+    }
+
+    // Filter by cooldown first
+    const eligibleRules = await this.filterByCooldown(
+      conditionalRules,
+      event.showId,
+      event.sequenceNumber
+    );
+
+    if (eligibleRules.length === 0) {
+      return null;
+    }
+
+    // Evaluate conditional triggers
+    const result = await this.conditionalEvaluator.evaluate(event, eligibleRules);
+    if (!result) {
+      return null;
+    }
+
+    // Find the rule that matches the result
+    const matchingRule = eligibleRules.find((r) => r.trigger === result.type);
+    if (!matchingRule) {
+      return null;
+    }
+
+    return {
+      type: result.type,
+      rule: matchingRule,
+      triggerEvent: event,
+      priority: matchingRule.priority,
+      // Store additional context from conditional trigger
+      conditionalContext: {
+        silentCharacterId: result.silentCharacterId,
+        conflictingCharacterIds: result.conflictingCharacterIds,
+        matchedKeywords: result.matchedKeywords,
+      },
     };
   }
 

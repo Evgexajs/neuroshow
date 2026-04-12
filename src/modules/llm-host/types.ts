@@ -244,6 +244,23 @@ export interface HostInterventionResponse {
   targetCharacterId?: string;
 }
 
+// ─── Conditional Trigger Context ──────────────────────────────────────────────
+
+/**
+ * Additional context from conditional trigger evaluation
+ * Used by silence_detected and conflict_detected triggers
+ */
+export interface ConditionalTriggerContext {
+  /** Character ID that is being silent (for silence_detected) */
+  silentCharacterId?: string;
+
+  /** Character IDs involved in conflict (for conflict_detected) */
+  conflictingCharacterIds?: string[];
+
+  /** Keywords that matched (for conflict_detected) */
+  matchedKeywords?: string[];
+}
+
 // ─── Evaluated Trigger ────────────────────────────────────────────────────────
 
 /**
@@ -261,6 +278,9 @@ export interface EvaluatedTrigger {
 
   /** Priority score */
   priority: number;
+
+  /** Additional context from conditional triggers */
+  conditionalContext?: ConditionalTriggerContext;
 }
 
 // ─── ILLMHostModule ───────────────────────────────────────────────────────────

@@ -76,6 +76,7 @@ export const DEFAULT_LLM_HOST_CONFIG: LLMHostConfig = {
       cooldownTurns: 3,
       interventionType: 'question',
       maxTokens: 80,
+      // Uses DEFAULT_CONFLICT_KEYWORDS when condition is not specified
     },
     {
       trigger: 'silence_detected',
@@ -84,6 +85,7 @@ export const DEFAULT_LLM_HOST_CONFIG: LLMHostConfig = {
       cooldownTurns: 5,
       interventionType: 'question',
       maxTokens: 80,
+      condition: 'consecutiveEndTurns:3', // Trigger after 3 consecutive end_turn
     },
     {
       trigger: 'periodic_commentary',
@@ -403,4 +405,20 @@ export type {
   HostContext,
   HostInterventionResponse,
   EvaluatedTrigger,
+  ConditionalTriggerContext,
 } from './types.js';
+
+// Re-export trigger evaluator utilities
+export { MANDATORY_TRIGGERS, CONDITIONAL_TRIGGERS } from './trigger-evaluator.js';
+
+// Re-export conditional trigger utilities
+export {
+  SilenceDetector,
+  ConflictDetector,
+  ConditionalTriggerEvaluator,
+  parseCondition,
+  DEFAULT_SILENCE_THRESHOLD,
+  DEFAULT_CONFLICT_KEYWORDS,
+  type ConditionalTriggerResult,
+  type ParsedCondition,
+} from './conditional-triggers.js';
