@@ -7,7 +7,7 @@
  */
 
 import type { ShowEvent } from '../events.js';
-import type { ShowStatus, BudgetMode } from '../enums.js';
+import type { ShowStatus, BudgetMode, HostBudgetMode } from '../enums.js';
 import type { PrivateContext } from '../context.js';
 import type { ContextSummary } from '../summary.js';
 
@@ -64,6 +64,29 @@ export interface TokenBudgetRecord {
   usedCompletion: number;
   mode: BudgetMode;
   lastUpdated: number;
+}
+
+/**
+ * Host budget state for LLM host token usage
+ */
+export interface HostBudgetRecord {
+  showId: string;
+  totalLimit: number;
+  usedPrompt: number;
+  usedCompletion: number;
+  mode: HostBudgetMode;
+  lastUpdated: number;
+}
+
+/**
+ * Trigger cooldown tracking for LLM host
+ * Stores when each trigger type was last activated
+ */
+export interface TriggerCooldownRecord {
+  showId: string;
+  triggerType: string; // TriggerType from llm-host module
+  lastTriggeredSequence: number;
+  lastTriggeredAt: number;
 }
 
 /**
@@ -150,6 +173,25 @@ export interface IStore {
 
   /** Create or update context summary */
   upsertContextSummary(summary: ContextSummary): Promise<void>;
+
+  // ─── Host Budget ───────────────────────────────────────────────
+
+  /** Create host budget for show */
+  createHostBudget(budget: HostBudgetRecord): Promise<void>;
+
+  /** Get host budget state */
+  getHostBudget(showId: string): Promise<HostBudgetRecord | null>;
+
+  /** Update host budget (add used tokens) */
+  updateHostBudget(showId: string, usedPrompt: number, usedCompletion: number): Promise<void>;
+
+  // ─── Trigger Cooldowns ─────────────────────────────────────────
+
+  /** Get trigger cooldown record */
+  getTriggerCooldown(showId: string, triggerType: string): Promise<TriggerCooldownRecord | null>;
+
+  /** Set trigger cooldown (upsert) */
+  setTriggerCooldown(showId: string, triggerType: string, lastSequence: number): Promise<void>;
 
   // ─── Lifecycle ─────────────────────────────────────────────────
 

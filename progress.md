@@ -3073,3 +3073,37 @@ Added a template information panel to the Debug UI that displays template name, 
 
 **Тесты:** npm run build (passed), npm run typecheck (passed), npm run lint (warnings only), module registration test (passed)
 **Заметки:** Базовая структура модуля готова. Методы содержат placeholder-реализации, которые будут заполнены в последующих задачах (HOST-002 через HOST-009). Типы основаны на PRD-llm-host.md.
+
+## [2026-04-12] HOST-002: Добавить таблицы host_budgets и host_trigger_cooldowns в SQLite Store
+**Статус:** done
+**Время:** ~25 минут
+**Изменения:**
+- src/types/enums.ts — добавлен enum HostBudgetMode ('normal' | 'saving' | 'exhausted')
+- src/modules/llm-host/types.ts — обновлён импорт HostBudgetMode из enums.ts и re-export
+- src/types/interfaces/store.interface.ts:
+  - Добавлен импорт HostBudgetMode
+  - Добавлен interface HostBudgetRecord (showId, totalLimit, usedPrompt, usedCompletion, mode, lastUpdated)
+  - Добавлен interface TriggerCooldownRecord (showId, triggerType, lastTriggeredSequence, lastTriggeredAt)
+  - Добавлены методы в IStore: createHostBudget(), getHostBudget(), updateHostBudget(), getTriggerCooldown(), setTriggerCooldown()
+- src/storage/sqlite-store.ts:
+  - Добавлены импорты HostBudgetRecord, TriggerCooldownRecord, HostBudgetMode
+  - В initSchema() добавлено создание таблицы host_budgets
+  - В initSchema() добавлено создание таблицы host_trigger_cooldowns
+  - Реализованы методы: createHostBudget(), getHostBudget(), updateHostBudget(), mapHostBudgetRow()
+  - Реализованы методы: getTriggerCooldown(), setTriggerCooldown(), mapTriggerCooldownRow()
+- tests/unit/sqlite-store-host.test.ts — создан файл с 17 юнит-тестами:
+  - Тесты создания таблиц в initSchema()
+  - Тесты CRUD для host_budgets
+  - Тесты для trigger cooldowns с upsert
+- tests/unit/event-journal.test.ts — добавлены моки новых методов IStore
+- tests/unit/openai-adapter-tiktoken.test.ts — добавлены моки новых методов IStore
+
+**Acceptance Criteria:**
+1. Таблица host_budgets создаётся в initSchema() ✓
+2. Таблица host_trigger_cooldowns создаётся в initSchema() ✓
+3. Методы createHostBudget(), getHostBudget(), updateHostBudget() реализованы в SQLiteStore ✓
+4. Методы getTriggerCooldown(), setTriggerCooldown() реализованы в SQLiteStore ✓
+5. Юнит-тесты для всех новых методов проходят ✓
+
+**Тесты:** npm run test -- tests/unit/sqlite-store-host.test.ts (17 passed), npm run build (passed), npm run typecheck (passed)
+**Заметки:** Существующие тесты orchestrator.test.ts имеют 12 failed тестов, которые были сломаны ДО этой задачи (не связано с HOST-002).

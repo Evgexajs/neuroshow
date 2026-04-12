@@ -12,9 +12,11 @@ import type {
   ShowCharacterRecord,
   LlmCallRecord,
   TokenBudgetRecord,
+  HostBudgetRecord,
+  TriggerCooldownRecord,
 } from '../types/interfaces/store.interface.js';
 import type { ShowEvent } from '../types/events.js';
-import type { ShowStatus, BudgetMode } from '../types/enums.js';
+import type { ShowStatus, BudgetMode, HostBudgetMode } from '../types/enums.js';
 import type { PrivateContext } from '../types/context.js';
 import type { ContextSummary } from '../types/summary.js';
 
@@ -158,6 +160,29 @@ export class SqliteStore implements IStore {
         message_count INTEGER DEFAULT 0,
         updated_at INTEGER NOT NULL,
         PRIMARY KEY (show_id, character_id)
+      )
+    `);
+
+    // Create host_budgets table for LLM host token tracking
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS host_budgets (
+        show_id TEXT PRIMARY KEY,
+        total_limit INTEGER NOT NULL,
+        used_prompt INTEGER DEFAULT 0,
+        used_completion INTEGER DEFAULT 0,
+        mode TEXT NOT NULL DEFAULT 'normal',
+        last_updated INTEGER NOT NULL
+      )
+    `);
+
+    // Create host_trigger_cooldowns table for tracking trigger cooldowns
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS host_trigger_cooldowns (
+        show_id TEXT NOT NULL,
+        trigger_type TEXT NOT NULL,
+        last_triggered_sequence INTEGER NOT NULL,
+        last_triggered_at INTEGER NOT NULL,
+        PRIMARY KEY (show_id, trigger_type)
       )
     `);
   }
@@ -586,6 +611,95 @@ export class SqliteStore implements IStore {
       lastSequenceNumber: row.last_sequence_number as number,
       messageCount: row.message_count as number,
       updatedAt: row.updated_at as number,
+    };
+  }
+
+  // ─── Host Budget ───────────────────────────────────────────────
+
+  async createHostBudget(budget: HostBudgetRecord): Promise<void> {
+    const stmt = this.db.prepare(`
+      INSERT INTO host_budgets (show_id, total_limit, used_prompt, used_completion, mode, last_updated)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `);
+    stmt.run(
+      budget.showId,
+      budget.totalLimit,
+      budget.usedPrompt,
+      budget.usedCompletion,
+      budget.mode,
+      budget.lastUpdated
+    );
+    this.checkpoint();
+  }
+
+  async getHostBudget(showId: string): Promise<HostBudgetRecord | null> {
+    const stmt = this.db.prepare('SELECT * FROM host_budgets WHERE show_id = ?');
+    const row = stmt.get(showId) as Record<string, unknown> | undefined;
+    if (!row) return null;
+    return this.mapHostBudgetRow(row);
+  }
+
+  async updateHostBudget(
+    showId: string,
+    usedPrompt: number,
+    usedCompletion: number
+  ): Promise<void> {
+    const stmt = this.db.prepare(`
+      UPDATE host_budgets
+      SET used_prompt = used_prompt + ?, used_completion = used_completion + ?, last_updated = ?
+      WHERE show_id = ?
+    `);
+    stmt.run(usedPrompt, usedCompletion, Date.now(), showId);
+    this.checkpoint();
+  }
+
+  private mapHostBudgetRow(row: Record<string, unknown>): HostBudgetRecord {
+    return {
+      showId: row.show_id as string,
+      totalLimit: row.total_limit as number,
+      usedPrompt: row.used_prompt as number,
+      usedCompletion: row.used_completion as number,
+      mode: row.mode as HostBudgetMode,
+      lastUpdated: row.last_updated as number,
+    };
+  }
+
+  // ─── Trigger Cooldowns ─────────────────────────────────────────
+
+  async getTriggerCooldown(
+    showId: string,
+    triggerType: string
+  ): Promise<TriggerCooldownRecord | null> {
+    const stmt = this.db.prepare(
+      'SELECT * FROM host_trigger_cooldowns WHERE show_id = ? AND trigger_type = ?'
+    );
+    const row = stmt.get(showId, triggerType) as Record<string, unknown> | undefined;
+    if (!row) return null;
+    return this.mapTriggerCooldownRow(row);
+  }
+
+  async setTriggerCooldown(
+    showId: string,
+    triggerType: string,
+    lastSequence: number
+  ): Promise<void> {
+    const stmt = this.db.prepare(`
+      INSERT INTO host_trigger_cooldowns (show_id, trigger_type, last_triggered_sequence, last_triggered_at)
+      VALUES (?, ?, ?, ?)
+      ON CONFLICT(show_id, trigger_type) DO UPDATE SET
+        last_triggered_sequence = excluded.last_triggered_sequence,
+        last_triggered_at = excluded.last_triggered_at
+    `);
+    stmt.run(showId, triggerType, lastSequence, Date.now());
+    this.checkpoint();
+  }
+
+  private mapTriggerCooldownRow(row: Record<string, unknown>): TriggerCooldownRecord {
+    return {
+      showId: row.show_id as string,
+      triggerType: row.trigger_type as string,
+      lastTriggeredSequence: row.last_triggered_sequence as number,
+      lastTriggeredAt: row.last_triggered_at as number,
     };
   }
 

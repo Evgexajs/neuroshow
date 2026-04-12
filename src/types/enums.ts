@@ -85,3 +85,16 @@ export enum SpeakFrequency {
   medium = 'medium',
   high = 'high',
 }
+
+/**
+ * Host budget mode for LLM host token spending
+ *
+ * - normal: All interventions allowed (0-70% usage)
+ * - saving: Only mandatory triggers (70-90% usage)
+ * - exhausted: Host is silent, fallback phrases used (90%+ usage)
+ */
+export enum HostBudgetMode {
+  normal = 'normal',
+  saving = 'saving',
+  exhausted = 'exhausted',
+}

@@ -8,6 +8,10 @@
 import type { IModule } from '../../core/types/module.js';
 import type { Phase } from '../../types/template.js';
 import type { ShowEvent, EventSummary } from '../../types/events.js';
+import { HostBudgetMode } from '../../types/enums.js';
+
+// Re-export for convenience
+export { HostBudgetMode };
 
 // ─── Trigger Types ────────────────────────────────────────────────────────────
 
@@ -58,14 +62,7 @@ export type VoiceStyle =
 
 // ─── Budget Mode ──────────────────────────────────────────────────────────────
 
-/**
- * Budget mode for token spending
- *
- * - normal: All interventions allowed (0-70% usage)
- * - saving: Only mandatory triggers (70-90% usage)
- * - exhausted: Host is silent, fallback phrases used (90%+ usage)
- */
-export type HostBudgetMode = 'normal' | 'saving' | 'exhausted';
+// HostBudgetMode is imported from ../../types/enums.js and re-exported above
 
 // ─── Intervention Rule ────────────────────────────────────────────────────────
 
