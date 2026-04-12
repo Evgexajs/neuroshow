@@ -102,7 +102,15 @@
 
     <main class="main-content">
       <section class="event-feed" id="event-feed">
-        <h2>Event Feed</h2>
+        <div class="event-feed-header">
+          <h2>Event Feed</h2>
+          <div class="event-filter">
+            <label class="event-filter-checkbox">
+              <input type="checkbox" id="host-filter-checkbox" checked>
+              LLM-Vedushchiy
+            </label>
+          </div>
+        </div>
         <div class="events-container" id="events-container">
           <p class="placeholder">Connect to a show to see events...</p>
         </div>
@@ -110,6 +118,25 @@
 
       <section class="template-info" id="template-info-panel">
         <h2>Template & Phases</h2>
+        <!-- Host Status Panel -->
+        <div class="host-status-panel" id="host-status-panel">
+          <h3>LLM-Vedushchiy</h3>
+          <div class="host-status-item">
+            <span class="host-status-label">Budget:</span>
+            <div class="host-budget-bar">
+              <div class="host-budget-fill" style="width: 0%"></div>
+            </div>
+            <span class="host-budget-text">0%</span>
+          </div>
+          <div class="host-status-item">
+            <span class="host-status-label">Mode:</span>
+            <span class="host-mode host-mode-normal">Normal</span>
+          </div>
+          <div class="host-status-item">
+            <span class="host-status-label">Last:</span>
+            <span class="host-last-none">--</span>
+          </div>
+        </div>
         <div class="template-details" id="template-details">
           <p class="placeholder">Connect to a show to see template info...</p>
         </div>

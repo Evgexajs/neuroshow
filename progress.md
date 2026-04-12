@@ -3482,3 +3482,41 @@ Added a template information panel to the Debug UI that displays template name, 
 
 **Тесты:** npm run test -- tests/integration/host-private-directive.test.ts (11 passed), npm run test -- tests/unit/llm-host/llm-host-agent.test.ts (24 passed), npm run build (passed)
 **Заметки:** InterventionEmitter уже корректно обрабатывал channel: PRIVATE и audienceIds для private_directive (реализовано в HOST-007). В этой задаче добавлена валидация в LLMHostAgent.generateIntervention() для проверки allowHostDirectives, maxDirectivesPerPhase и maxDirectivesPerCharacter перед генерацией директивы. При блокировке возвращается fallback-ответ без targetCharacterId.
+
+## [2026-04-12] HOST-014: Добавить отображение ведущего в Debug UI
+**Статус:** done
+**Время:** ~40 минут
+**Изменения:**
+- web/debug-ui/index.html — добавлены UI элементы:
+  - Filter checkbox "LLM-Vedushchiy" в event-feed-header (lines 107-112)
+  - Host Status Panel в правом сайдбаре (lines 121-139): budget bar, mode badge, last intervention
+- web/debug-ui/app.ts — добавлена логика для host событий:
+  - HostStatus interface для отслеживания состояния ведущего
+  - showHostEvents state переменная для фильтрации
+  - initHostFilterCheckbox() — инициализация checkbox фильтра
+  - updateHostStatus() — обновление host status из host_trigger событий
+  - renderHostStatusPanel() — рендеринг панели статуса
+  - resetHostStatus() — сброс состояния при смене шоу
+  - formatHostInterventionContent() — форматирование контента host событий с type labels
+  - Удалён skip для host_trigger событий (ранее lines 962-964)
+  - host_trigger события теперь отображаются с классом host-intervention
+  - private_directive получает дополнительный класс private-directive
+- web/debug-ui/styles.css — добавлены стили для host UI:
+  - CSS variables: --host-gold, --host-gold-light, --host-gold-medium, --host-gold-dark
+  - .event-feed-header и .event-filter стили для фильтра
+  - .event-item.host-intervention с золотым градиентом и анимацией свечения
+  - .event-item.host-intervention.private-directive с оранжевым оттенком и бейджем "PRIVATE"
+  - .host-sender стили с иконкой микрофона (🎤 через ::before)
+  - @keyframes host-glow для анимации свечения
+  - .host-status-panel со всеми под-элементами (budget bar, mode badges)
+- docs/ai-host-tasks.json — статус HOST-014 обновлён на "done"
+
+**Acceptance Criteria:**
+1. Интервенции ведущего визуально отличаются (золотой градиент, иконка микрофона) ✓
+2. Панель статуса ведущего показывает: бюджет %, режим, последняя интервенция ✓
+3. Фильтр 'LLM-Ведущий' в ленте событий ✓
+4. Приватные директивы отображаются только в Debug UI ✓
+5. npm run build:ui компилируется без ошибок ✓
+
+**Тесты:** npm run build:ui (passed), npm run typecheck (passed)
+**Заметки:** host_trigger события ранее пропускались в addEventToFeed() с комментарием "host_trigger = LLM instructions, not for humans". Теперь они отображаются с золотым градиентом и специальным форматированием. Host Status Panel отслеживает: budgetUsed/budgetTotal, mode (normal/saving/exhausted), и lastIntervention (type + timestamp). Фильтр позволяет скрывать/показывать host события в ленте.

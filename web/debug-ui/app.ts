@@ -101,6 +101,14 @@ interface StatusResponse {
 
 type ControlAction = 'start' | 'pause' | 'resume' | 'step' | 'rollback';
 
+// Host status tracking
+interface HostStatus {
+  budgetUsed: number;
+  budgetTotal: number;
+  mode: 'normal' | 'saving' | 'exhausted';
+  lastIntervention: { type: string; timestamp: string } | null;
+}
+
 // DOM Elements
 const showIdInput = document.getElementById('show-id') as HTMLInputElement;
 const connectBtn = document.getElementById('connect-btn') as HTMLButtonElement;
@@ -201,6 +209,17 @@ let generatedRelationships: Relationship[] = [];
 let showConfig: ShowConfig | null = null;
 const phaseTurnCounts: Map<string, number> = new Map();
 
+// Host status state
+let hostStatus: HostStatus = {
+  budgetUsed: 0,
+  budgetTotal: 0,
+  mode: 'normal',
+  lastIntervention: null,
+};
+
+// Event filter state
+let showHostEvents = true;
+
 /**
  * Initialize the application
  */
@@ -239,6 +258,26 @@ function init(): void {
   historyModalOverlay.addEventListener('click', closeHistoryModal);
   historyModalCloseBtn.addEventListener('click', closeHistoryModal);
   historyCloseBtn.addEventListener('click', closeHistoryModal);
+
+  // Initialize host filter checkbox listener
+  initHostFilterCheckbox();
+}
+
+/**
+ * Initialize host filter checkbox
+ */
+function initHostFilterCheckbox(): void {
+  const hostFilterCheckbox = document.getElementById('host-filter-checkbox') as HTMLInputElement | null;
+  if (hostFilterCheckbox) {
+    hostFilterCheckbox.addEventListener('change', () => {
+      showHostEvents = hostFilterCheckbox.checked;
+      // Toggle visibility of existing host events
+      const hostEventElements = eventsContainer.querySelectorAll('.event-item.host-intervention');
+      hostEventElements.forEach((el) => {
+        (el as HTMLElement).style.display = showHostEvents ? 'block' : 'none';
+      });
+    });
+  }
 }
 
 /**
@@ -545,7 +584,7 @@ function renderTemplateInfo(): void {
 
   // Render template details
   const backstoryHtml = showConfig.backstory
-    ? `<div class="template-backstory"><strong>Предыстория:</strong> ${escapeHtml(showConfig.backstory)}</div>`
+    ? `<div class="template-backstory"><strong>Predystoriya:</strong> ${escapeHtml(showConfig.backstory)}</div>`
     : '';
   templateDetailsEl.innerHTML = `
     <div class="template-name">${escapeHtml(showConfig.templateName)}</div>
@@ -558,7 +597,7 @@ function renderTemplateInfo(): void {
   for (const phase of showConfig.phases) {
     const isCurrent = phase.id === currentPhaseId;
     const turnCount = phaseTurnCounts.get(phase.id) ?? 0;
-    // Total turns = durationValue × number of characters (each character speaks durationValue times)
+    // Total turns = durationValue x number of characters (each character speaks durationValue times)
     const turnsPerChar = typeof phase.durationValue === 'number' ? phase.durationValue : 0;
     const maxTurns = turnsPerChar * characters.length;
     const progressPercent = maxTurns > 0 ? Math.min((turnCount / maxTurns) * 100, 100) : 0;
@@ -580,7 +619,7 @@ function renderTemplateInfo(): void {
           <div class="phase-progress-bar">
             <div class="phase-progress-fill" style="width: ${progressPercent}%"></div>
           </div>
-          <div class="phase-progress-text">${turnCount} / ${maxTurns} ходов</div>
+          <div class="phase-progress-text">${turnCount} / ${maxTurns} khodov</div>
         </div>
       `;
     }
@@ -592,7 +631,7 @@ function renderTemplateInfo(): void {
       </div>
       <div class="phase-details">
         <div class="phase-turns">
-          <span>${phase.durationMode}: ${maxTurns} (${turnsPerChar}×${characters.length})</span>
+          <span>${phase.durationMode}: ${maxTurns} (${turnsPerChar}x${characters.length})</span>
         </div>
         <div class="phase-channels">${channelsHtml}</div>
       </div>
@@ -641,24 +680,24 @@ function addTiebreakerPhase(event: ShowEvent): void {
 
   // Format mode for display
   const modeLabels: Record<string, string> = {
-    revote: 'Переголосование',
-    duel: 'Дуэль',
-    random: 'Случайный выбор',
+    revote: 'Peregolosovanie',
+    duel: 'Duel',
+    random: 'Sluchaynyy vybor',
   };
   const modeLabel = modeLabels[mode] ?? mode;
 
   phaseEl.innerHTML = `
     <div class="phase-header">
-      <span class="phase-name">Переголосование</span>
+      <span class="phase-name">Peregolosovanie</span>
       <span class="phase-type">TIEBREAKER</span>
     </div>
     <div class="phase-details">
       <div class="phase-turns">
-        <span>Режим: ${escapeHtml(modeLabel)}</span>
+        <span>Rezhim: ${escapeHtml(modeLabel)}</span>
       </div>
     </div>
     <div class="phase-finalists">
-      Финалисты: ${finalists.map((f) => escapeHtml(f)).join(', ')}
+      Finalisty: ${finalists.map((f) => escapeHtml(f)).join(', ')}
     </div>
   `;
 
@@ -734,6 +773,96 @@ function updateCharacterStatus(event: ShowEvent): void {
 }
 
 /**
+ * Update host status from host_trigger event
+ */
+function updateHostStatus(event: ShowEvent): void {
+  const metadata = event.metadata as {
+    interventionType?: string;
+    budgetUsed?: number;
+    budgetTotal?: number;
+    mode?: 'normal' | 'saving' | 'exhausted';
+  } | undefined;
+
+  if (metadata?.interventionType) {
+    hostStatus.lastIntervention = {
+      type: metadata.interventionType,
+      timestamp: formatTime(event.timestamp),
+    };
+  }
+
+  if (typeof metadata?.budgetUsed === 'number') {
+    hostStatus.budgetUsed = metadata.budgetUsed;
+  }
+  if (typeof metadata?.budgetTotal === 'number') {
+    hostStatus.budgetTotal = metadata.budgetTotal;
+  }
+  if (metadata?.mode) {
+    hostStatus.mode = metadata.mode;
+  }
+
+  renderHostStatusPanel();
+}
+
+/**
+ * Render host status panel
+ */
+function renderHostStatusPanel(): void {
+  const hostStatusPanel = document.getElementById('host-status-panel');
+  if (!hostStatusPanel) return;
+
+  const budgetPercent = hostStatus.budgetTotal > 0
+    ? Math.round((hostStatus.budgetUsed / hostStatus.budgetTotal) * 100)
+    : 0;
+
+  // Mode color coding
+  let modeClass = 'host-mode-normal';
+  let modeLabel = 'Normal';
+  if (hostStatus.mode === 'saving') {
+    modeClass = 'host-mode-saving';
+    modeLabel = 'Saving';
+  } else if (hostStatus.mode === 'exhausted') {
+    modeClass = 'host-mode-exhausted';
+    modeLabel = 'Exhausted';
+  }
+
+  const lastInterventionHtml = hostStatus.lastIntervention
+    ? `<span class="host-last-type">${escapeHtml(hostStatus.lastIntervention.type)}</span>
+       <span class="host-last-time">${hostStatus.lastIntervention.timestamp}</span>`
+    : '<span class="host-last-none">--</span>';
+
+  hostStatusPanel.innerHTML = `
+    <div class="host-status-item">
+      <span class="host-status-label">Budget:</span>
+      <div class="host-budget-bar">
+        <div class="host-budget-fill" style="width: ${budgetPercent}%"></div>
+      </div>
+      <span class="host-budget-text">${budgetPercent}%</span>
+    </div>
+    <div class="host-status-item">
+      <span class="host-status-label">Mode:</span>
+      <span class="host-mode ${modeClass}">${modeLabel}</span>
+    </div>
+    <div class="host-status-item">
+      <span class="host-status-label">Last:</span>
+      ${lastInterventionHtml}
+    </div>
+  `;
+}
+
+/**
+ * Reset host status
+ */
+function resetHostStatus(): void {
+  hostStatus = {
+    budgetUsed: 0,
+    budgetTotal: 0,
+    mode: 'normal',
+    lastIntervention: null,
+  };
+  renderHostStatusPanel();
+}
+
+/**
  * Connect to SSE endpoint for a show
  */
 async function connect(showId: string): Promise<void> {
@@ -744,6 +873,9 @@ async function connect(showId: string): Promise<void> {
   await fetchCharacters(showId);
   await fetchShowConfig(showId);
   startStatusPolling(showId);
+
+  // Reset host status
+  resetHostStatus();
 
   const url = `/shows/${showId}/events`;
   eventSource = new EventSource(url);
@@ -761,6 +893,11 @@ async function connect(showId: string): Promise<void> {
       const showEvent: ShowEvent = JSON.parse(event.data);
       addEventToFeed(showEvent);
       updateCharacterStatus(showEvent);
+
+      // Update host status for host_trigger events
+      if (showEvent.type === 'host_trigger') {
+        updateHostStatus(showEvent);
+      }
 
       // Count speech events as turns and update phase progress
       if (showEvent.type === 'speech') {
@@ -830,6 +967,9 @@ function disconnect(): void {
   stopStatusPolling();
   currentShowStatus = null;
   resetControlPanelUI();
+
+  // Reset host status
+  resetHostStatus();
 }
 
 /**
@@ -933,7 +1073,7 @@ function addPhaseSeparator(phaseId: string, isStart: boolean): void {
   const separatorEl = document.createElement('div');
   separatorEl.className = 'phase-separator';
 
-  const label = isStart ? `Фаза: ${phaseId}` : `Конец фазы: ${phaseId}`;
+  const label = isStart ? `Faza: ${phaseId}` : `Konets fazy: ${phaseId}`;
   separatorEl.innerHTML = `<span class="phase-label">${escapeHtml(label)}</span>`;
 
   eventsContainer.appendChild(separatorEl);
@@ -945,9 +1085,64 @@ function addPhaseSeparator(phaseId: string, isStart: boolean): void {
 function addEmptyPhaseMessage(): void {
   const messageEl = document.createElement('div');
   messageEl.className = 'empty-phase-message';
-  messageEl.innerHTML = `<span>Нет событий в этой фазе</span>`;
+  messageEl.innerHTML = `<span>Net sobytiy v etoy faze</span>`;
 
   eventsContainer.appendChild(messageEl);
+}
+
+/**
+ * Format host intervention content for display
+ */
+function formatHostInterventionContent(event: ShowEvent): string {
+  const metadata = event.metadata as {
+    interventionType?: string;
+    targetCharacterId?: string;
+    requiresResponse?: boolean;
+    triggeredBy?: string;
+  } | undefined;
+
+  const interventionType = metadata?.interventionType ?? 'unknown';
+  const targetId = metadata?.targetCharacterId;
+  const targetName = targetId ? getCharacterName(targetId) : null;
+  const triggeredBy = metadata?.triggeredBy;
+
+  let icon = '';
+  let typeLabel = '';
+  let details = '';
+
+  switch (interventionType) {
+    case 'private_directive':
+      icon = '[Private]';
+      typeLabel = 'Chastnaya direktiva';
+      if (targetName) {
+        details = ` -> ${targetName}`;
+      }
+      break;
+    case 'question':
+      icon = '[Q]';
+      typeLabel = 'Vopros';
+      if (targetName) {
+        details = ` -> ${targetName}`;
+      }
+      break;
+    case 'announcement':
+      icon = '[!]';
+      typeLabel = 'Ob\'yavlenie';
+      break;
+    case 'redirect':
+      icon = '[->]';
+      typeLabel = 'Perenapravlenie';
+      if (targetName) {
+        details = ` -> ${targetName}`;
+      }
+      break;
+    default:
+      typeLabel = interventionType;
+  }
+
+  const triggerInfo = triggeredBy ? ` (trigger: ${triggeredBy})` : '';
+
+  return `${icon} ${typeLabel}${details}${triggerInfo}: ${event.content ?? ''}`;
 }
 
 /**
@@ -956,12 +1151,6 @@ function addEmptyPhaseMessage(): void {
 function addEventToFeed(event: ShowEvent): void {
   const eventPhaseId = event.phaseId ?? null;
   const eventType = event.type ?? '';
-
-  // Skip internal events that shouldn't be shown to viewers
-  // host_trigger = LLM instructions, not for humans
-  if (eventType === 'host_trigger') {
-    return;
-  }
 
   // Handle phase transitions
   if (eventType === 'phase_start' && eventPhaseId) {
@@ -989,7 +1178,8 @@ function addEventToFeed(event: ShowEvent): void {
 
   // Get channel class for color coding
   const channelClass = getChannelClass(event.channel);
-  // Add special class for winner announcement, winner speech, or epilogue
+
+  // Add special class for winner announcement, winner speech, epilogue, or host intervention
   let specialClass = '';
   if (eventType === 'winner_announcement') {
     specialClass = 'winner-announcement';
@@ -997,43 +1187,77 @@ function addEventToFeed(event: ShowEvent): void {
     specialClass = 'winner-speech';
   } else if (eventType === 'epilogue') {
     specialClass = 'epilogue';
+  } else if (eventType === 'host_trigger') {
+    specialClass = 'host-intervention';
+    // Check if it's a private directive
+    const metadata = event.metadata as { interventionType?: string } | undefined;
+    if (metadata?.interventionType === 'private_directive') {
+      specialClass += ' private-directive';
+    }
   }
   eventEl.className = `event-item ${channelClass} ${specialClass}`.trim();
 
+  // Hide host events if filter is off
+  if (eventType === 'host_trigger' && !showHostEvents) {
+    eventEl.style.display = 'none';
+  }
+
   // Format event data
   const time = formatTime(event.timestamp);
-  const senderName = getCharacterName(event.senderId);
-  const senderColor = getCharacterColor(event.senderId);
   const channel = event.channel ?? '';
   const type = eventType;
 
-  // Build header info
-  let headerInfo = `${channel}`;
-  if (type && type !== 'speech') {
-    headerInfo += ` | ${type}`;
-  }
+  // Special handling for host_trigger events
+  if (eventType === 'host_trigger') {
+    const formattedContent = formatHostInterventionContent(event);
 
-  // For PRIVATE events, show audience
-  let audienceInfo = '';
-  if (channel === 'PRIVATE' && event.audienceIds) {
-    const audienceNames = getAudienceNames(event.audienceIds);
-    if (audienceNames) {
-      audienceInfo = `<span class="event-audience">→ ${escapeHtml(audienceNames)}</span>`;
+    // Build header info
+    let headerInfo = 'HOST';
+    if (type) {
+      headerInfo += ` | ${type}`;
     }
+
+    eventEl.innerHTML = `
+      <div class="event-header">
+        <span class="event-sender host-sender">LLM-Vedushchiy</span>
+        <span class="event-meta">${escapeHtml(headerInfo)}</span>
+        <span class="event-time">${time}</span>
+      </div>
+      <div class="event-content">${escapeHtml(formattedContent)}</div>
+    `;
+  } else {
+    // Normal event display
+    const senderName = getCharacterName(event.senderId);
+    const senderColor = getCharacterColor(event.senderId);
+
+    // Build header info
+    let headerInfo = `${channel}`;
+    if (type && type !== 'speech') {
+      headerInfo += ` | ${type}`;
+    }
+
+    // For PRIVATE events, show audience
+    let audienceInfo = '';
+    if (channel === 'PRIVATE' && event.audienceIds) {
+      const audienceNames = getAudienceNames(event.audienceIds);
+      if (audienceNames) {
+        audienceInfo = `<span class="event-audience">-> ${escapeHtml(audienceNames)}</span>`;
+      }
+    }
+
+    // Apply character color to sender name
+    const senderStyle = senderColor ? `style="color: ${senderColor}; font-weight: 700;"` : '';
+
+    eventEl.innerHTML = `
+      <div class="event-header">
+        <span class="event-sender" ${senderStyle}>${escapeHtml(senderName)}</span>
+        ${audienceInfo}
+        <span class="event-meta">${escapeHtml(headerInfo)}</span>
+        <span class="event-time">${time}</span>
+      </div>
+      <div class="event-content">${escapeHtml(event.content ?? '')}</div>
+    `;
   }
-
-  // Apply character color to sender name
-  const senderStyle = senderColor ? `style="color: ${senderColor}; font-weight: 700;"` : '';
-
-  eventEl.innerHTML = `
-    <div class="event-header">
-      <span class="event-sender" ${senderStyle}>${escapeHtml(senderName)}</span>
-      ${audienceInfo}
-      <span class="event-meta">${escapeHtml(headerInfo)}</span>
-      <span class="event-time">${time}</span>
-    </div>
-    <div class="event-content">${escapeHtml(event.content ?? '')}</div>
-  `;
 
   // Store sequence number for potential debugging
   eventEl.dataset.sequenceNumber = String(event.sequenceNumber);
@@ -1401,6 +1625,9 @@ async function connectToCompletedShow(showId: string, status: StatusResponse): P
   // Update UI with status
   updateControlPanelUI(status);
 
+  // Reset host status
+  resetHostStatus();
+
   // Load all events via snapshot mode (not SSE)
   try {
     const response = await fetch(`/shows/${showId}/events?snapshot=true`);
@@ -1418,6 +1645,11 @@ async function connectToCompletedShow(showId: string, status: StatusResponse): P
     for (const event of events) {
       addEventToFeed(event);
       updateCharacterStatus(event);
+
+      // Update host status for host_trigger events
+      if (event.type === 'host_trigger') {
+        updateHostStatus(event);
+      }
 
       if (event.type === 'speech') {
         turnCount++;
