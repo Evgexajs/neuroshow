@@ -3277,3 +3277,37 @@ Added a template information panel to the Debug UI that displays template name, 
 
 **Тесты:** npm run test -- tests/unit/llm-host/intervention-emitter.test.ts (34 passed), npm run typecheck (passed), npm run lint (warnings only)
 **Заметки:** InterventionEmitter использует EventJournal.append() для записи событий (автоматически назначается sequenceNumber). Для PUBLIC интервенций (comment, question, announcement) аудитория — все персонажи. Для private_directive — только targetCharacterId. senderId всегда пустой для host events.
+
+## [2026-04-12] HOST-008: Реализовать основной класс LLMHostAgent
+**Статус:** done
+**Время:** ~30 минут
+**Изменения:**
+- src/modules/llm-host/llm-host-agent.ts — создан файл с классом LLMHostAgent:
+  - LLMHostAgent — основной класс, оркестрирующий все компоненты хоста
+  - shouldIntervene(event): Promise<ShouldIntervenResult> — определяет, нужно ли вмешиваться
+  - generateIntervention(showId, trigger): Promise<HostInterventionResponse> — генерирует интервенцию через LLM
+  - emitIntervention(showId, response, trigger): Promise<ShowEvent> — записывает интервенцию
+  - Интеграция с: BudgetManager, TriggerEvaluator, HostContextBuilder, prompt templates, InterventionEmitter
+  - Fallback фразы для exhausted бюджета (phase_start, phase_end, revelation)
+  - Проверка достаточности бюджета перед LLM вызовом
+  - Verbose logging при config.verboseLogging: true
+- tests/unit/llm-host/llm-host-agent.test.ts — создан файл с 24 юнит-тестами:
+  - Тесты constructor: создание с subcomponents, resolve persona from preset, custom persona
+  - Тесты shouldIntervene(): host disabled, phase_start/phase_end/revelation triggers, non-triggering events
+  - Тесты budget mode handling: mandatory triggers in exhausted/saving mode, non-mandatory skipped
+  - Тесты generateIntervention(): ModelAdapter call, HostInterventionResponse type, budget update
+  - Тесты fallback: exhausted budget, insufficient budget for call
+  - Тесты emitIntervention(): emit via InterventionEmitter, cooldown recording, metadata
+  - Тесты full intervention flow: complete cycle, multiple interventions with budget tracking
+  - Тесты verbose logging: enabled/disabled
+- docs/ai-host-tasks.json — статус HOST-008 обновлён на "done"
+
+**Acceptance Criteria:**
+1. src/modules/llm-host/llm-host-agent.ts создан ✓
+2. Класс LLMHostAgent с методами: shouldIntervene(), generateIntervention(), emitIntervention() ✓
+3. generateIntervention() вызывает ModelAdapter с построенным промптом ✓
+4. Бюджет обновляется после каждого LLM вызова ✓
+5. При exhausted бюджете LLM не вызывается, используется fallback ✓
+
+**Тесты:** npm run test -- tests/unit/llm-host/llm-host-agent.test.ts (24 passed), npm run typecheck (passed), npm run lint (warnings only)
+**Заметки:** LLMHostAgent объединяет все компоненты llm-host модуля. При exhausted mode или недостаточном бюджете используются fallback фразы. Для mandatory triggers (phase_start, phase_end, revelation) интервенция генерируется даже в exhausted mode, но с fallback. ModelAdapter вызывается с PromptPackage, бюджет обновляется по estimateTokens (актуальный usage не возвращается adapter interface).

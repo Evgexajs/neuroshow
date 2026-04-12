@@ -155,7 +155,7 @@
         "Ожидаемый результат: агент корректно обрабатывает все режимы"
       ],
       "dependencies": ["HOST-003", "HOST-004", "HOST-005", "HOST-006", "HOST-007"],
-      "status": "pending"
+      "status": "done"
     },
     {
       "id": "HOST-009",
