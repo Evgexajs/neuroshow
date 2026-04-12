@@ -3174,3 +3174,37 @@ Added a template information panel to the Debug UI that displays template name, 
 
 **Тесты:** npm run test -- tests/unit/llm-host/trigger-evaluator.test.ts (22 passed), npm run typecheck (passed), npm run lint (warnings only in tests)
 **Заметки:** TriggerEvaluator использует store методы getTriggerCooldown/setTriggerCooldown из HOST-002. Mandatory triggers (phase_start, phase_end, revelation) игнорируют cooldown и всегда срабатывают. При нескольких matching rules выбирается правило с максимальным priority.
+
+## [2026-04-12] HOST-005: Реализовать HostContextBuilder для построения контекста LLM
+**Статус:** done
+**Время:** ~15 минут
+**Изменения:**
+- src/modules/llm-host/context-builder.ts — создан класс HostContextBuilder:
+  - Constructor принимает IStore и LLMHostConfig
+  - build(showId, trigger: EvaluatedTrigger): Promise<HostContext> — основной метод построения контекста
+  - ConfigSnapshotWithCharacters interface — типизация для configSnapshot с characterDefinitions
+  - findPhase(phases, phaseId) — поиск фазы по ID
+  - buildNameMap(characterDefinitions) — построение Map<characterId, name>
+  - buildRecentEvents(showId, limit, nameMap) — получение последних N событий с подстановкой имён
+  - toEventSummary(event, nameMap) — конвертация ShowEvent в EventSummary
+  - getHostBudget(showId) — получение бюджета ведущего (с fallback на default)
+- tests/unit/llm-host/context-builder.test.ts — создан файл с 19 юнит-тестами:
+  - Тесты basic functionality: корректная структура HostContext
+  - Тесты character names: включение всех имён, подстановка в события, fallback на senderId
+  - Тесты sliding window: N последних событий по hostContextWindowSize, пустой массив
+  - Тесты security: privateContext НЕ попадает в контекст
+  - Тесты host budget: получение из store, default при отсутствии
+  - Тесты error handling: ошибки при несуществующем showId или phaseId
+  - Тесты different trigger types: phase_start, revelation
+  - Тесты empty characterDefinitions: graceful handling
+- docs/ai-host-tasks.json — статус HOST-005 обновлён на "done"
+
+**Acceptance Criteria:**
+1. src/modules/llm-host/context-builder.ts создан ✓
+2. Класс HostContextBuilder с методом build(showId, trigger): HostContext ✓
+3. Контекст содержит последние N событий (configurable via hostContextWindowSize) ✓
+4. Контекст НЕ содержит privateContext персонажей (безопасность) ✓
+5. Имена персонажей корректно подставляются ✓
+
+**Тесты:** npm run test -- tests/unit/llm-host/context-builder.test.ts (19 passed), npm run typecheck (passed), npm run lint (warnings only)
+**Заметки:** HostContextBuilder использует characterDefinitions из configSnapshot (JSON), а не из show_characters таблицы, чтобы не получать доступ к privateContext. События конвертируются в EventSummary с подстановкой имён через Map<characterId, name>. При отсутствии characterDefinitions или hostBudget возвращаются пустые/default значения.

@@ -98,7 +98,7 @@
         "Ожидаемый результат: контекст собирается корректно"
       ],
       "dependencies": ["HOST-001"],
-      "status": "pending"
+      "status": "done"
     },
     {
       "id": "HOST-006",
