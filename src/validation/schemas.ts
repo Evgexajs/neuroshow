@@ -5,6 +5,7 @@
 
 import { z } from 'zod';
 import { ChannelType, PhaseType, SpeakFrequency } from '../types/enums.js';
+import { HOST_PERSONA_PRESETS } from '../modules/llm-host/persona-presets.js';
 
 /**
  * Sanitize user-provided strings to prevent injection attacks
@@ -166,6 +167,108 @@ export const phaseSchema = z.object({
   conflictTriggers: z.array(sanitizedString(5000)).optional(),
 });
 
+// =============================================================================
+// LLM Host Config Schemas
+// =============================================================================
+
+/**
+ * TriggerType schema
+ */
+export const triggerTypeSchema = z.enum([
+  'phase_start',
+  'phase_end',
+  'revelation',
+  'wildcard_reveal',
+  'conflict_detected',
+  'alliance_hint',
+  'silence_detected',
+  'budget_milestone',
+  'dramatic_moment',
+  'private_channel_open',
+  'private_channel_close',
+  'periodic_commentary',
+  'phase_midpoint',
+]);
+
+/**
+ * InterventionType schema
+ */
+export const interventionTypeSchema = z.enum(['comment', 'question', 'announcement', 'private_directive']);
+
+/**
+ * VoiceStyle schema
+ */
+export const voiceStyleSchema = z.enum(['professional', 'dramatic', 'ironic', 'warm', 'provocative']);
+
+/**
+ * InterventionRule schema
+ */
+export const interventionRuleSchema = z.object({
+  trigger: triggerTypeSchema,
+  enabled: z.boolean(),
+  priority: z.number().int().min(1).max(10),
+  cooldownTurns: z.number().int().nonnegative(),
+  interventionType: interventionTypeSchema,
+  maxTokens: z.number().int().positive().max(10000),
+  condition: sanitizedString(500).optional(),
+});
+
+/**
+ * HostPersona schema
+ */
+export const hostPersonaSchema = z.object({
+  name: nonEmptySanitizedString(100),
+  voiceStyle: voiceStyleSchema,
+  personalityTraits: z.array(sanitizedString(500)),
+  catchphrases: z.array(sanitizedString(200)),
+  boundaries: z.array(sanitizedString(500)),
+  language: nonEmptySanitizedString(10),
+});
+
+/**
+ * Valid persona preset names
+ */
+const validPersonaPresets = Object.keys(HOST_PERSONA_PRESETS);
+
+/**
+ * LLMHostConfig schema (partial - all fields optional for template override)
+ * Validates configuration for the LLM Host module
+ */
+export const llmHostConfigSchema = z.object({
+  hostEnabled: z.boolean().optional(),
+  hostPersona: z.union([
+    hostPersonaSchema,
+    z.string().refine((val) => validPersonaPresets.includes(val), {
+      message: `hostPersona must be a valid preset: ${validPersonaPresets.join(', ')}`,
+    }),
+  ]).optional(),
+  hostModelAdapter: z.enum(['openai', 'anthropic', 'mock']).optional(),
+  hostModelId: sanitizedString(100).optional(),
+  hostBudget: z.number().int().positive().max(1000000).optional(),
+  hostBudgetSavingThreshold: z.number().int().min(1).max(99).optional(),
+  hostBudgetExhaustedThreshold: z.number().int().min(1).max(99).optional(),
+  interventionRules: z.array(interventionRuleSchema).optional(),
+  interventionCooldown: z.number().int().nonnegative().optional(),
+  maxInterventionsPerPhase: z.number().int().positive().max(100).optional(),
+  allowHostDirectives: z.boolean().optional(),
+  maxDirectivesPerPhase: z.number().int().nonnegative().max(50).optional(),
+  maxDirectivesPerCharacter: z.number().int().nonnegative().max(20).optional(),
+  hostContextWindowSize: z.number().int().positive().max(1000).optional(),
+  verboseLogging: z.boolean().optional(),
+}).refine(
+  (data) => {
+    // Validate thresholds if both are provided
+    if (data.hostBudgetSavingThreshold !== undefined && data.hostBudgetExhaustedThreshold !== undefined) {
+      return data.hostBudgetSavingThreshold < data.hostBudgetExhaustedThreshold;
+    }
+    return true;
+  },
+  {
+    message: 'hostBudgetSavingThreshold must be less than hostBudgetExhaustedThreshold',
+    path: ['hostBudgetSavingThreshold'],
+  }
+);
+
 /**
  * ShowFormatTemplate schema
  */
@@ -185,6 +288,7 @@ export const showFormatTemplateSchema = z.object({
   scoringRules: z.array(scoringRuleSchema).optional(),
   winCondition: sanitizedString(1000).optional(),
   prologue: sanitizedString(5000).optional(),
+  llmHostConfig: llmHostConfigSchema.optional(),
 }).refine((data) => data.minParticipants <= data.maxParticipants, {
   message: 'minParticipants must be less than or equal to maxParticipants',
   path: ['minParticipants'],

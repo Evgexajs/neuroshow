@@ -7,6 +7,7 @@
 
 import type { PhaseType, ChannelType } from './enums.js';
 import type { DecisionConfig, PrivateChannelRules, DayConfig } from './primitives.js';
+import type { LLMHostConfig } from '../modules/llm-host/types.js';
 
 /**
  * Scoring rule for evaluating character performance (Non-MVP: structurally supported)
@@ -57,4 +58,6 @@ export interface ShowFormatTemplate {
   winCondition?: string;
   /** Prologue/intro text explaining the game, prize, and rules to characters */
   prologue?: string;
+  /** Optional LLM Host configuration override */
+  llmHostConfig?: Partial<LLMHostConfig>;
 }

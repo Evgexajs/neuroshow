@@ -23,7 +23,8 @@ import { OpenAIAdapter } from '../adapters/openai-adapter.js';
 import { config } from '../config.js';
 import type { IVotingModule} from '../modules/voting/index.js';
 import { VotingModule, VOTING_MODULE_NAME } from '../modules/voting/index.js';
-import type { ILLMHostModule } from '../modules/llm-host/types.js';
+import type { ILLMHostModule, LLMHostConfig } from '../modules/llm-host/types.js';
+import { DEFAULT_LLM_HOST_CONFIG } from '../modules/llm-host/index.js';
 
 /**
  * Custom error thrown when token budget is exceeded.
@@ -1262,19 +1263,29 @@ export class Orchestrator {
     const showStartTime = Date.now();
     logger.info(`Show ${showId} started`);
 
-    // Initialize LLM Host budget if module is configured and enabled
-    if (this._llmHostModule) {
-      const llmHostConfig = this._llmHostModule.getConfig();
-      if (llmHostConfig?.hostEnabled) {
-        await this._llmHostModule.initializeBudget(showId, llmHostConfig);
-        logger.info(`LLM Host initialized for show ${showId} with budget ${llmHostConfig.hostBudget}`);
-      }
-    }
-
     // Parse configSnapshot to get phases and decisionConfig
     const configSnapshot = JSON.parse(showRecord.configSnapshot) as Record<string, unknown>;
     const phases = configSnapshot.phases as Phase[];
     const decisionConfig = configSnapshot.decisionConfig as DecisionConfig;
+
+    // Initialize LLM Host budget if module is configured
+    // Merge template config with defaults (template overrides defaults)
+    if (this._llmHostModule) {
+      const templateHostConfig = configSnapshot.llmHostConfig as Partial<LLMHostConfig> | undefined;
+      const moduleConfig = this._llmHostModule.getConfig();
+
+      // Merge: defaults -> module config -> template config
+      const mergedConfig: LLMHostConfig = {
+        ...DEFAULT_LLM_HOST_CONFIG,
+        ...(moduleConfig ?? {}),
+        ...(templateHostConfig ?? {}),
+      };
+
+      if (mergedConfig.hostEnabled) {
+        await this._llmHostModule.initializeBudget(showId, mergedConfig);
+        logger.info(`LLM Host initialized for show ${showId} with budget ${mergedConfig.hostBudget}`);
+      }
+    }
 
     if (!phases || phases.length === 0) {
       throw new Error(`No phases found in show ${showId} configSnapshot`);

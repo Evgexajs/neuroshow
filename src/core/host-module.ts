@@ -89,6 +89,8 @@ export class HostModule {
       backstory,
       // Store relationships between characters
       relationships: relationships ?? [],
+      // Store LLM Host configuration from template
+      llmHostConfig: template.llmHostConfig,
     };
 
     // Create show record with 'created' status (will change to 'running' when started)

@@ -1,0 +1,81 @@
+{
+  "id": "coalition-with-host",
+  "name": "Коалиция с AI-ведущим",
+  "description": "5 персонажей соревнуются за один приз. AI-ведущий комментирует события, задаёт вопросы и создаёт драматическое напряжение.",
+  "minParticipants": 5,
+  "maxParticipants": 5,
+  "phases": [
+    {
+      "id": "phase-1-introduction",
+      "name": "Знакомство",
+      "type": "discussion",
+      "durationMode": "turns",
+      "durationValue": 3,
+      "turnOrder": "sequential",
+      "allowedChannels": ["PUBLIC"],
+      "triggerTemplate": "Расскажи о себе и своих ценностях",
+      "completionCondition": "all_turns_completed"
+    },
+    {
+      "id": "phase-2-negotiations",
+      "name": "Переговоры",
+      "type": "discussion",
+      "durationMode": "turns",
+      "durationValue": 10,
+      "turnOrder": "frequency_weighted",
+      "allowedChannels": ["PUBLIC", "PRIVATE"],
+      "triggerTemplate": "Продолжай переговоры. Ты можешь запросить приватный разговор с другим участником.",
+      "conflictTriggers": [
+        "Кто-то из вас сказал неправду. Пора выяснить кто.",
+        "Ресурсов хватит только на троих. Кто здесь лишний?",
+        "Сейчас каждый назовёт того, кому НЕ доверяет.",
+        "Один из вас работает против группы. Обсудите кто.",
+        "Пора раскрыть карты. Кто готов сделать первый шаг?",
+        "Союзы рушатся. Кто предаст первым?"
+      ],
+      "completionCondition": "all_turns_completed"
+    },
+    {
+      "id": "phase-3-decision",
+      "name": "Финальное решение",
+      "type": "decision",
+      "durationMode": "turns",
+      "durationValue": 5,
+      "turnOrder": "sequential",
+      "allowedChannels": ["PUBLIC"],
+      "triggerTemplate": "Время принять финальное решение. Тайно проголосуй за одного из других участников, кто, по твоему мнению, должен получить приз.",
+      "completionCondition": "all_decisions_collected"
+    }
+  ],
+  "decisionConfig": {
+    "timing": "simultaneous",
+    "visibility": "secret_until_reveal",
+    "revealMoment": "after_all",
+    "format": "choice",
+    "options": null
+  },
+  "channelTypes": ["PUBLIC", "PRIVATE"],
+  "privateChannelRules": {
+    "initiator": "character_request_host_approves",
+    "maxPrivatesPerPhase": 4,
+    "maxPrivatesPerCharacterPerPhase": 2,
+    "requestQueueMode": "fifo",
+    "requestFormat": "structured_signal"
+  },
+  "contextWindowSize": 50,
+  "allowCharacterInitiative": false,
+  "llmHostConfig": {
+    "hostEnabled": true,
+    "hostPersona": "drama_queen",
+    "hostBudget": 15000,
+    "hostBudgetSavingThreshold": 60,
+    "hostBudgetExhaustedThreshold": 85,
+    "interventionCooldown": 3,
+    "maxInterventionsPerPhase": 8,
+    "allowHostDirectives": true,
+    "maxDirectivesPerPhase": 3,
+    "maxDirectivesPerCharacter": 1,
+    "hostContextWindowSize": 15,
+    "verboseLogging": false
+  }
+}

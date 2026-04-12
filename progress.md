@@ -3520,3 +3520,47 @@ Added a template information panel to the Debug UI that displays template name, 
 
 **Тесты:** npm run build:ui (passed), npm run typecheck (passed)
 **Заметки:** host_trigger события ранее пропускались в addEventToFeed() с комментарием "host_trigger = LLM instructions, not for humans". Теперь они отображаются с золотым градиентом и специальным форматированием. Host Status Panel отслеживает: budgetUsed/budgetTotal, mode (normal/saving/exhausted), и lastIntervention (type + timestamp). Фильтр позволяет скрывать/показывать host события в ленте.
+
+## [2026-04-12] HOST-015: Добавить конфигурацию ведущего в ShowFormatTemplate
+**Статус:** done
+**Время:** ~35 минут
+**Изменения:**
+- src/types/template.ts — расширен ShowFormatTemplate:
+  - Добавлен импорт LLMHostConfig из модуля llm-host
+  - Добавлено поле llmHostConfig?: Partial<LLMHostConfig>
+- src/validation/schemas.ts — добавлены схемы валидации:
+  - triggerTypeSchema — все типы триггеров
+  - interventionTypeSchema — типы интервенций
+  - voiceStyleSchema — стили голоса
+  - interventionRuleSchema — правила интервенций
+  - hostPersonaSchema — полная персона ведущего
+  - llmHostConfigSchema — частичная конфигурация с валидацией:
+    - hostPersona: строка-preset или полный объект
+    - Валидация порядка threshold (saving < exhausted)
+    - Валидация адаптеров (openai, anthropic, mock)
+  - showFormatTemplateSchema расширен полем llmHostConfig
+- src/core/host-module.ts — configSnapshot сохраняет llmHostConfig:
+  - Поле llmHostConfig: template.llmHostConfig добавлено в configSnapshot
+- src/core/orchestrator.ts — мерж конфигурации:
+  - Импорт DEFAULT_LLM_HOST_CONFIG и LLMHostConfig
+  - Логика мержа: defaults -> module config -> template config
+  - Merged config передаётся в initializeBudget()
+- src/formats/coalition-with-host.json — пример шаблона:
+  - Полный шаблон "Коалиция с AI-ведущим"
+  - llmHostConfig с drama_queen персоной, hostEnabled: true
+  - Увеличенный бюджет 15000, allowHostDirectives: true
+- tests/unit/llm-host-config-template.test.ts — 30 юнит-тестов:
+  - llmHostConfigSchema: partial validation, hostPersona, thresholds
+  - interventionRuleSchema: valid/invalid rules
+  - showFormatTemplateSchema: with/without llmHostConfig
+  - config merging: defaults, overrides, omitted fields
+  - coalition-with-host.json validation
+
+**Acceptance Criteria:**
+1. ShowFormatTemplate расширен полем llmHostConfig?: Partial<LLMHostConfig> ✓
+2. Конфигурация из шаблона мержится с дефолтной ✓
+3. Пример шаблона с llmHostConfig добавлен в src/formats/ ✓
+4. Валидация конфигурации при инициализации шоу ✓
+
+**Тесты:** npm test -- tests/unit/llm-host-config-template.test.ts (30 passed), npm run build (passed), npm run typecheck (passed)
+**Заметки:** Шаблон templates находятся в src/formats/, а не в data/templates/ (как указано в acceptance criteria). llmHostConfigSchema использует Partial<> семантику — все поля опциональны, только указанные в шаблоне переопределяют дефолтные. Порядок мержа: DEFAULT_LLM_HOST_CONFIG -> moduleConfig -> templateConfig, что позволяет программно настраивать глобальный config через setConfig(), а затем переопределять его на уровне шаблона.
