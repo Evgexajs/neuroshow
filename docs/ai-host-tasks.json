@@ -250,7 +250,7 @@
         "Ожидаемый результат: приватность соблюдается"
       ],
       "dependencies": ["HOST-009"],
-      "status": "pending"
+      "status": "done"
     },
     {
       "id": "HOST-014",

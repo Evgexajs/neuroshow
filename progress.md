@@ -3448,3 +3448,37 @@ Added a template information panel to the Debug UI that displays template name, 
 
 **Тесты:** npm run test -- tests/unit/llm-host/conditional-triggers.test.ts (27 passed), npm run test -- tests/unit/llm-host/ (198 passed)
 **Заметки:** Conflict detection использует word boundary matching чтобы избежать ложных срабатываний (например "согласен" как подстрока "не согласен"). Keyword pairs организованы попарно: indices 0,1 — agreement/disagreement, 2,3 — support/opposition, 4,5 — truth/lie. Condition string поддерживает формат "consecutiveEndTurns:N" и "keywords:word1,word2|word3,word4".
+
+## [2026-04-12] HOST-013: Реализовать private_directive интервенции
+**Статус:** done
+**Время:** ~30 минут
+**Изменения:**
+- src/modules/llm-host/llm-host-agent.ts — добавлена валидация директив:
+  - Добавлен импорт EventType из enums
+  - Добавлено поле eventJournal для доступа к событиям
+  - Добавлен метод checkDirectivePermissions() — проверяет разрешения на директиву
+  - Добавлен метод countDirectivesInPhase() — считает директивы в фазе
+  - Добавлен метод countDirectivesForCharacter() — считает директивы для персонажа
+  - В generateIntervention() добавлена проверка перед генерацией private_directive
+  - При блокировке директивы возвращается fallback вместо директивы
+- tests/integration/host-private-directive.test.ts — создан файл с 11 интеграционными тестами:
+  - private_directive channel and audience: 3 теста (PRIVATE channel, audienceIds, metadata)
+  - directive visibility in context: 1 тест (видимость только для target)
+  - allowHostDirectives: false blocks directives: 1 тест
+  - maxDirectivesPerPhase limit: 2 теста (блокировка при превышении, разрешение в лимите)
+  - maxDirectivesPerCharacter limit: 2 теста (блокировка для персонажа, разрешение для другого)
+  - directive metadata structure: 2 теста (requiresResponse: false, triggeredBy)
+- tests/integration/host-question-flow.test.ts — исправлены pre-existing ошибки TypeScript:
+  - Исправлено извлечение characterName из regex match
+  - Удалена неиспользуемая переменная speechEvents
+- docs/ai-host-tasks.json — статус HOST-013 обновлён на "done"
+
+**Acceptance Criteria:**
+1. private_directive записывается с channel: PRIVATE и audienceIds: [targetCharacterId] ✓
+2. Директива видна только целевому персонажу в его контексте ✓
+3. Соблюдается лимит maxDirectivesPerPhase и maxDirectivesPerCharacter ✓
+4. allowHostDirectives: false блокирует все директивы ✓
+5. Интеграционный тест: директива попадает только к target ✓
+
+**Тесты:** npm run test -- tests/integration/host-private-directive.test.ts (11 passed), npm run test -- tests/unit/llm-host/llm-host-agent.test.ts (24 passed), npm run build (passed)
+**Заметки:** InterventionEmitter уже корректно обрабатывал channel: PRIVATE и audienceIds для private_directive (реализовано в HOST-007). В этой задаче добавлена валидация в LLMHostAgent.generateIntervention() для проверки allowHostDirectives, maxDirectivesPerPhase и maxDirectivesPerCharacter перед генерацией директивы. При блокировке возвращается fallback-ответ без targetCharacterId.

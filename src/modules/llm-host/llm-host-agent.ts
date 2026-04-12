@@ -14,7 +14,7 @@ import type { IStore } from '../../types/interfaces/store.interface.js';
 import type { EventJournal } from '../../core/event-journal.js';
 import type { ShowEvent } from '../../types/events.js';
 import type { ModelAdapter, PromptPackage } from '../../types/adapter.js';
-import { HostBudgetMode } from '../../types/enums.js';
+import { HostBudgetMode, EventType } from '../../types/enums.js';
 import type {
   LLMHostConfig,
   EvaluatedTrigger,
@@ -91,6 +91,7 @@ export class LLMHostAgent {
   private readonly contextBuilder: HostContextBuilder;
   private readonly interventionEmitter: InterventionEmitter;
   private readonly persona: HostPersona;
+  private readonly eventJournal: EventJournal;
 
   constructor(
     store: IStore,
@@ -98,6 +99,9 @@ export class LLMHostAgent {
     private readonly config: LLMHostConfig,
     private readonly modelAdapter: ModelAdapter
   ) {
+    // Store event journal reference for directive counting
+    this.eventJournal = eventJournal;
+
     // Initialize all sub-components (store and eventJournal are passed to them)
     this.budgetManager = new BudgetManager(store, config);
     this.triggerEvaluator = new TriggerEvaluator(store, config);
@@ -175,11 +179,12 @@ export class LLMHostAgent {
    * Generate an intervention using the LLM
    *
    * Steps:
-   * 1. Build context
-   * 2. Build prompts
-   * 3. Estimate tokens
-   * 4. Call LLM (or use fallback if exhausted)
-   * 5. Update budget
+   * 1. Check directive permissions (if private_directive)
+   * 2. Build context
+   * 3. Build prompts
+   * 4. Estimate tokens
+   * 5. Call LLM (or use fallback if exhausted)
+   * 6. Update budget
    *
    * @param showId - Show ID
    * @param trigger - The evaluated trigger
@@ -189,6 +194,18 @@ export class LLMHostAgent {
     showId: string,
     trigger: EvaluatedTrigger
   ): Promise<HostInterventionResponse> {
+    // Check directive permissions if this is a private_directive intervention
+    if (trigger.rule.interventionType === 'private_directive') {
+      const directiveCheck = await this.checkDirectivePermissions(showId, trigger);
+      if (!directiveCheck.allowed) {
+        if (this.config.verboseLogging) {
+          console.log(`[LLMHostAgent] Directive blocked: ${directiveCheck.reason}`);
+        }
+        // Return a comment instead of directive when blocked
+        return this.generateFallbackIntervention(trigger);
+      }
+    }
+
     // Check if budget is exhausted - use fallback
     const budgetMode = await this.budgetManager.getMode(showId);
     if (budgetMode === HostBudgetMode.exhausted) {
@@ -316,6 +333,103 @@ export class LLMHostAgent {
       interventionType: trigger.rule.interventionType,
       // No target for fallback interventions
     };
+  }
+
+  // ─── Directive Validation ─────────────────────────────────────────────────────
+
+  /**
+   * Check if a private directive is allowed
+   *
+   * Validates:
+   * 1. allowHostDirectives is true
+   * 2. maxDirectivesPerPhase limit not exceeded
+   * 3. maxDirectivesPerCharacter limit not exceeded for target
+   *
+   * @param showId - Show ID
+   * @param trigger - The evaluated trigger
+   * @returns Object with allowed flag and reason if blocked
+   */
+  private async checkDirectivePermissions(
+    showId: string,
+    trigger: EvaluatedTrigger
+  ): Promise<{ allowed: boolean; reason?: string }> {
+    // Check if directives are enabled
+    if (!this.config.allowHostDirectives) {
+      return {
+        allowed: false,
+        reason: 'allowHostDirectives is false',
+      };
+    }
+
+    // Get current phase ID from trigger event or context
+    const currentPhaseId = trigger.triggerEvent?.phaseId;
+
+    // Count directives in current phase
+    const phaseDirectiveCount = await this.countDirectivesInPhase(showId, currentPhaseId);
+    if (phaseDirectiveCount >= this.config.maxDirectivesPerPhase) {
+      return {
+        allowed: false,
+        reason: `maxDirectivesPerPhase (${this.config.maxDirectivesPerPhase}) exceeded`,
+      };
+    }
+
+    // Get target character ID from conditional context (for silence_detected)
+    // or we'll get it from the LLM response later
+    const targetCharacterId = trigger.conditionalContext?.silentCharacterId;
+    if (targetCharacterId) {
+      const characterDirectiveCount = await this.countDirectivesForCharacter(
+        showId,
+        targetCharacterId
+      );
+      if (characterDirectiveCount >= this.config.maxDirectivesPerCharacter) {
+        return {
+          allowed: false,
+          reason: `maxDirectivesPerCharacter (${this.config.maxDirectivesPerCharacter}) exceeded for ${targetCharacterId}`,
+        };
+      }
+    }
+
+    return { allowed: true };
+  }
+
+  /**
+   * Count private_directive interventions in a specific phase
+   *
+   * @param showId - Show ID
+   * @param phaseId - Optional phase ID (counts all if not specified)
+   * @returns Number of directives in the phase
+   */
+  private async countDirectivesInPhase(
+    showId: string,
+    phaseId?: string
+  ): Promise<number> {
+    const events = await this.eventJournal.getEvents(showId);
+    return events.filter((e) => {
+      if (e.type !== EventType.host_trigger) return false;
+      if (e.metadata?.interventionType !== 'private_directive') return false;
+      if (phaseId && e.phaseId !== phaseId) return false;
+      return true;
+    }).length;
+  }
+
+  /**
+   * Count private_directive interventions for a specific character
+   *
+   * @param showId - Show ID
+   * @param characterId - Character ID
+   * @returns Number of directives sent to the character
+   */
+  private async countDirectivesForCharacter(
+    showId: string,
+    characterId: string
+  ): Promise<number> {
+    const events = await this.eventJournal.getEvents(showId);
+    return events.filter((e) => {
+      if (e.type !== EventType.host_trigger) return false;
+      if (e.metadata?.interventionType !== 'private_directive') return false;
+      if (e.metadata?.targetCharacterId !== characterId) return false;
+      return true;
+    }).length;
   }
 
   // ─── Accessors ────────────────────────────────────────────────────────────────

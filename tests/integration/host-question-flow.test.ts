@@ -60,7 +60,7 @@ describe('Integration: Host Question Flow (HOST-011)', { timeout: 30000 }, () =>
     call: async (pkg: PromptPackage): Promise<CharacterResponse> => {
       // Extract character name from personality prompt (e.g., "You are Alice")
       const nameMatch = pkg.systemPrompt.match(/You are (\w+)/);
-      const characterName = nameMatch ? nameMatch[1] : 'unknown';
+      const characterName = nameMatch?.[1] ?? 'unknown';
 
       // Track what trigger this character received
       const triggers = triggersByCharacter.get(characterName) ?? [];
@@ -273,9 +273,6 @@ describe('Integration: Host Question Flow (HOST-011)', { timeout: 30000 }, () =>
           e.metadata?.requiresResponse === true
       );
       expect(hostQuestion).toBeDefined();
-
-      // Get all speech events in order
-      const speechEvents = events.filter((e) => e.type === EventType.speech);
 
       // Find the speech event immediately after the host question
       const questionIndex = events.indexOf(hostQuestion!);
