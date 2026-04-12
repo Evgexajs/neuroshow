@@ -174,7 +174,7 @@
         "Ожидаемый результат: модуль работает end-to-end"
       ],
       "dependencies": ["HOST-008"],
-      "status": "pending"
+      "status": "done"
     },
     {
       "id": "HOST-010",

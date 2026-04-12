@@ -3311,3 +3311,35 @@ Added a template information panel to the Debug UI that displays template name, 
 
 **Тесты:** npm run test -- tests/unit/llm-host/llm-host-agent.test.ts (24 passed), npm run typecheck (passed), npm run lint (warnings only)
 **Заметки:** LLMHostAgent объединяет все компоненты llm-host модуля. При exhausted mode или недостаточном бюджете используются fallback фразы. Для mandatory triggers (phase_start, phase_end, revelation) интервенция генерируется даже в exhausted mode, но с fallback. ModelAdapter вызывается с PromptPackage, бюджет обновляется по estimateTokens (актуальный usage не возвращается adapter interface).
+
+## [2026-04-12] HOST-009: Собрать LLMHostModule и реализовать onEventAppended
+**Статус:** done
+**Время:** ~25 минут
+**Изменения:**
+- src/modules/llm-host/index.ts — полная реализация LLMHostModule:
+  - onEventAppended(event) — оценивает триггеры через LLMHostAgent, генерирует и эмитирует интервенции
+  - initializeBudget(showId, config) — создаёт BudgetManager и инициализирует бюджет в store
+  - getStatus(showId) — возвращает budget, interventionCount, lastInterventionSequence
+  - isLLMHostEvent() — проверяет, является ли событие от LLM host (для предотвращения бесконечного цикла)
+  - getOrCreateAgent() — создаёт и кеширует LLMHostAgent для каждого showId
+  - getOrCreateModelAdapter() — создаёт и кеширует ModelAdapter (OpenAI/Mock) на основе конфигурации
+  - createModelAdapter() — фабрика адаптеров на основе hostModelAdapter конфига
+  - Кеширование: agents, budgetManagers, modelAdapters (Map per showId)
+- tests/integration/llm-host-module.test.ts — создан интеграционный тест (11 тестов):
+  - initializeBudget(): создание бюджета в store, установка config
+  - getStatus(): default status без бюджета, корректный статус после инициализации
+  - onEventAppended(): отключённый host, phase_start→announcement, phase_end→comment, revelation→comment
+  - Защита от бесконечного цикла (собственные события не обрабатываются)
+  - Обновление бюджета после генерации интервенции
+  - Полный flow с несколькими интервенциями подряд
+- docs/ai-host-tasks.json — статус HOST-009 обновлён на "done"
+
+**Acceptance Criteria:**
+1. LLMHostModule implements ILLMHostModule ✓
+2. Метод onEventAppended() проверяет триггеры и генерирует интервенцию ✓
+3. Метод initializeBudget() создаёт запись в host_budgets ✓
+4. Метод getStatus() возвращает текущий статус ведущего ✓
+5. Интеграционный тест: событие phase_start вызывает интервенцию announcement ✓
+
+**Тесты:** npm run test -- tests/unit/llm-host/ tests/integration/llm-host-module.test.ts (182 passed), npm run typecheck (passed), npm run lint (warnings only)
+**Заметки:** LLMHostModule теперь полностью функционален. Кеширует LLMHostAgent, BudgetManager и ModelAdapter для каждого шоу. При onEventAppended проверяет, включён ли host, затем вызывает shouldIntervene → generateIntervention → emitIntervention. Защита от бесконечного цикла: события с metadata.interventionType игнорируются. Создаёт OpenAI или Mock адаптер на основе hostModelAdapter конфига.
