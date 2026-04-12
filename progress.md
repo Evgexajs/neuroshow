@@ -3038,3 +3038,38 @@ Added a template information panel to the Debug UI that displays template name, 
 
 **Тесты:** npm run lint (warnings only), npm run typecheck (passed)
 **Заметки:** Документация задача — код не изменялся. PRD следует структуре PRD-modular-architecture.md и описывает Side Effects как отдельный модуль системы.
+
+## [2026-04-12] HOST-001: Создать базовую структуру модуля llm-host с типами
+**Статус:** done
+**Время:** ~20 минут
+**Изменения:**
+- src/modules/llm-host/types.ts — создан файл со всеми интерфейсами:
+  - TriggerType: union of 13 trigger types (phase_start, phase_end, revelation, etc.)
+  - InterventionType: 'comment' | 'question' | 'announcement' | 'private_directive'
+  - VoiceStyle: 'professional' | 'dramatic' | 'ironic' | 'warm' | 'provocative'
+  - HostBudgetMode: 'normal' | 'saving' | 'exhausted'
+  - InterventionRule: configuration for intervention triggers
+  - HostPersona: personality definition for the LLM host
+  - LLMHostConfig: full module configuration
+  - HostBudgetRecord: token budget tracking
+  - HostContext: context for generating interventions
+  - HostInterventionResponse: response from LLM generation
+  - EvaluatedTrigger: trigger ready for intervention
+  - ILLMHostModule: module interface extending IModule
+- src/modules/llm-host/index.ts — создан класс LLMHostModule:
+  - implements ILLMHostModule
+  - Constructor accepts IStore and EventJournal
+  - Placeholder methods: init(), dispose(), onEventAppended(), initializeBudget(), getStatus(), getConfig(), setConfig()
+  - DEFAULT_LLM_HOST_CONFIG exported with default configuration
+  - LLM_HOST_MODULE_NAME = 'llm-host'
+- docs/ai-host-tasks.json — статус HOST-001 обновлён на "done"
+
+**Acceptance Criteria:**
+1. src/modules/llm-host/index.ts создан с классом LLMHostModule implements IModule ✓
+2. src/modules/llm-host/types.ts создан со всеми интерфейсами ✓
+3. Модуль регистрируется в ModuleRegistry без ошибок ✓
+4. npm run build компилируется без ошибок ✓
+5. npm run typecheck проходит ✓
+
+**Тесты:** npm run build (passed), npm run typecheck (passed), npm run lint (warnings only), module registration test (passed)
+**Заметки:** Базовая структура модуля готова. Методы содержат placeholder-реализации, которые будут заполнены в последующих задачах (HOST-002 через HOST-009). Типы основаны на PRD-llm-host.md.

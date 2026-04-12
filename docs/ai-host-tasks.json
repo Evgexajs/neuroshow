@@ -1,0 +1,311 @@
+{
+  "module": "llm-host",
+  "prefix": "HOST",
+  "lastTaskId": 16,
+  "description": "AI-ведущий - LLM агент который управляет шоу, задаёт вопросы, раскрывает секреты",
+  "tasks": [
+    {
+      "id": "HOST-001",
+      "priority": "high",
+      "description": "Создать базовую структуру модуля llm-host с типами",
+      "acceptance_criteria": [
+        "src/modules/llm-host/index.ts создан с классом LLMHostModule implements IModule",
+        "src/modules/llm-host/types.ts создан со всеми интерфейсами: TriggerType, InterventionType, InterventionRule, HostPersona, LLMHostConfig, HostBudgetRecord, HostContext, HostInterventionResponse, ILLMHostModule",
+        "Модуль регистрируется в ModuleRegistry без ошибок",
+        "npm run build компилируется без ошибок",
+        "npm run typecheck проходит"
+      ],
+      "test_steps": [
+        "Выполни: npm run build",
+        "Выполни: npm run typecheck",
+        "Импортируй LLMHostModule в тестовый файл и проверь типы"
+      ],
+      "dependencies": [],
+      "status": "done"
+    },
+    {
+      "id": "HOST-002",
+      "priority": "high",
+      "description": "Добавить таблицы host_budgets и host_trigger_cooldowns в SQLite Store",
+      "acceptance_criteria": [
+        "Таблица host_budgets создаётся в initSchema()",
+        "Таблица host_trigger_cooldowns создаётся в initSchema()",
+        "Методы createHostBudget(), getHostBudget(), updateHostBudget() реализованы в SQLiteStore",
+        "Методы getTriggerCooldown(), setTriggerCooldown() реализованы в SQLiteStore",
+        "Юнит-тесты для всех новых методов проходят"
+      ],
+      "test_steps": [
+        "Выполни: npm run test -- tests/unit/sqlite-store-host.test.ts",
+        "Проверь что таблицы создаются: sqlite3 data/test.db '.schema host_budgets'",
+        "Ожидаемый результат: таблицы существуют, CRUD работает"
+      ],
+      "dependencies": ["HOST-001"],
+      "status": "pending"
+    },
+    {
+      "id": "HOST-003",
+      "priority": "high",
+      "description": "Реализовать BudgetManager для управления бюджетом ведущего",
+      "acceptance_criteria": [
+        "src/modules/llm-host/budget-manager.ts создан",
+        "Класс BudgetManager с методами: initialize(), consume(), getMode(), getRemainingPercentage()",
+        "При 70% бюджета mode переключается на 'saving'",
+        "При 90% бюджета mode переключается на 'exhausted'",
+        "Юнит-тесты для пороговых значений проходят"
+      ],
+      "test_steps": [
+        "Выполни: npm run test -- tests/unit/llm-host/budget-manager.test.ts",
+        "Проверь переключение режимов на 70% и 90%",
+        "Ожидаемый результат: режимы корректно переключаются"
+      ],
+      "dependencies": ["HOST-002"],
+      "status": "pending"
+    },
+    {
+      "id": "HOST-004",
+      "priority": "high",
+      "description": "Реализовать TriggerEvaluator для определения когда вмешаться",
+      "acceptance_criteria": [
+        "src/modules/llm-host/trigger-evaluator.ts создан",
+        "Класс TriggerEvaluator с методом evaluate(event: ShowEvent): EvaluatedTrigger | null",
+        "Обязательные триггеры (phase_start, phase_end, revelation) срабатывают всегда",
+        "Cooldown соблюдается (триггер не срабатывает если cooldown не истёк)",
+        "Priority работает: при нескольких триггерах выбирается с высшим приоритетом",
+        "Юнит-тесты для каждого типа триггера"
+      ],
+      "test_steps": [
+        "Выполни: npm run test -- tests/unit/llm-host/trigger-evaluator.test.ts",
+        "Проверь что phase_start всегда триггерит",
+        "Проверь что cooldown блокирует повторный триггер"
+      ],
+      "dependencies": ["HOST-001"],
+      "status": "pending"
+    },
+    {
+      "id": "HOST-005",
+      "priority": "high",
+      "description": "Реализовать HostContextBuilder для построения контекста LLM",
+      "acceptance_criteria": [
+        "src/modules/llm-host/context-builder.ts создан",
+        "Класс HostContextBuilder с методом build(showId, trigger): HostContext",
+        "Контекст содержит последние N событий (configurable)",
+        "Контекст НЕ содержит privateContext персонажей (безопасность)",
+        "Имена персонажей корректно подставляются"
+      ],
+      "test_steps": [
+        "Выполни: npm run test -- tests/unit/llm-host/context-builder.test.ts",
+        "Проверь что privateContext не попадает в контекст",
+        "Ожидаемый результат: контекст собирается корректно"
+      ],
+      "dependencies": ["HOST-001"],
+      "status": "pending"
+    },
+    {
+      "id": "HOST-006",
+      "priority": "high",
+      "description": "Реализовать промпт-шаблоны и персоны ведущего",
+      "acceptance_criteria": [
+        "src/modules/llm-host/prompt-templates.ts создан с шаблонами для каждого InterventionType",
+        "src/modules/llm-host/persona-presets.ts создан с пресетами: classic_host, drama_queen, provocateur, friendly_guide",
+        "Функция buildSystemPrompt(persona, phase, trigger): string",
+        "Функция buildUserPrompt(context, interventionType): string",
+        "Шаблоны включают ограничения (что ведущий НЕ может делать)"
+      ],
+      "test_steps": [
+        "Выполни: npm run test -- tests/unit/llm-host/prompt-templates.test.ts",
+        "Проверь что промпт содержит boundaries",
+        "Ожидаемый результат: промпты генерируются корректно"
+      ],
+      "dependencies": ["HOST-001"],
+      "status": "pending"
+    },
+    {
+      "id": "HOST-007",
+      "priority": "high",
+      "description": "Реализовать InterventionEmitter для записи интервенций",
+      "acceptance_criteria": [
+        "src/modules/llm-host/intervention-emitter.ts создан",
+        "Класс InterventionEmitter с методом emit(showId, response, trigger): ShowEvent",
+        "События записываются с type: EventType.host_trigger",
+        "metadata содержит: interventionType, triggeredBy, targetCharacterId, requiresResponse",
+        "Для question устанавливается requiresResponse: true"
+      ],
+      "test_steps": [
+        "Выполни: npm run test -- tests/unit/llm-host/intervention-emitter.test.ts",
+        "Проверь структуру созданного события",
+        "Ожидаемый результат: события записываются с корректными metadata"
+      ],
+      "dependencies": ["HOST-001"],
+      "status": "pending"
+    },
+    {
+      "id": "HOST-008",
+      "priority": "high",
+      "description": "Реализовать основной класс LLMHostAgent",
+      "acceptance_criteria": [
+        "src/modules/llm-host/llm-host-agent.ts создан",
+        "Класс LLMHostAgent с методами: shouldIntervene(), generateIntervention(), emitIntervention()",
+        "generateIntervention() вызывает ModelAdapter с построенным промптом",
+        "Бюджет обновляется после каждого LLM вызова",
+        "При exhausted бюджете LLM не вызывается, используется fallback"
+      ],
+      "test_steps": [
+        "Выполни: npm run test -- tests/unit/llm-host/llm-host-agent.test.ts",
+        "Проверь что при exhausted бюджете LLM не вызывается",
+        "Ожидаемый результат: агент корректно обрабатывает все режимы"
+      ],
+      "dependencies": ["HOST-003", "HOST-004", "HOST-005", "HOST-006", "HOST-007"],
+      "status": "pending"
+    },
+    {
+      "id": "HOST-009",
+      "priority": "high",
+      "description": "Собрать LLMHostModule и реализовать onEventAppended",
+      "acceptance_criteria": [
+        "LLMHostModule implements ILLMHostModule",
+        "Метод onEventAppended() проверяет триггеры и генерирует интервенцию",
+        "Метод initializeBudget() создаёт запись в host_budgets",
+        "Метод getStatus() возвращает текущий статус ведущего",
+        "Интеграционный тест: событие phase_start вызывает интервенцию announcement"
+      ],
+      "test_steps": [
+        "Выполни: npm run test -- tests/integration/llm-host-module.test.ts",
+        "Проверь что phase_start вызывает announcement",
+        "Ожидаемый результат: модуль работает end-to-end"
+      ],
+      "dependencies": ["HOST-008"],
+      "status": "pending"
+    },
+    {
+      "id": "HOST-010",
+      "priority": "medium",
+      "description": "Интегрировать LLMHostModule в Orchestrator",
+      "acceptance_criteria": [
+        "Orchestrator принимает опциональный ILLMHostModule в конструкторе",
+        "После каждого события вызывается llmHostModule.onEventAppended()",
+        "При инициализации шоу создаётся бюджет ведущего (если hostEnabled: true)",
+        "Шоу работает корректно при hostEnabled: false",
+        "Интеграционный тест: полный прогон шоу с ведущим"
+      ],
+      "test_steps": [
+        "Выполни: npm run test -- tests/integration/orchestrator-with-host.test.ts",
+        "Запусти шоу с hostEnabled: true и проверь что интервенции появляются",
+        "Запусти шоу с hostEnabled: false и проверь что ничего не сломалось"
+      ],
+      "dependencies": ["HOST-009"],
+      "status": "pending"
+    },
+    {
+      "id": "HOST-011",
+      "priority": "medium",
+      "description": "Обработка вопросов ведущего (модификация turnQueue)",
+      "acceptance_criteria": [
+        "Когда ведущий задаёт question, targetCharacterId вставляется в начало turnQueue",
+        "Следующий ход - у target персонажа",
+        "Target получает вопрос ведущего в контексте",
+        "Ответ персонажа помечается metadata.respondingTo",
+        "Интеграционный тест: вопрос -> персонаж отвечает -> продолжается обычный порядок"
+      ],
+      "test_steps": [
+        "Выполни: npm run test -- tests/integration/host-question-flow.test.ts",
+        "Проверь что после вопроса ходит target персонаж",
+        "Ожидаемый результат: flow вопроса работает корректно"
+      ],
+      "dependencies": ["HOST-010"],
+      "status": "pending"
+    },
+    {
+      "id": "HOST-012",
+      "priority": "medium",
+      "description": "Добавить silence_detected и conflict_detected триггеры",
+      "acceptance_criteria": [
+        "silence_detected срабатывает когда персонаж делает >N end_turn подряд",
+        "conflict_detected срабатывает при противоположных позициях 2+ персонажей",
+        "Используется простой keyword/sentiment анализ (без внешних API)",
+        "Триггеры настраиваются через InterventionRule.condition",
+        "Юнит-тесты для обоих триггеров"
+      ],
+      "test_steps": [
+        "Выполни: npm run test -- tests/unit/llm-host/conditional-triggers.test.ts",
+        "Проверь что 3 end_turn подряд вызывает silence_detected",
+        "Ожидаемый результат: условные триггеры работают"
+      ],
+      "dependencies": ["HOST-004"],
+      "status": "pending"
+    },
+    {
+      "id": "HOST-013",
+      "priority": "medium",
+      "description": "Реализовать private_directive интервенции",
+      "acceptance_criteria": [
+        "private_directive записывается с channel: PRIVATE и audienceIds: [targetCharacterId]",
+        "Директива видна только целевому персонажу в его контексте",
+        "Соблюдается лимит maxDirectivesPerPhase и maxDirectivesPerCharacter",
+        "allowHostDirectives: false блокирует все директивы",
+        "Интеграционный тест: директива попадает только к target"
+      ],
+      "test_steps": [
+        "Выполни: npm run test -- tests/integration/host-private-directive.test.ts",
+        "Проверь что директива не видна другим персонажам",
+        "Ожидаемый результат: приватность соблюдается"
+      ],
+      "dependencies": ["HOST-009"],
+      "status": "pending"
+    },
+    {
+      "id": "HOST-014",
+      "priority": "low",
+      "description": "Добавить отображение ведущего в Debug UI",
+      "acceptance_criteria": [
+        "Интервенции ведущего визуально отличаются (золотой градиент, иконка микрофона)",
+        "Панель статуса ведущего показывает: бюджет %, режим, последняя интервенция",
+        "Фильтр 'LLM-Ведущий' в ленте событий",
+        "Приватные директивы отображаются только в Debug UI",
+        "npm run build:ui компилируется без ошибок"
+      ],
+      "test_steps": [
+        "Выполни: npm run build:ui",
+        "Открой Debug UI и проверь отображение интервенций ведущего",
+        "Ожидаемый результат: интервенции визуально отличаются"
+      ],
+      "dependencies": ["HOST-010"],
+      "status": "pending"
+    },
+    {
+      "id": "HOST-015",
+      "priority": "low",
+      "description": "Добавить конфигурацию ведущего в ShowFormatTemplate",
+      "acceptance_criteria": [
+        "ShowFormatTemplate расширен полем llmHostConfig?: Partial<LLMHostConfig>",
+        "Конфигурация из шаблона мержится с дефолтной",
+        "Пример шаблона с llmHostConfig добавлен в data/templates/",
+        "Валидация конфигурации при инициализации шоу"
+      ],
+      "test_steps": [
+        "Создай шаблон с llmHostConfig и запусти шоу",
+        "Проверь что настройки применились",
+        "Ожидаемый результат: конфигурация из шаблона работает"
+      ],
+      "dependencies": ["HOST-010"],
+      "status": "pending"
+    },
+    {
+      "id": "HOST-016",
+      "priority": "low",
+      "description": "Fallback на шаблонные фразы при exhausted бюджете",
+      "acceptance_criteria": [
+        "HOST_FALLBACK_PHRASES определены для phase_start, phase_end, revelation",
+        "При mode: exhausted используются fallback фразы вместо LLM",
+        "Fallback фразы локализованы (ru)",
+        "Юнит-тест: exhausted бюджет -> fallback фраза"
+      ],
+      "test_steps": [
+        "Выполни: npm run test -- tests/unit/llm-host/fallback.test.ts",
+        "Установи exhausted mode и проверь что используется fallback",
+        "Ожидаемый результат: fallback работает"
+      ],
+      "dependencies": ["HOST-008"],
+      "status": "pending"
+    }
+  ]
+}
