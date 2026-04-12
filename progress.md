@@ -3208,3 +3208,40 @@ Added a template information panel to the Debug UI that displays template name, 
 
 **Тесты:** npm run test -- tests/unit/llm-host/context-builder.test.ts (19 passed), npm run typecheck (passed), npm run lint (warnings only)
 **Заметки:** HostContextBuilder использует characterDefinitions из configSnapshot (JSON), а не из show_characters таблицы, чтобы не получать доступ к privateContext. События конвертируются в EventSummary с подстановкой имён через Map<characterId, name>. При отсутствии characterDefinitions или hostBudget возвращаются пустые/default значения.
+
+## [2026-04-12] HOST-006: Реализовать промпт-шаблоны и персоны ведущего
+**Статус:** done
+**Время:** ~20 минут
+**Изменения:**
+- src/modules/llm-host/persona-presets.ts — создан файл с персонами ведущего:
+  - STANDARD_HOST_BOUNDARIES — стандартные ограничения для всех персон
+  - HOST_PERSONA_PRESETS — Record с 4 пресетами: classic_host (Александр), drama_queen (Виктория), provocateur (Максим), friendly_guide (Елена)
+  - DEFAULT_HOST_PERSONA — персона по умолчанию (dramatic стиль)
+  - getPersonaPreset(presetId) — получение пресета по ID
+  - getPersonaPresetNames() — список всех пресетов
+  - resolvePersona(personaOrPresetId) — резолв строки или объекта HostPersona
+  - getVoiceStyleDescription(voiceStyle) — описание стиля для промпта
+- src/modules/llm-host/prompt-templates.ts — создан файл с шаблонами промптов:
+  - buildSystemPrompt(persona, context, config) — построение системного промпта с ролью, стилем, характером, фразами, ограничениями, контекстом
+  - buildUserPrompt(context, rule) — построение user промпта по типу интервенции (comment, question, announcement, private_directive)
+  - formatPersonalityTraits, formatCatchphrases, formatBoundaries, formatCharacterNames, formatRecentEvents — хелперы форматирования
+  - getTriggerDescription(triggerType, context) — описание триггера для промпта
+- tests/unit/llm-host/prompt-templates.test.ts — создан файл с 50 юнит-тестами:
+  - Тесты HOST_PERSONA_PRESETS: наличие 4 пресетов, проверка свойств каждого
+  - Тесты getPersonaPreset, getPersonaPresetNames, resolvePersona
+  - Тесты getVoiceStyleDescription для всех 5 стилей
+  - Тесты STANDARD_HOST_BOUNDARIES
+  - Тесты formatting helpers
+  - Тесты buildSystemPrompt: включение role, voice style, traits, catchphrases, boundaries, context, trigger, budget warning
+  - Тесты buildUserPrompt: для каждого типа интервенции
+- docs/ai-host-tasks.json — статус HOST-006 обновлён на "done"
+
+**Acceptance Criteria:**
+1. src/modules/llm-host/prompt-templates.ts создан с шаблонами для каждого InterventionType ✓
+2. src/modules/llm-host/persona-presets.ts создан с пресетами: classic_host, drama_queen, provocateur, friendly_guide ✓
+3. Функция buildSystemPrompt(persona, context, config): string ✓
+4. Функция buildUserPrompt(context, rule): string ✓
+5. Шаблоны включают ограничения (что ведущий НЕ может делать) ✓
+
+**Тесты:** npm run test -- tests/unit/llm-host/prompt-templates.test.ts (50 passed), npm run typecheck (passed), npm run lint (passed)
+**Заметки:** Персоны используют русский язык. Системный промпт включает budget warning при режиме "saving". buildUserPrompt генерирует разные инструкции в зависимости от типа интервенции и контекста триггера.
