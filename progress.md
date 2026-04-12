@@ -3138,3 +3138,39 @@ Added a template information panel to the Debug UI that displays template name, 
 
 **Тесты:** npm run test -- tests/unit/llm-host/budget-manager.test.ts (22 passed), npm run build (passed), npm run typecheck (passed), npm run lint (warnings only)
 **Заметки:** BudgetManager использует store методы из HOST-002. Mode рассчитывается динамически при каждом чтении на основе порогов из config. Тесты используют мок store для изоляции.
+
+## [2026-04-12] HOST-004: Реализовать TriggerEvaluator для определения когда вмешаться
+**Статус:** done
+**Время:** ~20 минут
+**Изменения:**
+- src/modules/llm-host/trigger-evaluator.ts — создан класс TriggerEvaluator:
+  - Constructor принимает IStore и LLMHostConfig
+  - evaluate(event: ShowEvent): Promise<EvaluatedTrigger | null> — основной метод оценки триггеров
+  - MANDATORY_TRIGGERS: ReadonlySet<TriggerType> — набор обязательных триггеров (phase_start, phase_end, revelation)
+  - EVENT_TO_TRIGGER_MAP — маппинг EventType на TriggerType
+  - getTriggerTypeFromEvent(event) — маппинг события на тип триггера
+  - findMatchingRules(triggerType) — поиск включённых правил для триггера
+  - filterByCooldown(rules, showId, currentSequence) — фильтрация по cooldown (mandatory пропускают)
+  - selectByPriority(rules) — выбор правила с максимальным приоритетом
+  - recordTriggerActivation(showId, triggerType, sequenceNumber) — запись активации триггера
+- tests/unit/llm-host/trigger-evaluator.test.ts — создан файл с 22 юнит-тестами:
+  - Тесты MANDATORY_TRIGGERS: содержит phase_start, phase_end, revelation
+  - Тесты evaluate() для mandatory triggers: всегда срабатывают
+  - Тесты evaluate() для non-matching events: speech, system, decision возвращают null
+  - Тесты cooldown compliance: блокировка и разрешение по cooldown
+  - Тесты priority selection: выбор правила с максимальным приоритетом
+  - Тесты enabled flag: игнорирование disabled правил
+  - Тесты recordTriggerActivation(): запись в store
+  - Тесты EvaluatedTrigger structure: проверка структуры результата
+- docs/ai-host-tasks.json — статус HOST-004 обновлён на "done"
+
+**Acceptance Criteria:**
+1. src/modules/llm-host/trigger-evaluator.ts создан ✓
+2. Класс TriggerEvaluator с методом evaluate(event: ShowEvent): EvaluatedTrigger | null ✓
+3. Обязательные триггеры (phase_start, phase_end, revelation) срабатывают всегда ✓
+4. Cooldown соблюдается (триггер не срабатывает если cooldown не истёк) ✓
+5. Priority работает: при нескольких триггерах выбирается с высшим приоритетом ✓
+6. Юнит-тесты для каждого типа триггера ✓
+
+**Тесты:** npm run test -- tests/unit/llm-host/trigger-evaluator.test.ts (22 passed), npm run typecheck (passed), npm run lint (warnings only in tests)
+**Заметки:** TriggerEvaluator использует store методы getTriggerCooldown/setTriggerCooldown из HOST-002. Mandatory triggers (phase_start, phase_end, revelation) игнорируют cooldown и всегда срабатывают. При нескольких matching rules выбирается правило с максимальным priority.

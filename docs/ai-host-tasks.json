@@ -79,7 +79,7 @@
         "Проверь что cooldown блокирует повторный триггер"
       ],
       "dependencies": ["HOST-001"],
-      "status": "pending"
+      "status": "done"
     },
     {
       "id": "HOST-005",
