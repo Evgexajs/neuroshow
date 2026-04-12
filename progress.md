@@ -3245,3 +3245,35 @@ Added a template information panel to the Debug UI that displays template name, 
 
 **Тесты:** npm run test -- tests/unit/llm-host/prompt-templates.test.ts (50 passed), npm run typecheck (passed), npm run lint (passed)
 **Заметки:** Персоны используют русский язык. Системный промпт включает budget warning при режиме "saving". buildUserPrompt генерирует разные инструкции в зависимости от типа интервенции и контекста триггера.
+
+## [2026-04-12] HOST-007: Реализовать InterventionEmitter для записи интервенций
+**Статус:** done
+**Время:** ~15 минут
+**Изменения:**
+- src/modules/llm-host/intervention-emitter.ts — создан файл с классом InterventionEmitter:
+  - InterventionEmitter — класс для записи интервенций ведущего как ShowEvent
+  - emit(showId, response, trigger): Promise<ShowEvent> — основной метод
+  - determineChannelAndAudience() — определение канала и аудитории на основе типа интервенции
+  - getCharacterIds() — получение ID персонажей из configSnapshot
+  - HostInterventionMetadata — экспортируемый тип метаданных для host_trigger событий
+- tests/unit/llm-host/intervention-emitter.test.ts — создан файл с 34 юнит-тестами:
+  - Тесты basic functionality: структура ShowEvent, sequenceNumber, content, senderId
+  - Тесты event type: всегда EventType.host_trigger
+  - Тесты metadata structure: interventionType, triggeredBy, targetCharacterId, requiresResponse
+  - Тесты requiresResponse for question: true для question, false для остальных
+  - Тесты channel and audience: PUBLIC для большинства, PRIVATE для private_directive
+  - Тесты trigger types: phase_start, phase_end, revelation, conflict_detected, silence_detected
+  - Тесты error handling: show not found, missing characterDefinitions, invalid JSON, null currentPhaseId
+  - Тесты unique IDs: уникальные event ID и seed
+  - Тесты with trigger event: корректная обработка triggerEvent
+- docs/ai-host-tasks.json — статус HOST-007 обновлён на "done"
+
+**Acceptance Criteria:**
+1. src/modules/llm-host/intervention-emitter.ts создан ✓
+2. Класс InterventionEmitter с методом emit(showId, response, trigger): ShowEvent ✓
+3. События записываются с type: EventType.host_trigger ✓
+4. metadata содержит: interventionType, triggeredBy, targetCharacterId, requiresResponse ✓
+5. Для question устанавливается requiresResponse: true ✓
+
+**Тесты:** npm run test -- tests/unit/llm-host/intervention-emitter.test.ts (34 passed), npm run typecheck (passed), npm run lint (warnings only)
+**Заметки:** InterventionEmitter использует EventJournal.append() для записи событий (автоматически назначается sequenceNumber). Для PUBLIC интервенций (comment, question, announcement) аудитория — все персонажи. Для private_directive — только targetCharacterId. senderId всегда пустой для host events.

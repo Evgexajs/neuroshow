@@ -136,7 +136,7 @@
         "Ожидаемый результат: события записываются с корректными metadata"
       ],
       "dependencies": ["HOST-001"],
-      "status": "pending"
+      "status": "done"
     },
     {
       "id": "HOST-008",
