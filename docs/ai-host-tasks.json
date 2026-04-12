@@ -193,7 +193,7 @@
         "Запусти шоу с hostEnabled: false и проверь что ничего не сломалось"
       ],
       "dependencies": ["HOST-009"],
-      "status": "pending"
+      "status": "done"
     },
     {
       "id": "HOST-011",

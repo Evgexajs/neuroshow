@@ -3343,3 +3343,34 @@ Added a template information panel to the Debug UI that displays template name, 
 
 **Тесты:** npm run test -- tests/unit/llm-host/ tests/integration/llm-host-module.test.ts (182 passed), npm run typecheck (passed), npm run lint (warnings only)
 **Заметки:** LLMHostModule теперь полностью функционален. Кеширует LLMHostAgent, BudgetManager и ModelAdapter для каждого шоу. При onEventAppended проверяет, включён ли host, затем вызывает shouldIntervene → generateIntervention → emitIntervention. Защита от бесконечного цикла: события с metadata.interventionType игнорируются. Создаёт OpenAI или Mock адаптер на основе hostModelAdapter конфига.
+
+## [2026-04-12] HOST-010: Интегрировать LLMHostModule в Orchestrator
+**Статус:** done
+**Время:** ~30 минут
+**Изменения:**
+- src/core/orchestrator.ts — интеграция LLMHostModule:
+  - Добавлен импорт ILLMHostModule из modules/llm-host/types
+  - Добавлен опциональный параметр llmHostModule?: ILLMHostModule в конструктор
+  - Добавлено приватное свойство _llmHostModule для хранения модуля
+  - В конструкторе: подписка на события EventJournal через journal.on('event', ...)
+  - При получении события вызывается void llmHostModule.onEventAppended(event)
+  - В runShow(): проверка config?.hostEnabled и вызов initializeBudget() перед началом шоу
+  - Логирование инициализации: "LLM Host initialized for show X with budget Y"
+- tests/integration/orchestrator-with-host.test.ts — создан файл с 12 интеграционными тестами:
+  - Тесты constructor: accepts optional llmHostModule, works without llmHostModule
+  - Тесты runShow с hostEnabled: true: budget initialization, onEventAppended calls, host_trigger events, budget updates
+  - Тесты runShow с hostEnabled: false: no budget initialization, no host_trigger events, show completes successfully
+  - Тесты runShow без llmHostModule: show completes successfully
+  - Тесты full show run: complete flow with host interventions, multiple phases with host
+  - Мокирование config.ts для использования mock адаптера вместо OpenAI
+- docs/ai-host-tasks.json — статус HOST-010 обновлён на "done"
+
+**Acceptance Criteria:**
+1. Orchestrator принимает опциональный ILLMHostModule в конструкторе ✓
+2. После каждого события вызывается llmHostModule.onEventAppended() ✓
+3. При инициализации шоу создаётся бюджет ведущего (если hostEnabled: true) ✓
+4. Шоу работает корректно при hostEnabled: false ✓
+5. Интеграционный тест: полный прогон шоу с ведущим ✓
+
+**Тесты:** npm run test -- tests/integration/orchestrator-with-host.test.ts (12 passed), npm run typecheck (passed), npm run lint (warnings only)
+**Заметки:** Интеграция через EventJournal.on('event') позволяет LLMHostModule получать уведомления о всех событиях без модификации каждого места в Orchestrator где вызывается journal.append(). Используется void для non-blocking async вызова onEventAppended. Бюджет инициализируется в runShow() до начала выполнения фаз. Тесты мокируют config.ts для корректной работы с mock адаптером.

@@ -23,6 +23,7 @@ import { OpenAIAdapter } from '../adapters/openai-adapter.js';
 import { config } from '../config.js';
 import type { IVotingModule} from '../modules/voting/index.js';
 import { VotingModule, VOTING_MODULE_NAME } from '../modules/voting/index.js';
+import type { ILLMHostModule } from '../modules/llm-host/types.js';
 
 /**
  * Custom error thrown when token budget is exceeded.
@@ -95,15 +96,29 @@ export class Orchestrator {
   /** Cached voting module instance */
   private _votingModule: IVotingModule | null = null;
 
+  /** Optional LLM Host module for AI-powered show hosting */
+  private _llmHostModule: ILLMHostModule | null = null;
+
   constructor(
     readonly store: IStore,
     readonly adapter: ModelAdapter,
     readonly journal: EventJournal,
     readonly hostModule: HostModule,
     readonly contextBuilder: ContextBuilder,
-    moduleRegistry?: ModuleRegistry
+    moduleRegistry?: ModuleRegistry,
+    llmHostModule?: ILLMHostModule
   ) {
     this.moduleRegistry = moduleRegistry ?? new ModuleRegistry();
+
+    // Set up LLM Host module if provided
+    if (llmHostModule) {
+      this._llmHostModule = llmHostModule;
+      // Subscribe to journal events to notify LLM Host of new events
+      this.journal.on('event', (event: ShowEvent) => {
+        // Use void to handle the promise without blocking
+        void this._llmHostModule?.onEventAppended(event);
+      });
+    }
   }
 
   /**
@@ -1155,6 +1170,15 @@ export class Orchestrator {
 
     const showStartTime = Date.now();
     logger.info(`Show ${showId} started`);
+
+    // Initialize LLM Host budget if module is configured and enabled
+    if (this._llmHostModule) {
+      const llmHostConfig = this._llmHostModule.getConfig();
+      if (llmHostConfig?.hostEnabled) {
+        await this._llmHostModule.initializeBudget(showId, llmHostConfig);
+        logger.info(`LLM Host initialized for show ${showId} with budget ${llmHostConfig.hostBudget}`);
+      }
+    }
 
     // Parse configSnapshot to get phases and decisionConfig
     const configSnapshot = JSON.parse(showRecord.configSnapshot) as Record<string, unknown>;
