@@ -3314,8 +3314,12 @@
         "Используются моки вместо реальных API вызовов к AI",
         "npm run test:e2e проходит"
       ],
-      "dependencies": ["UI-001", "UI-002", "UI-003"],
-      "status": "pending"
+      "dependencies": [
+        "UI-001",
+        "UI-002",
+        "UI-003"
+      ],
+      "status": "done"
     }
   ]
 }

@@ -3645,3 +3645,27 @@ Added a template information panel to the Debug UI that displays template name, 
 
 **Тесты:** npm run lint (warnings only), npm run typecheck (passes), server tests pass (28/28)
 **Заметки:** UI код (app.ts) и CSS стили уже были реализованы в предыдущих задачах (UI-001, UI-002). Эта задача добавляет серверную часть - API endpoint теперь возвращает relationships и secretMission, которые UI уже умеет отображать.
+
+---
+
+## [2026-04-13] UI-004: E2E tests for Create Show popup with mocks
+**Статус:** done
+**Время:** ~30 минут
+**Изменения:**
+- tests/e2e/create-show.spec.ts — создан новый файл E2E тестов:
+  - 20 тестов для Create New Show popup
+  - Полное покрытие: открытие/закрытие модального окна, выбор шаблона, выбор персонажей
+  - Тесты генерации персонажей с relationships и secret missions
+  - Тесты валидации количества участников (min/max по шаблону)
+  - Тесты per-character toggles для relationships и missions
+  - Тест полного flow: generate → select → create
+  - Все API вызовы замокированы через Playwright route()
+
+**Acceptance Criteria:**
+1. Playwright тесты для Create New Show popup ✓
+2. Тесты покрывают: выбор шаблона, выбор персонажей, генерацию, создание шоу ✓
+3. Используются моки вместо реальных API вызовов к AI ✓
+4. npm run test:e2e проходит ✓ (24 passed)
+
+**Тесты:** npm run test:e2e (24 passed), npm run typecheck (passes)
+**Заметки:** Использован Playwright route() для мокирования всех API endpoints (/templates, /characters, /generate/characters, /shows). Моки включают корректные структуры данных (relationships как массив объектов, secretMission как объект с type/description/targetIds).
