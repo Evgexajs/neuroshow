@@ -3590,3 +3590,32 @@ Added a template information panel to the Debug UI that displays template name, 
 
 **Тесты:** npm run lint (passes), npm run typecheck (passes), npm run build:ui (passes)
 **Заметки:** Реализация уже была в uncommitted changes. Фильтрация relationships происходит на этапе createShow: relationship включается только если ОБА участника имеют включённый toggle.
+
+---
+
+## [2026-04-13] UI-002: Per-character secret missions toggle
+**Статус:** done
+**Время:** ~10 минут
+**Изменения:**
+- web/debug-ui/app.ts:
+  - Добавлен characterMissionsEnabled: Set<string> для хранения состояния toggle
+  - renderCharacterCheckboxes() создаёт чекбокс "Mission" для каждого персонажа
+  - handleCharacterMissionToggle() обновляет Set при изменении чекбокса
+  - handleGenerateCharacters() автоматически включает missions для персонажей с secretMission
+  - handleCreateShow() фильтрует secret missions: удаляет mission из персонажа если toggle отключён
+  - resetModalState() очищает characterMissionsEnabled
+  - Добавлены интерфейсы CharacterRelationship и CharacterSecretMission
+  - renderCharacterCards() отображает relationships и secret missions в карточках
+- web/debug-ui/styles.css:
+  - Обновлён .character-item (flex-wrap, inline layout)
+  - Обновлён .character-option-checkbox (компактный вид)
+  - Добавлены стили для .character-relationships, .rel-item
+  - Добавлены стили для .character-mission, .mission-type
+
+**Acceptance Criteria:**
+1. Каждый персонаж в списке имеет чекбокс 'Generate Secret Mission' ✓
+2. При генерации missions создаются только для выбранных персонажей ✓
+3. UI корректно отображает состояние чекбоксов ✓
+
+**Тесты:** npm run lint (warnings only), npm run typecheck (passes), npm run build:ui (passes)
+**Заметки:** Код для UI-002 уже был в uncommitted changes вместе с частью UI-003 (отображение relationships/missions в Character Cards). Закоммичено вместе, так как изменения тесно связаны.
