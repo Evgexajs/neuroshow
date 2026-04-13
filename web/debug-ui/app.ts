@@ -16,11 +16,27 @@ interface ShowEvent {
   metadata?: Record<string, unknown>;
 }
 
+interface CharacterRelationship {
+  type: string;
+  withCharacterId: string;
+  withCharacterName: string;
+  visibility: 'public' | 'private';
+  description: string;
+}
+
+interface CharacterSecretMission {
+  type: string;
+  description: string;
+  targetNames?: string[];
+}
+
 interface Character {
   id: string;
   name: string;
   modelAdapterId: string;
   publicCard: string;
+  relationships?: CharacterRelationship[];
+  secretMission?: CharacterSecretMission;
 }
 
 interface CharacterDefinition {
@@ -534,10 +550,29 @@ function renderCharacterCards(): void {
     cardEl.className = `character-card${isActive ? ' active' : ''}${status === 'speaking' ? ' speaking' : ''}${status === 'in-private' ? ' in-private' : ''}`;
     cardEl.dataset.characterId = char.id;
 
+    // Build relationships HTML
+    let relationshipsHtml = '';
+    if (char.relationships && char.relationships.length > 0) {
+      const relItems = char.relationships.map((r) =>
+        `<span class="rel-item rel-${r.visibility}">${escapeHtml(r.type.replace('_', ' '))}: ${escapeHtml(r.withCharacterName)}</span>`
+      ).join('');
+      relationshipsHtml = `<div class="character-relationships">${relItems}</div>`;
+    }
+
+    // Build secret mission HTML
+    let missionHtml = '';
+    if (char.secretMission) {
+      const targets = char.secretMission.targetNames?.join(', ') ?? '';
+      const targetInfo = targets ? ` (targets: ${escapeHtml(targets)})` : '';
+      missionHtml = `<div class="character-mission"><span class="mission-type">${escapeHtml(char.secretMission.type.replace('_', ' '))}</span> ${escapeHtml(char.secretMission.description)}${targetInfo}</div>`;
+    }
+
     cardEl.innerHTML = `
       <div class="character-name">${escapeHtml(char.name)}</div>
       <div class="character-model">${escapeHtml(char.modelAdapterId)}</div>
       <div class="character-public-card">${escapeHtml(char.publicCard)}</div>
+      ${relationshipsHtml}
+      ${missionHtml}
       <span class="character-status ${status}">${formatStatus(status)}</span>
     `;
 
@@ -1338,6 +1373,7 @@ function resetModalState(): void {
   selectedTemplate = null;
   selectedCharacterIds.clear();
   characterRelationshipsEnabled.clear();
+  characterMissionsEnabled.clear();
   templateSelect.value = '';
   templateInfo.textContent = '';
   charactersValidation.textContent = '';
@@ -1797,10 +1833,24 @@ function renderCharacterCheckboxes(): void {
     relCheckbox.addEventListener('change', handleCharacterRelationshipToggle);
 
     relLabel.appendChild(relCheckbox);
-    relLabel.appendChild(document.createTextNode('Generate Relationships'));
+    relLabel.appendChild(document.createTextNode('Rel'));
+
+    // Per-character secret mission checkbox
+    const missionLabel = document.createElement('label');
+    missionLabel.className = 'character-option-checkbox';
+
+    const missionCheckbox = document.createElement('input');
+    missionCheckbox.type = 'checkbox';
+    missionCheckbox.dataset.characterId = char.id;
+    missionCheckbox.checked = characterMissionsEnabled.has(char.id);
+    missionCheckbox.addEventListener('change', handleCharacterMissionToggle);
+
+    missionLabel.appendChild(missionCheckbox);
+    missionLabel.appendChild(document.createTextNode('Mission'));
 
     container.appendChild(mainLabel);
     container.appendChild(relLabel);
+    container.appendChild(missionLabel);
     charactersList.appendChild(container);
   }
 }
@@ -1817,6 +1867,21 @@ function handleCharacterRelationshipToggle(event: Event): void {
     characterRelationshipsEnabled.add(charId);
   } else {
     characterRelationshipsEnabled.delete(charId);
+  }
+}
+
+/**
+ * Handle per-character secret mission checkbox toggle
+ */
+function handleCharacterMissionToggle(event: Event): void {
+  const checkbox = event.target as HTMLInputElement;
+  const charId = checkbox.dataset.characterId;
+  if (!charId) return;
+
+  if (checkbox.checked) {
+    characterMissionsEnabled.add(charId);
+  } else {
+    characterMissionsEnabled.delete(charId);
   }
 }
 
@@ -2034,6 +2099,16 @@ async function handleGenerateCharacters(): Promise<void> {
       }
     }
 
+    // Auto-enable missions for generated characters if missions were generated
+    if (generateSecretMissions) {
+      characterMissionsEnabled.clear();
+      for (const char of generatedChars) {
+        if (char.startingPrivateContext?.secretMission) {
+          characterMissionsEnabled.add(char.id);
+        }
+      }
+    }
+
     // Re-render checkboxes (must be after setting state so UI reflects it)
     renderCharacterCheckboxes();
 
@@ -2089,9 +2164,20 @@ async function handleCreateShow(): Promise<void> {
   createError.classList.add('hidden');
 
   // Build characters array with full character data
-  const selectedChars = availableCharacters.filter((c) =>
-    selectedCharacterIds.has(c.id)
-  );
+  // Filter out secret missions for characters that have missions disabled
+  const selectedChars = availableCharacters
+    .filter((c) => selectedCharacterIds.has(c.id))
+    .map((c) => {
+      // If character has a secret mission but missions are disabled for them, remove it
+      if (c.startingPrivateContext?.secretMission && !characterMissionsEnabled.has(c.id)) {
+        const { secretMission, ...restPrivateContext } = c.startingPrivateContext;
+        return {
+          ...c,
+          startingPrivateContext: Object.keys(restPrivateContext).length > 0 ? restPrivateContext : undefined,
+        };
+      }
+      return c;
+    });
 
   // Build request body with optional tokenBudget, theme, and relationships
   const tokenBudgetValue = tokenBudgetInput.value.trim();
