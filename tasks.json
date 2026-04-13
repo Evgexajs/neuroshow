@@ -3259,6 +3259,63 @@
         "TASK-130"
       ],
       "status": "done"
+    },
+    {
+      "id": "UI-001",
+      "category": "ui",
+      "priority": "medium",
+      "description": "Per-character relationships toggle",
+      "problem": "Сейчас relationships генерируются для всех или никого. Нужен индивидуальный toggle для каждого персонажа.",
+      "acceptance_criteria": [
+        "Каждый персонаж в списке имеет чекбокс 'Generate Relationships'",
+        "При генерации relationships создаются только для выбранных персонажей",
+        "UI корректно отображает состояние чекбоксов"
+      ],
+      "dependencies": [],
+      "status": "pending"
+    },
+    {
+      "id": "UI-002",
+      "category": "ui",
+      "priority": "medium",
+      "description": "Per-character secret missions toggle",
+      "problem": "Сейчас secret missions генерируются для всех или никого. Нужен индивидуальный toggle для каждого персонажа.",
+      "acceptance_criteria": [
+        "Каждый персонаж в списке имеет чекбокс 'Generate Secret Mission'",
+        "При генерации missions создаются только для выбранных персонажей",
+        "UI корректно отображает состояние чекбоксов"
+      ],
+      "dependencies": [],
+      "status": "pending"
+    },
+    {
+      "id": "UI-003",
+      "category": "ui",
+      "priority": "medium",
+      "description": "Show relationships and secret missions in Character Cards panel",
+      "problem": "В правой панели Character Cards не отображаются relationships и secret missions, хотя они сгенерированы.",
+      "acceptance_criteria": [
+        "Карточки персонажей показывают их relationships с другими персонажами",
+        "Карточки персонажей показывают secret mission (если есть)",
+        "Информация обновляется при подключении к шоу"
+      ],
+      "dependencies": [],
+      "status": "pending"
+    },
+    {
+      "id": "UI-004",
+      "category": "testing",
+      "priority": "low",
+      "description": "E2E tests for Create Show popup with mocks",
+      "problem": "Нет e2e тестов для попапа создания шоу. Тесты должны работать на моках без реальных API вызовов.",
+      "acceptance_criteria": [
+        "Playwright тесты для Create New Show popup",
+        "Тесты покрывают: выбор шаблона, выбор персонажей, генерацию, создание шоу",
+        "Используются моки вместо реальных API вызовов к AI",
+        "npm run test:e2e проходит"
+      ],
+      "dependencies": ["UI-001", "UI-002", "UI-003"],
+      "status": "pending"
     }
   ]
 }

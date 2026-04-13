@@ -1,7 +1,14 @@
 #!/bin/bash
 set -e
 
-TASKS_FILE="tasks.json"
+TASKS_FILE="${1:-tasks.json}"
+
+if [[ ! -f "$TASKS_FILE" ]]; then
+    echo "Файл задач не найден: $TASKS_FILE" >&2
+    exit 1
+fi
+
+echo "Работаю по: $TASKS_FILE"
 RESULT_FILE=$(mktemp -t ralph_result.XXXXXX)
 
 # Cleanup при выходе
@@ -93,8 +100,8 @@ while has_pending_tasks; do
 
     echo "Запускаю $agent..."
 
-    prompt=$(cat <<'EOF'
-@tasks.json @progress.md @CLAUDE.md
+    prompt=$(cat <<EOF
+@${TASKS_FILE} @progress.md @CLAUDE.md
 1. Найди ПЕРВУЮ по номеру задачу со статусом "pending", у которой все dependencies имеют статус "done".
    НЕ пропускай задачи — бери строго первую подходящую.
 2. Работай ТОЛЬКО над этой одной задачей.
