@@ -3619,3 +3619,29 @@ Added a template information panel to the Debug UI that displays template name, 
 
 **Тесты:** npm run lint (warnings only), npm run typecheck (passes), npm run build:ui (passes)
 **Заметки:** Код для UI-002 уже был в uncommitted changes вместе с частью UI-003 (отображение relationships/missions в Character Cards). Закоммичено вместе, так как изменения тесно связаны.
+
+---
+
+## [2026-04-13] UI-003: Show relationships and secret missions in Character Cards panel
+**Статус:** done
+**Время:** ~15 минут
+**Изменения:**
+- src/api/server.ts:
+  - GET /shows/:id/characters теперь парсит relationships из configSnapshot
+  - Возвращает relationships массив для каждого персонажа (type, withCharacterName, visibility, description)
+  - Возвращает secretMission из privateContext с targetNames (вместо targetIds)
+  - Добавлена типизация для relationships и secretMission в ответе
+
+**Acceptance Criteria:**
+1. Карточки персонажей показывают их relationships с другими персонажами ✓
+   - API возвращает relationships в ответе (server.ts lines 1006-1016)
+   - UI рендерит relationships HTML (app.ts lines 553-560)
+2. Карточки персонажей показывают secret mission (если есть) ✓
+   - API возвращает secretMission в ответе (server.ts lines 1017-1027)
+   - UI рендерит secretMission HTML (app.ts lines 563-568)
+3. Информация обновляется при подключении к шоу ✓
+   - fetchCharacters() вызывается при подключении (app.ts lines 910, 1661)
+   - renderCharacterCards() вызывается после загрузки данных (app.ts line 527)
+
+**Тесты:** npm run lint (warnings only), npm run typecheck (passes), server tests pass (28/28)
+**Заметки:** UI код (app.ts) и CSS стили уже были реализованы в предыдущих задачах (UI-001, UI-002). Эта задача добавляет серверную часть - API endpoint теперь возвращает relationships и secretMission, которые UI уже умеет отображать.

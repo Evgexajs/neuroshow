@@ -972,11 +972,19 @@ export async function createServer(): Promise<{
     // Get characters from store
     const characterRecords = await deps.store.getCharacters(id);
 
-    // Parse configSnapshot to get character definitions (name, publicCard)
+    // Parse configSnapshot to get character definitions and relationships
     let characterDefinitions: Array<{
       id: string;
       name: string;
       publicCard: string;
+    }> = [];
+    let relationships: Array<{
+      id: string;
+      type: string;
+      participantIds: [string, string];
+      visibility: 'public' | 'private';
+      description: string;
+      knownBy: string[];
     }> = [];
 
     try {
@@ -984,18 +992,46 @@ export async function createServer(): Promise<{
       if (config.characterDefinitions) {
         characterDefinitions = config.characterDefinitions;
       }
+      if (config.relationships) {
+        relationships = config.relationships;
+      }
     } catch {
       // If parsing fails, we'll use characterRecords only
     }
 
-    // Build character response with merged data
+    // Build character response with merged data including relationships and secret missions
     const characters = characterRecords.map((record) => {
       const definition = characterDefinitions.find((d) => d.id === record.characterId);
+      // Get relationships where this character is a participant
+      const charRelationships = relationships
+        .filter((r) => r.participantIds.includes(record.characterId))
+        .map((r) => ({
+          type: r.type,
+          withCharacterId: r.participantIds.find((id) => id !== record.characterId) ?? '',
+          withCharacterName: characterDefinitions.find(
+            (d) => d.id === r.participantIds.find((pid) => pid !== record.characterId)
+          )?.name ?? '',
+          visibility: r.visibility,
+          description: r.description,
+        }));
+      // Get secret mission from privateContext if present
+      const privateContext = record.privateContext as { secretMission?: { type: string; description: string; targetIds?: string[] } } | undefined;
+      const secretMission = privateContext?.secretMission
+        ? {
+            type: privateContext.secretMission.type,
+            description: privateContext.secretMission.description,
+            targetNames: privateContext.secretMission.targetIds?.map(
+              (tid) => characterDefinitions.find((d) => d.id === tid)?.name ?? tid
+            ),
+          }
+        : undefined;
       return {
         id: record.characterId,
         name: definition?.name ?? record.characterId,
         modelAdapterId: record.modelAdapterId,
         publicCard: definition?.publicCard ?? '',
+        relationships: charRelationships,
+        secretMission,
       };
     });
 
