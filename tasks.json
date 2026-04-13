@@ -3272,7 +3272,7 @@
         "UI корректно отображает состояние чекбоксов"
       ],
       "dependencies": [],
-      "status": "pending"
+      "status": "done"
     },
     {
       "id": "UI-002",

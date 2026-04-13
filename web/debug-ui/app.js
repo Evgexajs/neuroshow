@@ -89,6 +89,8 @@ let availableCharacters = [];
 let selectedTemplate = null;
 const selectedCharacterIds = new Set();
 let generatedRelationships = [];
+const characterRelationshipsEnabled = new Set();
+const characterMissionsEnabled = new Set();
 // Show config state (template + phases)
 let showConfig = null;
 const phaseTurnCounts = new Map();
@@ -1081,6 +1083,7 @@ function closeNewShowModal() {
 function resetModalState() {
     selectedTemplate = null;
     selectedCharacterIds.clear();
+    characterRelationshipsEnabled.clear();
     templateSelect.value = '';
     templateInfo.textContent = '';
     charactersValidation.textContent = '';
@@ -1440,8 +1443,10 @@ function renderCharacterCheckboxes() {
     }
     charactersList.innerHTML = '';
     for (const char of availableCharacters) {
-        const label = document.createElement('label');
-        label.className = 'character-checkbox';
+        const container = document.createElement('div');
+        container.className = 'character-item';
+        const mainLabel = document.createElement('label');
+        mainLabel.className = 'character-checkbox';
         const checkbox = document.createElement('input');
         checkbox.type = 'checkbox';
         checkbox.value = char.id;
@@ -1452,10 +1457,37 @@ function renderCharacterCheckboxes() {
         const descSpan = document.createElement('span');
         descSpan.className = 'char-desc';
         descSpan.textContent = `- ${char.publicCard.substring(0, 50)}${char.publicCard.length > 50 ? '...' : ''}`;
-        label.appendChild(checkbox);
-        label.appendChild(nameSpan);
-        label.appendChild(descSpan);
-        charactersList.appendChild(label);
+        mainLabel.appendChild(checkbox);
+        mainLabel.appendChild(nameSpan);
+        mainLabel.appendChild(descSpan);
+        // Per-character relationships checkbox
+        const relLabel = document.createElement('label');
+        relLabel.className = 'character-option-checkbox';
+        const relCheckbox = document.createElement('input');
+        relCheckbox.type = 'checkbox';
+        relCheckbox.dataset.characterId = char.id;
+        relCheckbox.checked = characterRelationshipsEnabled.has(char.id);
+        relCheckbox.addEventListener('change', handleCharacterRelationshipToggle);
+        relLabel.appendChild(relCheckbox);
+        relLabel.appendChild(document.createTextNode('Generate Relationships'));
+        container.appendChild(mainLabel);
+        container.appendChild(relLabel);
+        charactersList.appendChild(container);
+    }
+}
+/**
+ * Handle per-character relationship checkbox toggle
+ */
+function handleCharacterRelationshipToggle(event) {
+    const checkbox = event.target;
+    const charId = checkbox.dataset.characterId;
+    if (!charId)
+        return;
+    if (checkbox.checked) {
+        characterRelationshipsEnabled.add(charId);
+    }
+    else {
+        characterRelationshipsEnabled.delete(charId);
     }
 }
 /**
@@ -1624,18 +1656,27 @@ async function handleGenerateCharacters() {
         // Replace any previously generated characters (those without a file source)
         const existingFileCharacters = availableCharacters.filter((c) => !c.id.includes('-') || c.id.length < 30);
         availableCharacters = [...existingFileCharacters, ...generatedChars];
-        // Re-render checkboxes
-        renderCharacterCheckboxes();
         // Auto-select generated characters
         selectedCharacterIds.clear();
         for (const char of generatedChars) {
             selectedCharacterIds.add(char.id);
         }
+        // Auto-enable relationships for generated characters if relationships were generated
+        if (generateRelationships) {
+            characterRelationshipsEnabled.clear();
+            for (const char of generatedChars) {
+                characterRelationshipsEnabled.add(char.id);
+            }
+        }
+        // Re-render checkboxes (must be after setting state so UI reflects it)
+        renderCharacterCheckboxes();
         // Check all generated character checkboxes
         const checkboxes = charactersList.querySelectorAll('input[type="checkbox"]');
         checkboxes.forEach((checkbox) => {
             const input = checkbox;
-            input.checked = selectedCharacterIds.has(input.value);
+            if (input.value) {
+                input.checked = selectedCharacterIds.has(input.value);
+            }
         });
         // Validate selection
         validateCharacterSelection();
@@ -1695,9 +1736,14 @@ async function handleCreateShow() {
     }
     // Include relationships if generated
     if (generatedRelationships.length > 0) {
-        // Filter relationships to only include those for selected characters
+        // Filter relationships to include only those where:
+        // 1. Both participants are selected
+        // 2. Both participants have relationships enabled
         const selectedIds = new Set(selectedChars.map((c) => c.id));
-        requestBody.relationships = generatedRelationships.filter((rel) => selectedIds.has(rel.participantIds[0]) && selectedIds.has(rel.participantIds[1]));
+        requestBody.relationships = generatedRelationships.filter((rel) => selectedIds.has(rel.participantIds[0]) &&
+            selectedIds.has(rel.participantIds[1]) &&
+            characterRelationshipsEnabled.has(rel.participantIds[0]) &&
+            characterRelationshipsEnabled.has(rel.participantIds[1]));
     }
     try {
         const response = await fetch('/shows', {

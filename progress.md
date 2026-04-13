@@ -3564,3 +3564,29 @@ Added a template information panel to the Debug UI that displays template name, 
 
 **Тесты:** npm test -- tests/unit/llm-host-config-template.test.ts (30 passed), npm run build (passed), npm run typecheck (passed)
 **Заметки:** Шаблон templates находятся в src/formats/, а не в data/templates/ (как указано в acceptance criteria). llmHostConfigSchema использует Partial<> семантику — все поля опциональны, только указанные в шаблоне переопределяют дефолтные. Порядок мержа: DEFAULT_LLM_HOST_CONFIG -> moduleConfig -> templateConfig, что позволяет программно настраивать глобальный config через setConfig(), а затем переопределять его на уровне шаблона.
+
+---
+
+## [2026-04-13] UI-001: Per-character relationships toggle
+**Статус:** done
+**Время:** ~15 минут
+**Изменения:**
+- web/debug-ui/app.ts:
+  - Добавлен characterRelationshipsEnabled: Set<string> для хранения состояния toggle
+  - renderCharacterCheckboxes() теперь создаёт container .character-item с двумя чекбоксами
+  - Добавлен чекбокс "Generate Relationships" для каждого персонажа
+  - handleCharacterRelationshipToggle() обновляет Set при изменении чекбокса
+  - handleGenerateCharacters() автоматически включает relationships для сгенерированных персонажей
+  - handleCreateShow() фильтрует relationships по characterRelationshipsEnabled для обоих участников
+  - resetModalState() очищает characterRelationshipsEnabled
+- web/debug-ui/styles.css:
+  - Добавлены стили для .character-item (flex column layout)
+  - Добавлены стили для .character-option-checkbox (компактный вид toggle)
+
+**Acceptance Criteria:**
+1. Каждый персонаж в списке имеет чекбокс 'Generate Relationships' ✓
+2. При генерации relationships создаются только для выбранных персонажей ✓
+3. UI корректно отображает состояние чекбоксов ✓
+
+**Тесты:** npm run lint (passes), npm run typecheck (passes), npm run build:ui (passes)
+**Заметки:** Реализация уже была в uncommitted changes. Фильтрация relationships происходит на этапе createShow: relationship включается только если ОБА участника имеют включённый toggle.

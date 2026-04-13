@@ -1060,6 +1060,37 @@ body {
   color: var(--text-secondary);
 }
 
+.character-item {
+  display: flex;
+  flex-direction: column;
+  padding: 0.25rem 0;
+  border-bottom: 1px solid var(--bg-light);
+}
+
+.character-item:last-child {
+  border-bottom: none;
+}
+
+.character-option-checkbox {
+  display: flex;
+  align-items: center;
+  padding: 0.25rem 0.5rem 0.25rem 2rem;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.character-option-checkbox:hover {
+  color: var(--text-primary);
+}
+
+.character-option-checkbox input {
+  margin-right: 0.5rem;
+  width: 12px;
+  height: 12px;
+  accent-color: var(--accent);
+}
+
 .loading-text {
   color: var(--text-secondary);
   font-style: italic;
