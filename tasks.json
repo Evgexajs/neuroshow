@@ -3320,6 +3320,86 @@
         "UI-003"
       ],
       "status": "done"
+    },
+    {
+      "id": "RD-001",
+      "category": "mechanics",
+      "priority": "critical",
+      "description": "Design rule-driven mechanics spec",
+      "problem": "Character-driven подход не работает — LLM сглаживает конфликты, уползает в безопасную усреднённость. Нужен rule-driven подход с принудительным конфликтом.",
+      "acceptance_criteria": [
+        "Документ docs/PRD-rule-driven-mechanics.md создан",
+        "Описаны типы structured actions (accuse, betray, bluff, vote, etc.)",
+        "Описаны фазы с принудительным выбором",
+        "Описаны механические последствия (elimination, exposure, power shift)",
+        "Описан формат ответа модели {action, target, speech}"
+      ],
+      "dependencies": [],
+      "status": "pending"
+    },
+    {
+      "id": "RD-002",
+      "category": "mechanics",
+      "priority": "high",
+      "description": "Implement StructuredAction schema",
+      "problem": "Freeform текст позволяет модели избегать острых ходов. Нужен ограниченный набор действий с валидацией.",
+      "acceptance_criteria": [
+        "Zod schema StructuredAction в src/types/actions.ts",
+        "Типы действий: accuse, betray, bluff, vote, defend, reveal",
+        "Каждое действие имеет target (characterId) и optional speech",
+        "Валидатор parseStructuredAction() с fallback на random choice",
+        "Unit тесты для валидации всех типов действий"
+      ],
+      "dependencies": ["RD-001"],
+      "status": "pending"
+    },
+    {
+      "id": "RD-003",
+      "category": "mechanics",
+      "priority": "high",
+      "description": "Forced conflict phases",
+      "problem": "Текущие фазы (discussion) не создают напряжение. Нужны фазы с принудительным конфликтом.",
+      "acceptance_criteria": [
+        "Новые типы фаз: accusation, elimination, secret_vote, reveal",
+        "Фаза accusation: каждый ОБЯЗАН назвать подозреваемого",
+        "Фаза elimination: голосование за исключение",
+        "Фаза reveal: принудительное раскрытие секрета",
+        "Ведущий форсирует выбор через directive, не подсказывает"
+      ],
+      "dependencies": ["RD-002"],
+      "status": "pending"
+    },
+    {
+      "id": "RD-004",
+      "category": "mechanics",
+      "priority": "high",
+      "description": "Mechanical consequences system",
+      "problem": "Нет ставок — ничего не происходит от действий персонажей. Нужны механические последствия.",
+      "acceptance_criteria": [
+        "GameState в src/types/game-state.ts с eliminated[], exposed[], votes{}",
+        "Elimination: персонаж выбывает, больше не говорит",
+        "Exposure: секрет персонажа становится публичным",
+        "Power shift: потеря/удвоение голоса",
+        "Последствия применяются автоматически по результатам фаз"
+      ],
+      "dependencies": ["RD-003"],
+      "status": "pending"
+    },
+    {
+      "id": "RD-005",
+      "category": "mechanics",
+      "priority": "medium",
+      "description": "Constrained prompt format",
+      "problem": "Модель отвечает свободным текстом и избегает острых формулировок. Нужен жёсткий формат ответа.",
+      "acceptance_criteria": [
+        "Prompt template требует ответ в формате JSON {action, target, speech}",
+        "action — один из разрешённых в текущей фазе",
+        "target — ID персонажа из списка",
+        "speech — короткая реплика (max 100 слов)",
+        "Parser с retry: если формат неверный, даётся вторая попытка с hint"
+      ],
+      "dependencies": ["RD-002"],
+      "status": "pending"
     }
   ]
 }
